@@ -165,17 +165,23 @@ sealed class YuchengDeviceEvent {
 
 class YuchengDeviceDataEvent extends YuchengDeviceEvent {
   final int index;
-  final String uuid;
 
+  /// ДЛЯ ANDROID
+  /// Нужен, чтобы подключиться к девайсу
+  /// ДЛЯ IOS
+  /// Uuid девайса
+  final String mac;
+
+  /// Только IOS
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  final bool isCurrentConnected;
+  final bool? isCurrentConnected;
   final String deviceName;
 
   const YuchengDeviceDataEvent({
     required this.index,
     required this.deviceName,
-    required this.uuid,
+    required this.mac,
     required this.isCurrentConnected,
   });
 }
@@ -188,7 +194,7 @@ class YuchengDeviceCompleteEvent extends YuchengDeviceEvent {
 
 @HostApi()
 abstract class YuchengHostApi {
-  /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды)
+  /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
   /// Прослушивать стрим devices
   ///
   /// Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
@@ -213,6 +219,7 @@ abstract class YuchengHostApi {
   @async
   List<YuchengSleepDataEvent?> getSleepData();
 
+  /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
   /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
   /// к девайсу повторно и возвращает его

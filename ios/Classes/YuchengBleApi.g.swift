@@ -340,23 +340,28 @@ protocol YuchengDeviceEvent {
 /// Generated class from Pigeon that represents data sent in messages.
 struct YuchengDeviceDataEvent: YuchengDeviceEvent {
   var index: Int64
-  var uuid: String
+  /// ДЛЯ ANDROID
+  /// Нужен, чтобы подключиться к девайсу
+  /// ДЛЯ IOS
+  /// Uuid девайса
+  var mac: String
+  /// Только IOS
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  var isCurrentConnected: Bool
+  var isCurrentConnected: Bool? = nil
   var deviceName: String
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceDataEvent? {
     let index = pigeonVar_list[0] as! Int64
-    let uuid = pigeonVar_list[1] as! String
-    let isCurrentConnected = pigeonVar_list[2] as! Bool
+    let mac = pigeonVar_list[1] as! String
+    let isCurrentConnected: Bool? = nilOrValue(pigeonVar_list[2])
     let deviceName = pigeonVar_list[3] as! String
 
     return YuchengDeviceDataEvent(
       index: index,
-      uuid: uuid,
+      mac: mac,
       isCurrentConnected: isCurrentConnected,
       deviceName: deviceName
     )
@@ -364,7 +369,7 @@ struct YuchengDeviceDataEvent: YuchengDeviceEvent {
   func toList() -> [Any?] {
     return [
       index,
-      uuid,
+      mac,
       isCurrentConnected,
       deviceName,
     ]
@@ -495,7 +500,7 @@ var yuchengBleApiPigeonMethodCodec = FlutterStandardMethodCodec(readerWriter: Yu
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol YuchengHostApi {
-  /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды)
+  /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
   /// Прослушивать стрим devices
   ///
   /// Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
@@ -511,6 +516,7 @@ protocol YuchengHostApi {
   /// Запрос на получение данных о сне
   /// Можно также прослушивать стрим sleepData
   func getSleepData(completion: @escaping (Result<[YuchengSleepDataEvent?], Error>) -> Void)
+  /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
   /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
   /// к девайсу повторно и возвращает его
@@ -523,7 +529,7 @@ class YuchengHostApiSetup {
   /// Sets up an instance of `YuchengHostApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: YuchengHostApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
-    /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды)
+    /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
     /// Прослушивать стрим devices
     ///
     /// Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
@@ -613,6 +619,7 @@ class YuchengHostApiSetup {
     } else {
       getSleepDataChannel.setMessageHandler(nil)
     }
+    /// ТОЛЬКО IOS
     /// Возвращает текущий подключенный девайс
     /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
     /// к девайсу повторно и возвращает его

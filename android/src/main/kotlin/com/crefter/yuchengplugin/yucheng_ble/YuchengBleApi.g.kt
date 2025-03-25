@@ -304,28 +304,35 @@ sealed class YuchengDeviceEvent
 /** Generated class from Pigeon that represents data sent in messages. */
 data class YuchengDeviceDataEvent (
   val index: Long,
-  val uuid: String,
   /**
+   * ДЛЯ ANDROID
+   * Нужен, чтобы подключиться к девайсу
+   * ДЛЯ IOS
+   * Uuid девайса
+   */
+  val mac: String,
+  /**
+   * Только IOS
    * true - уже изначально подключен
    * false - не был подключен изначально, нужно подключить
    */
-  val isCurrentConnected: Boolean,
+  val isCurrentConnected: Boolean? = null,
   val deviceName: String
 ) : YuchengDeviceEvent()
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceDataEvent {
       val index = pigeonVar_list[0] as Long
-      val uuid = pigeonVar_list[1] as String
-      val isCurrentConnected = pigeonVar_list[2] as Boolean
+      val mac = pigeonVar_list[1] as String
+      val isCurrentConnected = pigeonVar_list[2] as Boolean?
       val deviceName = pigeonVar_list[3] as String
-      return YuchengDeviceDataEvent(index, uuid, isCurrentConnected, deviceName)
+      return YuchengDeviceDataEvent(index, mac, isCurrentConnected, deviceName)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       index,
-      uuid,
+      mac,
       isCurrentConnected,
       deviceName,
     )
@@ -476,7 +483,7 @@ val YuchengBleApiPigeonMethodCodec = StandardMethodCodec(YuchengBleApiPigeonCode
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface YuchengHostApi {
   /**
-   * [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды)
+   * [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
    * Прослушивать стрим devices
    *
    * Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
@@ -498,6 +505,7 @@ interface YuchengHostApi {
    */
   fun getSleepData(callback: (Result<List<YuchengSleepDataEvent?>>) -> Unit)
   /**
+   * ТОЛЬКО IOS
    * Возвращает текущий подключенный девайс
    * Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
    * к девайсу повторно и возвращает его

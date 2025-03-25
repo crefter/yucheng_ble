@@ -503,25 +503,30 @@ sealed class YuchengDeviceEvent {
 class YuchengDeviceDataEvent extends YuchengDeviceEvent {
   YuchengDeviceDataEvent({
     required this.index,
-    required this.uuid,
-    required this.isCurrentConnected,
+    required this.mac,
+    this.isCurrentConnected,
     required this.deviceName,
   });
 
   int index;
 
-  String uuid;
+  /// ДЛЯ ANDROID
+  /// Нужен, чтобы подключиться к девайсу
+  /// ДЛЯ IOS
+  /// Uuid девайса
+  String mac;
 
+  /// Только IOS
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  bool isCurrentConnected;
+  bool? isCurrentConnected;
 
   String deviceName;
 
   List<Object?> _toList() {
     return <Object?>[
       index,
-      uuid,
+      mac,
       isCurrentConnected,
       deviceName,
     ];
@@ -534,8 +539,8 @@ class YuchengDeviceDataEvent extends YuchengDeviceEvent {
     result as List<Object?>;
     return YuchengDeviceDataEvent(
       index: result[0]! as int,
-      uuid: result[1]! as String,
-      isCurrentConnected: result[2]! as bool,
+      mac: result[1]! as String,
+      isCurrentConnected: result[2] as bool?,
       deviceName: result[3]! as String,
     );
   }
@@ -551,7 +556,7 @@ class YuchengDeviceDataEvent extends YuchengDeviceEvent {
     }
     return 
       index == other.index
-      && uuid == other.uuid
+      && mac == other.mac
       && isCurrentConnected == other.isCurrentConnected
       && deviceName == other.deviceName;
   }
@@ -703,7 +708,7 @@ class YuchengHostApi {
 
   final String pigeonVar_messageChannelSuffix;
 
-  /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды)
+  /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
   /// Прослушивать стрим devices
   ///
   /// Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
@@ -844,6 +849,7 @@ class YuchengHostApi {
     }
   }
 
+  /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
   /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
   /// к девайсу повторно и возвращает его
