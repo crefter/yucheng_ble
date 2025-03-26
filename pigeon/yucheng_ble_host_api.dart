@@ -145,6 +145,9 @@ class YuchengProductStateErrorEvent extends YuchengProductStateEvent {
 class YuchengDevice {
   final int index;
   final String deviceName;
+
+  /// Android - тут mac address для подключения
+  /// IOS - uuid девайса
   final String uuid;
 
   /// true - уже изначально подключен
@@ -201,6 +204,7 @@ abstract class YuchengHostApi {
   /// на bluetooth
   void startScanDevices(double? scanTimeInSeconds);
 
+  /// Работает для IOS, для андройд будет просто проверка, подключен ли какой-либо девайс к сдк
   /// [device] - девайс, который нужно проверить
   /// Проверяет, подключен ли данный девайс
   @async
