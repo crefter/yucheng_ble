@@ -217,7 +217,7 @@ abstract class YuchengHostApi {
   /// Запрос на получение данных о сне
   /// Можно также прослушивать стрим sleepData
   @async
-  List<YuchengSleepDataEvent?> getSleepData();
+  List<YuchengSleepEvent?> getSleepData();
 
   /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
@@ -233,7 +233,7 @@ abstract class YuchengStreamApi {
   YuchengDeviceEvent devices();
 
   /// Стрим данных о сне
-  YuchengSleepDataEvent sleepData();
+  YuchengSleepEvent sleepData();
 
   /// Стрим состояний девайсов (подключен или другие)
   YuchengProductStateEvent deviceState();

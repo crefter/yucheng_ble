@@ -16,8 +16,15 @@ buildscript {
 
 allprojects {
     repositories {
+        maven { url 'https://maven.aliyun.com/repository/public/' }
+        maven { url 'https://maven.aliyun.com/repository/google/'}
+        maven { url 'https://maven.aliyun.com/repository/jcenter/'}
         google()
         mavenCentral()
+        flatDir {
+            dirs project(':yucheng_ble').file('libs')
+        }
+        maven { url "https://jitpack.io" }
     }
 }
 
@@ -52,6 +59,24 @@ android {
         testImplementation("org.mockito:mockito-core:5.0.0")
     }
 
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            debuggable true
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
     testOptions {
         unitTests.all {
             useJUnitPlatform()
@@ -63,4 +88,23 @@ android {
             }
         }
     }
+
+    aaptOptions.cruncherEnabled = false
+    aaptOptions.useNewCruncher = false
+}
+
+
+dependencies {
+    implementation fileTree(include: ['*.aar'], dir: 'libs')
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation('org.simpleframework:simple-xml:2.7.1') {
+        exclude group: 'stax', module: 'stax-api'
+        exclude group: 'xpp3', module: 'xpp3'
+    }
+
+    implementation 'no.nordicsemi.android:dfu:1.10.1'
+
+    implementation files('libs/rtk-bbpro-core-1.6.1.jar')
+    implementation files('libs/rtk-core-1.2.1.jar')
+    implementation files('libs/rtk-dfu-3.3.8.jar')
 }

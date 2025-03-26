@@ -515,7 +515,7 @@ protocol YuchengHostApi {
   func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
   /// Запрос на получение данных о сне
   /// Можно также прослушивать стрим sleepData
-  func getSleepData(completion: @escaping (Result<[YuchengSleepDataEvent?], Error>) -> Void)
+  func getSleepData(completion: @escaping (Result<[YuchengSleepEvent?], Error>) -> Void)
   /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
   /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
@@ -704,7 +704,7 @@ class DevicesStreamHandler: PigeonEventChannelWrapper<YuchengDeviceEvent> {
   }
 }
       
-class SleepDataStreamHandler: PigeonEventChannelWrapper<YuchengSleepDataEvent> {
+class SleepDataStreamHandler: PigeonEventChannelWrapper<YuchengSleepEvent> {
   static func register(with messenger: FlutterBinaryMessenger,
                       instanceName: String = "",
                       streamHandler: SleepDataStreamHandler) {
@@ -712,7 +712,7 @@ class SleepDataStreamHandler: PigeonEventChannelWrapper<YuchengSleepDataEvent> {
     if !instanceName.isEmpty {
       channelName += ".\(instanceName)"
     }
-    let internalStreamHandler = PigeonStreamHandler<YuchengSleepDataEvent>(wrapper: streamHandler)
+    let internalStreamHandler = PigeonStreamHandler<YuchengSleepEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: yuchengBleApiPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

@@ -14,7 +14,7 @@ class YuchengBle {
 
   Future<void> disconnect() => YuchengBlePlatform.instance.disconnect();
 
-  Future<List<YuchengSleepDataEvent?>> getSleepData() =>
+  Future<List<YuchengSleepEvent?>> getSleepData() =>
       YuchengBlePlatform.instance.getSleepData();
 
   Future<YuchengDevice?> getCurrentConnectedDevice() =>
@@ -23,7 +23,7 @@ class YuchengBle {
   Stream<YuchengDeviceEvent> devicesStream() =>
       YuchengBlePlatform.instance.devicesStream();
 
-  Stream<YuchengSleepDataEvent> sleepDataStream() =>
+  Stream<YuchengSleepEvent> sleepDataStream() =>
       YuchengBlePlatform.instance.sleepDataStream();
 
   Stream<YuchengProductStateEvent> deviceStateStream() =>

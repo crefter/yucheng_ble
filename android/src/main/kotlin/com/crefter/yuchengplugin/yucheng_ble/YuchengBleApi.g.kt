@@ -503,7 +503,7 @@ interface YuchengHostApi {
    * Запрос на получение данных о сне
    * Можно также прослушивать стрим sleepData
    */
-  fun getSleepData(callback: (Result<List<YuchengSleepDataEvent?>>) -> Unit)
+  fun getSleepData(callback: (Result<List<YuchengSleepEvent?>>) -> Unit)
   /**
    * ТОЛЬКО IOS
    * Возвращает текущий подключенный девайс
@@ -600,7 +600,7 @@ interface YuchengHostApi {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepData$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            api.getSleepData{ result: Result<List<YuchengSleepDataEvent?>> ->
+            api.getSleepData{ result: Result<List<YuchengSleepEvent?>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
@@ -685,14 +685,14 @@ abstract class DevicesStreamHandler : YuchengBleApiPigeonEventChannelWrapper<Yuc
   }
 }
       
-abstract class SleepDataStreamHandler : YuchengBleApiPigeonEventChannelWrapper<YuchengSleepDataEvent> {
+abstract class SleepDataStreamHandler : YuchengBleApiPigeonEventChannelWrapper<YuchengSleepEvent> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: SleepDataStreamHandler, instanceName: String = "") {
       var channelName: String = "dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.sleepData"
       if (instanceName.isNotEmpty()) {
         channelName += ".$instanceName"
       }
-      val internalStreamHandler = YuchengBleApiPigeonStreamHandler<YuchengSleepDataEvent>(streamHandler)
+      val internalStreamHandler = YuchengBleApiPigeonStreamHandler<YuchengSleepEvent>(streamHandler)
       EventChannel(messenger, channelName, YuchengBleApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
     }
   }

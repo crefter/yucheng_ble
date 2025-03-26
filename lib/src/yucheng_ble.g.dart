@@ -821,7 +821,7 @@ class YuchengHostApi {
 
   /// Запрос на получение данных о сне
   /// Можно также прослушивать стрим sleepData
-  Future<List<YuchengSleepDataEvent?>> getSleepData() async {
+  Future<List<YuchengSleepEvent?>> getSleepData() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -845,7 +845,7 @@ class YuchengHostApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<YuchengSleepDataEvent?>();
+      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<YuchengSleepEvent?>();
     }
   }
 
@@ -888,14 +888,14 @@ Stream<YuchengDeviceEvent> devices( {String instanceName = ''}) {
   });
 }
     
-Stream<YuchengSleepDataEvent> sleepData( {String instanceName = ''}) {
+Stream<YuchengSleepEvent> sleepData( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
   final EventChannel sleepDataChannel =
       EventChannel('dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.sleepData$instanceName', pigeonMethodCodec);
   return sleepDataChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as YuchengSleepDataEvent;
+    return event as YuchengSleepEvent;
   });
 }
     
