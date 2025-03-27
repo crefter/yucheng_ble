@@ -43,9 +43,10 @@ class YuchengBlePlugin : FlutterPlugin {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         YuchengHostApi.setUp(binding.binaryMessenger, null)
-        // Отменить поиск в клиенте
+        YCBTClient.stopScanBle()
         devicesHandler?.detach()
         sleepDataHandler?.detach()
+        deviceStateStreamHandler?.detach()
     }
 
     companion object {

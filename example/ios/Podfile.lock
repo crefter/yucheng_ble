@@ -1,27 +1,40 @@
 PODS:
   - Flutter (1.0.0)
+  - flutter_blue_plus_darwin (0.0.2):
+    - Flutter
+    - FlutterMacOS
   - integration_test (0.0.1):
+    - Flutter
+  - permission_handler_apple (9.3.0):
     - Flutter
   - yucheng_ble (0.0.1):
     - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - flutter_blue_plus_darwin (from `.symlinks/plugins/flutter_blue_plus_darwin/darwin`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - yucheng_ble (from `.symlinks/plugins/yucheng_ble/ios`)
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  flutter_blue_plus_darwin:
+    :path: ".symlinks/plugins/flutter_blue_plus_darwin/darwin"
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
   yucheng_ble:
     :path: ".symlinks/plugins/yucheng_ble/ios"
 
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  flutter_blue_plus_darwin: 3ea4ec9133b377febcc8a70b28cd2d2dc9242bd9
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  yucheng_ble: 815b7a6716fa55b88d33e0501f77c4902447ec39
+  permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
+  yucheng_ble: 159e060ac4864cac4e8f1348ac886b564d57671e
 
 PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796
 
