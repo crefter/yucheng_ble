@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:yucheng_ble/export.dart';
 
@@ -48,8 +49,10 @@ class _MyAppState extends State<MyApp> {
   final _ble = YuchengBle();
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
+  late final StreamSubscription<YuchengProductStateEvent> productStateSub;
   final List<YuchengDeviceEvent> devices = [];
   final List<YuchengSleepDataEvent> sleepData = [];
+  final List<YuchengProductStateEvent> productState = [];
   bool isDeviceScanning = false;
   YuchengDevice? selectedDevice;
   bool isDeviceConnected = false;
@@ -113,12 +116,35 @@ class _MyAppState extends State<MyApp> {
         print("SLEEP DATA IS DONE");
       },
     );
+
+    productStateSub = _ble.deviceStateStream().listen(
+      (event) {
+        if (event is YuchengProductStateDataEvent) {
+          if (event.state == YuchengProductState.connected) {
+            isDeviceConnected = true;
+          }
+          setState(() {
+            productState.add(event);
+          });
+        } else if (event is YuchengProductStateErrorEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Ошибка: ${event.error}');
+        }
+      },
+      onError: (e) {
+        print('Error: Product state: $e');
+      },
+      onDone: () {
+        print("PRODUCT STATE IS DONE");
+      },
+    );
   }
 
   @override
   void dispose() {
     devicesSub.cancel();
     sleepDataSub.cancel();
+    productStateSub.cancel();
     super.dispose();
   }
 
@@ -141,8 +167,8 @@ class _MyAppState extends State<MyApp> {
               child: TextButton(
                 onPressed: () async {
                   devices.clear();
-                  // TODO: проверка, что блютуз включен
-                  if (await _ble.isBluetoothEnabled()) {
+                  if (await FlutterBluePlus.adapterState.first ==
+                      BluetoothAdapterState.on) {
                     final isGranted = await requestPermissions();
                     if (!isGranted) {
                       if (!context.mounted) return;

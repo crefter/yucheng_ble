@@ -15,6 +15,7 @@ dependencies:
     path: ../
   cupertino_icons: ^1.0.8
   permission_handler: ^11.4.0
+  flutter_blue_plus: ^1.35.3
 
 dev_dependencies:
   integration_test:
