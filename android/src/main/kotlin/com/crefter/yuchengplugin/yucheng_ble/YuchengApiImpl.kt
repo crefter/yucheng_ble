@@ -18,6 +18,7 @@ import com.yucheng.ycbtsdk.response.BleScanResponse
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.Boolean
 import kotlin.Double
@@ -105,6 +106,7 @@ class YuchengApiImpl(
             return
         }
         selectedDevice = device
+        var isCompleted = false
         YCBTClient.connectBle(macAddress) { state ->
             when (state) {
                 Constants.BLEState.Connected -> {
@@ -114,22 +116,26 @@ class YuchengApiImpl(
                 Constants.BLEState.TimeOut -> {
                     onState(YuchengProductStateDataEvent(YuchengProductState.TIME_OUT))
                     callback(Result.success(false))
+                    isCompleted = true
                     return@connectBle
                 }
 
                 Constants.BLEState.Disconnect -> {
                     onState(YuchengProductStateDataEvent(YuchengProductState.DISCONNECTED))
                     callback(Result.success(false))
+                    isCompleted = true
                     return@connectBle
                 }
 
                 else -> {
                     onState(YuchengProductStateDataEvent(YuchengProductState.UNKNOWN))
                     callback(Result.success(false))
+                    isCompleted = true
                     return@connectBle
                 }
             }
             callback(Result.success(true))
+            isCompleted = true
         }
         try {
             Log.d(YuchengBlePlugin.PLUGIN_TAG, "Try connect")
@@ -144,10 +150,14 @@ class YuchengApiImpl(
                 Log.d("SLEEP CODE", code.toString())
                 Log.d("SLEEP RATIO", ratio.toString())
             }
-            callback(Result.success(true))
         } catch (e: Exception) {
             Log.e(CONNECT, e.toString())
             callback(Result.failure(e))
+        }
+        GlobalScope.launch {
+            delay(1000 * 15)
+            if (isCompleted) return@launch
+            callback(Result.success(false))
         }
     }
 
@@ -167,6 +177,7 @@ class YuchengApiImpl(
         if (!isDeviceConnected(selectedDevice)) callback(Result.success(listOf()))
         if (sleepDataList.isNotEmpty()) callback(Result.success(sleepDataList))
 
+        var isCompleted = false
         try {
             YCBTClient.healthHistoryData(
                 Constants.DATATYPE.Health_HistorySleep
@@ -178,11 +189,13 @@ class YuchengApiImpl(
                 }
                 Log.d("SLEEP CODE", code.toString())
                 Log.d("SLEEP RATIO", ratio.toString())
+                isCompleted = true
                 sleepDataCompleter.complete(null)
             }
         } catch (e: Exception) {
             Log.e(GET_SLEEP_DATA, e.toString())
             callback(Result.failure(e))
+            isCompleted = true
             sleepDataCompleter.completeExceptionally(e)
         }
         GlobalScope.launch {
@@ -193,6 +206,12 @@ class YuchengApiImpl(
             } catch (e: Exception) {
                 Log.e("GET SLEEP DATA ERROR", e.toString())
             }
+        }
+
+        GlobalScope.launch {
+            delay(1000 * 20)
+            if (isCompleted) return@launch
+            callback(Result.success(listOf()))
         }
     }
 

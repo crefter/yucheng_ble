@@ -10,6 +10,7 @@ private class YuchengHostApiImpl : YuchengHostApi {
     private var scannedDevices: [CBPeripheral] = [];
     private var currentDevice: CBPeripheral? = nil;
     private var sleepData: [YuchengSleepDataEvent] = [];
+    private var index: Int = 0;
     
     init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, onState: @escaping (_: YuchengProductStateEvent) -> Void) {
         self.onDevice = onDevice
@@ -49,18 +50,29 @@ private class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func startScanDevices(scanTimeInSeconds: Double?) throws {
-        YCProduct.scanningDevice(delayTime: 3.0) { devices, error in
+        var isCompleted = false
+        YCProduct.scanningDevice(delayTime: scanTimeInSeconds ?? 3.0) { devices, error in
             if (error != nil) {
-                
+                self.onDevice(YuchengDeviceCompleteEvent(completed: false))
+                isCompleted = true;
             } else {
                 self.scannedDevices = devices;
                 for device in devices {
                     var lastConnectedDevice = YCProduct.shared.currentPeripheral;
                     var isCurrentDevice = lastConnectedDevice?.macAddress == device.macAddress;
                     self.currentDevice = isCurrentDevice ? device : nil;
-                    self.onDevice(YuchengDeviceDataEvent(index: 0, mac: device.macAddress, isCurrentConnected: isCurrentDevice, deviceName: device.name ?? device.deviceModel))
+                    self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isCurrentConnected: isCurrentDevice, deviceName: device.name ?? device.deviceModel))
+                    self.index += 1
                 }
+                self.onDevice(YuchengDeviceCompleteEvent(completed: true))
+                isCompleted = true
             }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            if (isCompleted) {
+                return;
+            }
+            self.onDevice(YuchengDeviceCompleteEvent(completed: true))
         }
     }
     
@@ -98,26 +110,49 @@ private class YuchengHostApiImpl : YuchengHostApi {
             completion(.success(false))
             return;
         }
+        
+        var isCompleted = false;
         YCProduct.connectDevice(currentDevice!) { state, error in
             if let error = error {
+                isCompleted = true
                 completion(.failure(error));
             } else {
                 if state == .connected {
+                    isCompleted = true
                     completion(.success(true));
+                    self.querySleepData({result in
+                        print(result)
+                    }, {})
                 } else {
+                    isCompleted = true
                     completion(.success(false))
                 }
             }
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            if (isCompleted) {
+                return;
+            }
+            completion(.success(false))
+        }
     }
     
     func disconnect(completion: @escaping (Result<Void, any Error>) -> Void) {
+        var isCompleted = false
         YCProduct.disconnectDevice(currentDevice ?? YCProduct.shared.currentPeripheral) { state, error in
             if let error = error {
                 completion(.failure(error));
+                isCompleted = true
             } else {
                 completion(.success(()))
+                isCompleted = true
             }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            if (isCompleted) {
+                return;
+            }
+            completion(.success(()))
         }
     }
     
@@ -136,53 +171,69 @@ private class YuchengHostApiImpl : YuchengHostApi {
         }
     }
     
+    private func querySleepData(_ completion: @escaping (Result<[(any YuchengSleepEvent)?], any Error>) -> Void, _ complete: @escaping () -> Void) {
+        YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
+            if state == .succeed, let datas = response as? [YCHealthDataSleep] {
+                for info in datas {
+                    print(info.startTimeStamp,
+                          info.endTimeStamp,
+                          info.lightSleepCount,
+                          info.lightSleepMinutes,
+                          info.deepSleepCount,
+                          info.deepSleepMinutes,
+                          info.sleepDetailDatas
+                    )
+                    var sleepDetails: [YuchengSleepDataDetail] = []
+                    var minutes: YuchengSleepDataMinutes? = nil
+                    var seconds: YuchengSleepDataSeconds? = nil
+                    
+                    for detail in info.sleepDetailDatas {
+                        var type = YuchengSleepType.unknown
+                        let detailType = detail.sleepType
+                        if (detailType == YCHealthDataSleepType.awake) {
+                            type = .awake
+                        } else if (detailType == YCHealthDataSleepType.deepSleep) {
+                            type = .deep
+                        } else if (detailType == YCHealthDataSleepType.lightSleep) {
+                            type = .light
+                        } else if (detailType == YCHealthDataSleepType.unknow) {
+                            type = .unknown
+                        } else if (detailType == YCHealthDataSleepType.rem) {
+                            type = .rem
+                        }
+                        sleepDetails.append(YuchengSleepDataDetail(startTimeStamp: Int64(detail.startTimeStamp), duration: Int64(detail.duration), type: type))
+                    }
+                    if (info.deepSleepCount == 0xFFFF) {
+                        seconds = YuchengSleepDataSeconds(deepSleepSeconds: Int64(info.deepSleepSeconds), remSleepSeconds: Int64(info.remSleepSeconds), lightSleepSeconds: Int64(info.lightSleepSeconds))
+                    } else {
+                        minutes = YuchengSleepDataMinutes(deepSleepMinutes: Int64(info.deepSleepMinutes), remSleepMinutes: Int64(info.remSleepMinutes), lightSleepMinutes: Int64(info.lightSleepMinutes))
+                    }
+                    let event = YuchengSleepDataEvent(startTimeStamp: Int64(info.startTimeStamp), endTimeStamp: Int64(info.endTimeStamp), deepSleepCount: Int64(info.deepSleepCount), lightSleepCount: Int64(info.lightSleepCount), minutes: minutes, seconds: seconds, details: sleepDetails)
+                    self.onSleepData(event)
+                    self.sleepData.append(event)
+                }
+                completion(.success(self.sleepData))
+                self.sleepData = []
+                complete()
+            } else {
+                completion(.success([]))
+                print("No data")
+                complete()
+            }
+        }
+    }
+    
     func getSleepData(completion: @escaping (Result<[(any YuchengSleepEvent)?], any Error>) -> Void) {
         do {
-            YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
-                if state == .succeed, let datas = response as? [YCHealthDataSleep] {
-                    for info in datas {
-                        print(info.startTimeStamp,
-                              info.endTimeStamp,
-                              info.lightSleepCount,
-                              info.lightSleepMinutes,
-                              info.deepSleepCount,
-                              info.deepSleepMinutes,
-                              info.sleepDetailDatas
-                        )
-                        var sleepDetails: [YuchengSleepDataDetail] = []
-                        var minutes: YuchengSleepDataMinutes? = nil
-                        var seconds: YuchengSleepDataSeconds? = nil
-                        
-                        for detail in info.sleepDetailDatas {
-                            var type = YuchengSleepType.unknown
-                            let detailType = detail.sleepType
-                            if (detailType == YCHealthDataSleepType.awake) {
-                                type = .awake
-                            } else if (detailType == YCHealthDataSleepType.deepSleep) {
-                                type = .deep
-                            } else if (detailType == YCHealthDataSleepType.lightSleep) {
-                                type = .light
-                            } else if (detailType == YCHealthDataSleepType.unknow) {
-                                type = .unknown
-                            } else if (detailType == YCHealthDataSleepType.rem) {
-                                type = .rem
-                            }
-                            sleepDetails.append(YuchengSleepDataDetail(startTimeStamp: Int64(detail.startTimeStamp), duration: Int64(detail.duration), type: type))
-                        }
-                        if (info.deepSleepCount == 0xFFFF) {
-                            seconds = YuchengSleepDataSeconds(deepSleepSeconds: Int64(info.deepSleepSeconds), remSleepSeconds: Int64(info.remSleepSeconds), lightSleepSeconds: Int64(info.lightSleepSeconds))
-                        } else {
-                            minutes = YuchengSleepDataMinutes(deepSleepMinutes: Int64(info.deepSleepMinutes), remSleepMinutes: Int64(info.remSleepMinutes), lightSleepMinutes: Int64(info.lightSleepMinutes))
-                        }
-                        let event = YuchengSleepDataEvent(startTimeStamp: Int64(info.startTimeStamp), endTimeStamp: Int64(info.endTimeStamp), deepSleepCount: Int64(info.deepSleepCount), lightSleepCount: Int64(info.lightSleepCount), minutes: minutes, seconds: seconds, details: sleepDetails)
-                        self.onSleepData(event)
-                        self.sleepData.append(event)
-                    }
-                    completion(.success(self.sleepData))
-                    self.sleepData = []
-                } else {
-                    print("No data")
+            var isCompleted = false
+            querySleepData(completion, {
+                isCompleted = true
+            })
+            DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
+                if (isCompleted) {
+                    return
                 }
+                completion(.success([]))
             }
         } catch (let e) {
             completion(.failure(e))
