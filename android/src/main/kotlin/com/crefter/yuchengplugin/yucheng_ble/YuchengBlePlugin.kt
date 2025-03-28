@@ -2,15 +2,10 @@ package com.crefter.yuchengplugin.yucheng_ble
 
 import DeviceStateStreamHandler
 import YuchengHostApi
-import android.os.Build
-import androidx.annotation.NonNull
 import com.yucheng.ycbtsdk.YCBTClient
+import com.yucheng.ycbtsdk.gatt.Reconnect
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.MethodChannel.MethodCallHandler
-import io.flutter.plugin.common.MethodChannel.Result
 
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin {
@@ -25,6 +20,7 @@ class YuchengBlePlugin : FlutterPlugin {
         deviceStateStreamHandler = DeviceStateStreamHandlerImpl()
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
+        Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
 
         DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!)
         SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!)

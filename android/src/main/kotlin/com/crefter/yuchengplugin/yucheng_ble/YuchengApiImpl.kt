@@ -37,6 +37,26 @@ class YuchengApiImpl(
     private val onState: (state: YuchengProductStateEvent) -> Unit,
 ) : YuchengHostApi {
 
+    init {
+        YCBTClient.registerBleStateChange { state ->
+            when (state) {
+                Constants.BLEState.Connected -> {
+                    onState(YuchengProductStateDataEvent(YuchengProductState.CONNECTED))
+                }
+                Constants.BLEState.TimeOut -> {
+                    onState(YuchengProductStateDataEvent(YuchengProductState.TIME_OUT))
+                }
+                Constants.BLEState.Disconnect -> {
+                    onState(YuchengProductStateDataEvent(YuchengProductState.DISCONNECTED))
+                }
+                else -> {
+                    onState(YuchengProductStateDataEvent(YuchengProductState.UNKNOWN))
+
+                }
+            }
+        }
+    }
+
     private var index: Long = 0
     private var devices: MutableList<YuchengDevice> = mutableListOf()
     private var selectedDevice: YuchengDevice? = null

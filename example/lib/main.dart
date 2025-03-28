@@ -137,6 +137,7 @@ class _MainScreenState extends State<MainScreen> {
           setState(() {
             productState.add(event);
           });
+          print('PRODUCT STATE = $event');
         } else if (event is YuchengProductStateErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
