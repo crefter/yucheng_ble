@@ -14,17 +14,17 @@ buildscript {
     }
 }
 
-allprojects {
+rootProject.allprojects {
     repositories {
         maven { url 'https://maven.aliyun.com/repository/public/' }
         maven { url 'https://maven.aliyun.com/repository/google/'}
         maven { url 'https://maven.aliyun.com/repository/jcenter/'}
         google()
         mavenCentral()
+        maven { url "https://jitpack.io" }
         flatDir {
             dirs project(':yucheng_ble').file('libs')
         }
-        maven { url "https://jitpack.io" }
     }
 }
 
@@ -37,17 +37,20 @@ android {
     compileSdk = 35
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11
+        jvmTarget = JavaVersion.VERSION_17
     }
 
     sourceSets {
         main.java.srcDirs += "src/main/kotlin"
         test.java.srcDirs += "src/test/kotlin"
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
     }
 
     defaultConfig {
@@ -71,9 +74,9 @@ android {
         }
     }
 
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['libs']
+    repositories {
+        flatDir {
+            dirs 'libs'
         }
     }
 
@@ -95,8 +98,6 @@ android {
 
 
 dependencies {
-    implementation fileTree(include: ['*.aar'], dir: 'libs')
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation('org.simpleframework:simple-xml:2.7.1') {
         exclude group: 'stax', module: 'stax-api'
         exclude group: 'xpp3', module: 'xpp3'
@@ -107,4 +108,10 @@ dependencies {
     implementation files('libs/rtk-bbpro-core-1.6.1.jar')
     implementation files('libs/rtk-core-1.2.1.jar')
     implementation files('libs/rtk-dfu-3.3.8.jar')
+    implementation(name: 'AliAgent-release-4.1.3', ext: 'aar')
+    implementation(name: 'BmpConvert_V1.2.1-release', ext: 'aar')
+    implementation(name: 'jl_bt_ota_V1.9.3-release', ext: 'aar')
+    implementation(name: 'jl_rcsp_V0.5.2-release', ext: 'aar')
+    implementation(name: 'JL_Watch_V1.10.0-release', ext: 'aar')
+    implementation(name: 'ycbtsdk-release', ext: 'aar')
 }

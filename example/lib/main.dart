@@ -38,14 +38,25 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: MainScreen(),
+    );
+  }
 }
 
-class _MyAppState extends State<MyApp> {
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
   final _ble = YuchengBle();
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
@@ -150,193 +161,219 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-        ),
-        body: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: Text(
-                'Hello, dear!',
-                textAlign: TextAlign.center,
-              ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Plugin example app'),
+      ),
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Text(
+              'Hello, dear!',
+              textAlign: TextAlign.center,
             ),
-            SliverToBoxAdapter(
-              child: TextButton(
-                onPressed: () async {
-                  devices.clear();
-                  if (await FlutterBluePlus.adapterState.first ==
-                      BluetoothAdapterState.on) {
-                    final isGranted = await requestPermissions();
-                    if (!isGranted) {
-                      if (!context.mounted) return;
-                      setState(() {
-                        isDeviceScanning = false;
-                      });
-                      _showSnackBar(context, 'Не выдал разрешения(');
-                    }
-                    setState(() {
-                      isDeviceScanning = true;
-                    });
-                    _ble.startScanDevices(null);
-                  } else {
+          ),
+          SliverToBoxAdapter(
+            child: TextButton(
+              onPressed: () async {
+                devices.clear();
+                if (await FlutterBluePlus.adapterState.first ==
+                    BluetoothAdapterState.on) {
+                  final isGranted = await requestPermissions();
+                  if (!isGranted) {
                     if (!context.mounted) return;
                     setState(() {
                       isDeviceScanning = false;
                     });
-                    _showSnackBar(context, 'Включи блютуз)');
+                    _showSnackBar(context, 'Не выдал разрешения(');
                   }
-                },
-                child: Text(
-                  isDeviceScanning
-                      ? 'Идет сканирование'
-                      : 'Начать сканировать девайсов',
-                ),
+                  setState(() {
+                    isDeviceScanning = true;
+                  });
+                  _ble.startScanDevices(null);
+                } else {
+                  if (!context.mounted) return;
+                  setState(() {
+                    isDeviceScanning = false;
+                  });
+                  await FlutterBluePlus.turnOn();
+                  _showSnackBar(context, 'Включи блютуз)');
+                }
+              },
+              child: Text(
+                isDeviceScanning
+                    ? 'Идет сканирование'
+                    : 'Начать сканировать девайсов',
               ),
             ),
-            SliverList.separated(
-              itemCount: devices.length,
-              itemBuilder: (context, index) {
-                final event = devices[index] as YuchengDeviceDataEvent;
-                final deviceName = event.deviceName;
-                final mac = event.mac;
+          ),
+          SliverList.separated(
+            itemCount: productState.length,
+            itemBuilder: (context, index) {
+              final event = productState[index];
 
-                return Material(
-                  type: MaterialType.transparency,
-                  child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        selectedDevice = YuchengDevice(
-                          index: event.index,
-                          uuid: mac,
-                          deviceName: deviceName,
-                          isCurrentConnected: false,
-                        );
-                      });
-                    },
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.red.shade200,
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(10),
-                        child: Row(
-                          children: [
-                            Text('Index: $index'),
-                            const SizedBox(
-                              width: 12,
-                            ),
-                            Column(
-                              children: [
-                                Text('Device name: $deviceName'),
-                                const SizedBox(
-                                  height: 8,
-                                ),
-                                Text('Mac address: $mac'),
-                              ],
-                            ),
-                          ],
-                        ),
+              final text = switch (event) {
+                YuchengProductStateDataEvent() => event.state.name,
+                YuchengProductStateErrorEvent() =>
+                  '${event.state.name} - ${event.error}',
+              };
+
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.amberAccent.shade400,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(text),
+                    ),
+                  ],
+                ),
+              );
+            },
+            separatorBuilder: (context, index) {
+              return Gap(height: 10);
+            },
+          ),
+          SliverList.separated(
+            itemCount: devices.length,
+            itemBuilder: (context, index) {
+              final event = devices[index] as YuchengDeviceDataEvent;
+              final deviceName = event.deviceName;
+              final mac = event.mac;
+
+              return Material(
+                type: MaterialType.transparency,
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      selectedDevice = YuchengDevice(
+                        index: event.index,
+                        uuid: mac,
+                        deviceName: deviceName,
+                        isCurrentConnected: false,
+                      );
+                    });
+                  },
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: Colors.red.shade200,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.all(10),
+                      child: Row(
+                        children: [
+                          Text('Index: $index'),
+                          const Gap(width: 12),
+                          Column(
+                            children: [
+                              Text('Device name: $deviceName'),
+                              const SizedBox(
+                                height: 8,
+                              ),
+                              Text('Mac address: $mac'),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
+                ),
+              );
+            },
+            separatorBuilder: (BuildContext context, int index) {
+              return SizedBox(height: 8);
+            },
+          ),
+          SliverToBoxAdapter(
+            child: Builder(
+              builder: (context) {
+                if (selectedDevice == null) return const SizedBox();
+
+                return Column(
+                  children: [
+                    const Gap(height: 10),
+                    Text(
+                      'Ты выбрал девайс: ${selectedDevice?.deviceName} : ${selectedDevice?.uuid}',
+                    ),
+                    const Gap(height: 10),
+                    ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await _ble.connect(selectedDevice!);
+                          if (!context.mounted) return;
+                          _showSnackBar(context, 'Подключился!');
+                          setState(() {
+                            isDeviceConnected = true;
+                          });
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          _showSnackBar(
+                            context,
+                            'Не удалось подключиться( ${e.toString()}',
+                          );
+                        }
+                      },
+                      child: Text('Попробовать подключиться к девайсу'),
+                    ),
+                  ],
                 );
               },
-              separatorBuilder: (BuildContext context, int index) {
-                return SizedBox(height: 8);
-              },
             ),
-            SliverToBoxAdapter(
-              child: Builder(
-                builder: (context) {
-                  if (selectedDevice == null) return const SizedBox();
+          ),
+          SliverToBoxAdapter(
+            child: Builder(
+              builder: (context) {
+                if (!isDeviceConnected) return const SizedBox();
 
-                  return Column(
-                    children: [
-                      Gap(height: 10),
-                      Text(
-                        'Ты выбрал девайс: ${selectedDevice?.deviceName} : ${selectedDevice?.uuid}',
-                      ),
-                      Gap(height: 10),
-                      ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            await _ble.connect(selectedDevice!);
-                            if (!context.mounted) return;
-                            _showSnackBar(context, 'Подключился!');
-                            setState(() {
-                              isDeviceConnected = true;
-                            });
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            _showSnackBar(
-                              context,
-                              'Не удалось подключиться( ${e.toString()}',
-                            );
-                          }
-                        },
-                        child: Text('Попробовать подключиться к девайсу'),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Builder(
-                builder: (context) {
-                  if (!isDeviceConnected) return const SizedBox();
-
-                  return Column(
-                    children: [
-                      Text(
-                        'После нажатия на одну из кнопок, подожди,'
-                        '\nмб надо время, чтобы данные подтянулись'
-                        '\nпопробуй каждый!!!',
-                      ),
-                      Gap(height: 10),
-                      ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            await _ble.getSleepData();
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            _showSnackBar(context, 'Ошибка: ${e.toString()}');
-                          }
-                        },
-                        child: Text('1 способ вытянуть сон'),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            SliverList.separated(
-              itemCount: sleepData.length,
-              itemBuilder: (context, index) {
-                final item = sleepData[index];
-                return DecoratedBox(
-                  decoration: BoxDecoration(color: Colors.green.shade500),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.toStr(),
-                        ),
-                      ),
-                    ],
-                  ),
+                return Column(
+                  children: [
+                    Text(
+                      'После нажатия на одну из кнопок, подожди,'
+                      '\nмб надо время, чтобы данные подтянулись'
+                      '\nпопробуй каждый!!!',
+                    ),
+                    const Gap(height: 10),
+                    ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await _ble.getSleepData();
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          _showSnackBar(context, 'Ошибка: ${e.toString()}');
+                        }
+                      },
+                      child: Text('1 способ вытянуть сон'),
+                    ),
+                  ],
                 );
               },
-              separatorBuilder: (context, index) {
-                return const SizedBox(height: 8);
-              },
             ),
-          ],
-        ),
+          ),
+          SliverList.separated(
+            itemCount: sleepData.length,
+            itemBuilder: (context, index) {
+              final item = sleepData[index];
+              return DecoratedBox(
+                decoration: BoxDecoration(color: Colors.green.shade500),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.toStr(),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+            separatorBuilder: (context, index) {
+              return const SizedBox(height: 8);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -356,13 +393,18 @@ class _MyAppState extends State<MyApp> {
 class Gap extends StatelessWidget {
   const Gap({
     super.key,
-    required this.height,
+    this.height,
+    this.width,
   });
 
-  final double height;
+  final double? height;
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(height: height);
+    return SizedBox(
+      height: height,
+      width: width,
+    );
   }
 }

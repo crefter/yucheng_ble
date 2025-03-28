@@ -1,0 +1,1 @@
+-keep class com.crefter.yuchengplugin.yucheng_ble.** { *; }
