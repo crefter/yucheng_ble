@@ -7,30 +7,16 @@ import 'package:yucheng_ble/export.dart';
 
 extension RingSleepDataDetailX on YuchengSleepDataDetail {
   String toStr() {
-    return 'startTime = $startTimeStamp, duration = $duration, type = $type';
-  }
-}
-
-extension YuchengSleepDataMinutesX on YuchengSleepDataMinutes {
-  String toStr() {
-    return 'deepSleepMinutes = $deepSleepMinutes, remSleepMinutes = $remSleepMinutes, '
-        'lightSleepMinutes = $lightSleepMinutes';
-  }
-}
-
-extension YuchengSleepDataSecondsX on YuchengSleepDataSeconds {
-  String toStr() {
-    return 'deepSleepSeconds = $deepSleepSeconds, remSleepSeconds = $remSleepSeconds, '
-        'lightSleepSeconds = $lightSleepSeconds';
+    return 'startTime = $startDate, endDate = $endDate, duration = $duration, type = $type';
   }
 }
 
 extension RingSleepDataX on YuchengSleepDataEvent {
   String toStr() {
-    return 'start = $startTimeStamp, end = $endTimeStamp, deepSleepCount = $deepSleepCount, '
-        'lightSleepCount = $lightSleepCount\n'
-        'minutes = ${minutes?.toStr()} seconds = ${seconds?.toStr()}'
-        '\ndetails: ${details.map((e) => e.toStr())}';
+    return 'start = $startDate, end = $endDate, deepSleepCount = $deepCount, '
+        'lightSleepCount = $lightCount, awakeCount = $awakeCount\n'
+        'deepInSeconds = $deepInSeconds, lightInSeconds = $lightInSeconds, awakeInSeconds = $awakeInSeconds, remInSeconds = $remInSeconds\n'
+        'details: ${details.map((e) => e.toStr())}';
   }
 }
 
@@ -60,10 +46,10 @@ class _MainScreenState extends State<MainScreen> {
   final _ble = YuchengBle();
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
-  late final StreamSubscription<YuchengProductStateEvent> productStateSub;
+  late final StreamSubscription<YuchengDeviceStateEvent> deviceStateSub;
   final List<YuchengDeviceEvent> devices = [];
   final List<YuchengSleepDataEvent> sleepData = [];
-  final List<YuchengProductStateEvent> productState = [];
+  final List<YuchengDeviceStateEvent> productState = [];
   bool isDeviceScanning = false;
   YuchengDevice? selectedDevice;
   bool isDeviceConnected = false;
@@ -74,7 +60,8 @@ class _MainScreenState extends State<MainScreen> {
       Permission.storage,
       Permission.bluetoothConnect,
       Permission.bluetoothScan,
-      Permission.bluetoothAdvertise
+      Permission.bluetoothAdvertise,
+      Permission.bluetooth,
     ].request())
         .values
         .any((e) => e.isGranted);
@@ -128,9 +115,9 @@ class _MainScreenState extends State<MainScreen> {
       },
     );
 
-    productStateSub = _ble.deviceStateStream().listen(
+    deviceStateSub = _ble.deviceStateStream().listen(
       (event) {
-        if (event is YuchengProductStateDataEvent) {
+        if (event is YuchengDeviceStateDataEvent) {
           if (event.state == YuchengProductState.connected) {
             isDeviceConnected = true;
           }
@@ -138,7 +125,7 @@ class _MainScreenState extends State<MainScreen> {
             productState.add(event);
           });
           print('PRODUCT STATE = $event');
-        } else if (event is YuchengProductStateErrorEvent) {
+        } else if (event is YuchengDeviceStateErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
         }
@@ -153,10 +140,18 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ble.reconnect().then((val) {
+      print("RECONNECTED!!!!! - $val");
+    });
+  }
+
+  @override
   void dispose() {
     devicesSub.cancel();
     sleepDataSub.cancel();
-    productStateSub.cancel();
+    deviceStateSub.cancel();
     super.dispose();
   }
 
@@ -209,35 +204,6 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
           SliverList.separated(
-            itemCount: productState.length,
-            itemBuilder: (context, index) {
-              final event = productState[index];
-
-              final text = switch (event) {
-                YuchengProductStateDataEvent() => event.state.name,
-                YuchengProductStateErrorEvent() =>
-                  '${event.state.name} - ${event.error}',
-              };
-
-              return DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.amberAccent.shade400,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(text),
-                    ),
-                  ],
-                ),
-              );
-            },
-            separatorBuilder: (context, index) {
-              return Gap(height: 10);
-            },
-          ),
-          SliverList.separated(
             itemCount: devices.length,
             itemBuilder: (context, index) {
               final event = devices[index] as YuchengDeviceDataEvent;
@@ -288,6 +254,35 @@ class _MainScreenState extends State<MainScreen> {
               return SizedBox(height: 8);
             },
           ),
+          SliverList.separated(
+            itemCount: productState.length,
+            itemBuilder: (context, index) {
+              final event = productState[index];
+
+              final text = switch (event) {
+                YuchengDeviceStateDataEvent() => event.state.name,
+                YuchengDeviceStateErrorEvent() =>
+                  '${event.state.name} - ${event.error}',
+              };
+
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.amberAccent.shade400,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(text),
+                    ),
+                  ],
+                ),
+              );
+            },
+            separatorBuilder: (context, index) {
+              return Gap(height: 10);
+            },
+          ),
           SliverToBoxAdapter(
             child: Builder(
               builder: (context) {
@@ -303,12 +298,13 @@ class _MainScreenState extends State<MainScreen> {
                     ElevatedButton(
                       onPressed: () async {
                         try {
-                          await _ble.connect(selectedDevice!);
+                          isDeviceConnected =
+                              await _ble.connect(selectedDevice!);
                           if (!context.mounted) return;
-                          _showSnackBar(context, 'Подключился!');
-                          setState(() {
-                            isDeviceConnected = true;
-                          });
+                          if (isDeviceConnected) {
+                            _showSnackBar(context, 'Подключился!');
+                          }
+                          setState(() {});
                         } catch (e) {
                           if (!context.mounted) return;
                           _showSnackBar(
@@ -331,22 +327,18 @@ class _MainScreenState extends State<MainScreen> {
 
                 return Column(
                   children: [
-                    Text(
-                      'После нажатия на одну из кнопок, подожди,'
-                      '\nмб надо время, чтобы данные подтянулись'
-                      '\nпопробуй каждый!!!',
-                    ),
                     const Gap(height: 10),
                     ElevatedButton(
                       onPressed: () async {
                         try {
-                          await _ble.getSleepData();
+                          final data = await _ble.getSleepData();
+                          print(data);
                         } catch (e) {
                           if (!context.mounted) return;
                           _showSnackBar(context, 'Ошибка: ${e.toString()}');
                         }
                       },
-                      child: Text('1 способ вытянуть сон'),
+                      child: Text('Получить данные о сне'),
                     ),
                   ],
                 );

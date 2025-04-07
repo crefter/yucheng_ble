@@ -2,6 +2,17 @@ import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 
 import 'yucheng_ble_platform_interface.dart';
 
+extension YuchengSleepDataEventX on YuchengSleepDataEvent {
+  DateTime get startDate => DateTime.fromMillisecondsSinceEpoch(startTimeStamp);
+  DateTime get endDate => DateTime.fromMillisecondsSinceEpoch(endTimeStamp);
+}
+
+extension YuchengSleepDataDetailX on YuchengSleepDataDetail {
+  DateTime get startDate => DateTime.fromMillisecondsSinceEpoch(startTimeStamp);
+  DateTime get endDate =>
+      DateTime.fromMillisecondsSinceEpoch(startTimeStamp + (duration * 1000));
+}
+
 class YuchengBle {
   void startScanDevices(double? scanTimeInSeconds) =>
       YuchengBlePlatform.instance.startScanDevices(scanTimeInSeconds);
@@ -26,6 +37,8 @@ class YuchengBle {
   Stream<YuchengSleepEvent> sleepDataStream() =>
       YuchengBlePlatform.instance.sleepDataStream();
 
-  Stream<YuchengProductStateEvent> deviceStateStream() =>
+  Stream<YuchengDeviceStateEvent> deviceStateStream() =>
       YuchengBlePlatform.instance.deviceStateStream();
+
+  Future<bool> reconnect() => YuchengBlePlatform.instance.reconnect();
 }

@@ -114,4 +114,5 @@ dependencies {
     implementation(name: 'jl_rcsp_V0.5.2-release', ext: 'aar')
     implementation(name: 'JL_Watch_V1.10.0-release', ext: 'aar')
     implementation(name: 'ycbtsdk-release', ext: 'aar')
+    implementation 'com.google.code.gson:gson:2.10.1'
 }

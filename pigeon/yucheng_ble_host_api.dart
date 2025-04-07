@@ -26,34 +26,6 @@ sealed class YuchengSleepEvent {
   const YuchengSleepEvent();
 }
 
-/// Старый формат в минутах
-class YuchengSleepDataMinutes {
-  final int deepSleepMinutes;
-
-  final int remSleepMinutes;
-  final int lightSleepMinutes;
-
-  const YuchengSleepDataMinutes({
-    required this.deepSleepMinutes,
-    required this.remSleepMinutes,
-    required this.lightSleepMinutes,
-  });
-}
-
-/// Если deepSleepCount == 0xFFFF, то новый формат в секундах
-class YuchengSleepDataSeconds {
-  final int deepSleepSeconds;
-
-  final int remSleepSeconds;
-  final int lightSleepSeconds;
-
-  const YuchengSleepDataSeconds({
-    required this.deepSleepSeconds,
-    required this.remSleepSeconds,
-    required this.lightSleepSeconds,
-  });
-}
-
 class YuchengSleepDataEvent extends YuchengSleepEvent {
   /// Начало сна в мс
   final int startTimeStamp;
@@ -62,25 +34,28 @@ class YuchengSleepDataEvent extends YuchengSleepEvent {
   final int endTimeStamp;
 
   /// Если равен 0xFFFF, то новый формат в секундах, иначе старый в минутах
-  final int deepSleepCount;
+  final int deepCount;
 
-  final int lightSleepCount;
+  final int lightCount;
+  final int awakeCount;
+  final int deepInSeconds;
 
-  /// Старый формат, если [deepSleepCount] != 0xFFFF
-  final YuchengSleepDataMinutes? minutes;
-
-  /// Новый формат, если [deepSleepCount] == 0xFFFF
-  final YuchengSleepDataSeconds? seconds;
+  final int remInSeconds;
+  final int lightInSeconds;
+  final int awakeInSeconds;
 
   final List<YuchengSleepDataDetail> details;
 
   const YuchengSleepDataEvent({
     required this.startTimeStamp,
     required this.endTimeStamp,
-    required this.deepSleepCount,
-    required this.minutes,
-    required this.seconds,
-    required this.lightSleepCount,
+    required this.deepCount,
+    required this.awakeCount,
+    required this.lightCount,
+    required this.deepInSeconds,
+    required this.remInSeconds,
+    required this.lightInSeconds,
+    required this.awakeInSeconds,
     required this.details,
   });
 }
@@ -116,26 +91,27 @@ enum YuchengProductState {
   connectedFailed,
   disconnected,
   unavailable,
+  readWriteOK,
   timeOut;
 }
 
-sealed class YuchengProductStateEvent {
-  const YuchengProductStateEvent();
+sealed class YuchengDeviceStateEvent {
+  const YuchengDeviceStateEvent();
 }
 
-class YuchengProductStateDataEvent extends YuchengProductStateEvent {
+class YuchengDeviceStateDataEvent extends YuchengDeviceStateEvent {
   final YuchengProductState state;
 
-  const YuchengProductStateDataEvent({
+  const YuchengDeviceStateDataEvent({
     required this.state,
   });
 }
 
-class YuchengProductStateErrorEvent extends YuchengProductStateEvent {
+class YuchengDeviceStateErrorEvent extends YuchengDeviceStateEvent {
   final YuchengProductState state;
   final String error;
 
-  const YuchengProductStateErrorEvent({
+  const YuchengDeviceStateErrorEvent({
     required this.state,
     required this.error,
   });
@@ -214,6 +190,9 @@ abstract class YuchengHostApi {
   @async
   bool connect(YuchengDevice? device);
 
+  @async
+  bool reconnect();
+
   /// Отключить девайс от сдк
   @async
   void disconnect();
@@ -240,5 +219,5 @@ abstract class YuchengStreamApi {
   YuchengSleepEvent sleepData();
 
   /// Стрим состояний девайсов (подключен или другие)
-  YuchengProductStateEvent deviceState();
+  YuchengDeviceStateEvent deviceState();
 }

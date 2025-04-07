@@ -34,5 +34,7 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   Stream<YuchengSleepEvent> sleepDataStream() => sleepData();
 
   @override
-  Stream<YuchengProductStateEvent> deviceStateStream() => deviceState();
+  Stream<YuchengDeviceStateEvent> deviceStateStream() => deviceState();
+  @override
+  Future<bool> reconnect() => _api.reconnect();
 }

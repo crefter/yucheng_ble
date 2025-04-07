@@ -1,11 +1,15 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
 import DeviceStateStreamHandler
+import DevicesStreamHandler
+import SleepDataStreamHandler
 import YuchengHostApi
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.gatt.Reconnect
-
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+
 
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin {
@@ -13,14 +17,17 @@ class YuchengBlePlugin : FlutterPlugin {
     private var devicesHandler: DevicesStreamHandlerImpl? = null
     private var sleepDataHandler: SleepDataHandlerImpl? = null
     private var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = null
+    private var gson: Gson? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         devicesHandler = DevicesStreamHandlerImpl()
         sleepDataHandler = SleepDataHandlerImpl()
         deviceStateStreamHandler = DeviceStateStreamHandlerImpl()
 
+        gson = GsonBuilder().create()
+
         YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
-        Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
+        Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true);
 
         DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!)
         SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!)
@@ -32,7 +39,8 @@ class YuchengBlePlugin : FlutterPlugin {
         api = YuchengApiImpl(
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
-            onState = { data -> deviceStateStreamHandler?.onState(data) },
+            onState = { data ->  deviceStateStreamHandler?.onState(data) },
+            sleepDataConverter = YuchengSleepDataConverter(gson!!),
         )
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
     }

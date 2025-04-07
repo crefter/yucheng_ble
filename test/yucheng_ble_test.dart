@@ -18,7 +18,7 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Stream<YuchengProductStateEvent> deviceStateStream() {
+  Stream<YuchengDeviceStateEvent> deviceStateStream() {
     // TODO: implement deviceStateStream
     throw UnimplementedError();
   }
@@ -62,6 +62,12 @@ class MockYuchengBlePlatform
   @override
   void startScanDevices(double? scanTimeInSeconds) {
     // TODO: implement startScanDevices
+  }
+
+  @override
+  Future<bool> reconnect() {
+    // TODO: implement reconnect
+    throw UnimplementedError();
   }
 }
 

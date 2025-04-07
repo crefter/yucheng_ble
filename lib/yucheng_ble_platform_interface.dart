@@ -57,7 +57,11 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('sleepData has not been implemented.');
   }
 
-  Stream<YuchengProductStateEvent> deviceStateStream() {
+  Stream<YuchengDeviceStateEvent> deviceStateStream() {
     throw UnimplementedError('deviceState has not been implemented.');
+  }
+
+  Future<bool> reconnect() {
+    throw UnimplementedError('reconnect has not been implemented.');
   }
 }

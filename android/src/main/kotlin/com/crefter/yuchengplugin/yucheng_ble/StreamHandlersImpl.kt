@@ -5,16 +5,20 @@ import DevicesStreamHandler
 import PigeonEventSink
 import SleepDataStreamHandler
 import YuchengDeviceEvent
-import YuchengProductStateEvent
+import YuchengDeviceStateEvent
 import YuchengSleepEvent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 
 class DevicesStreamHandlerImpl : DevicesStreamHandler() {
     private var eventSink: PigeonEventSink<YuchengDeviceEvent>? = null
+    private var uiThreadHandler: Handler? = null
 
     override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengDeviceEvent>) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Devices stream handler onListen")
         eventSink = sink
+        uiThreadHandler = Handler(Looper.getMainLooper())
     }
 
     override fun onCancel(p0: Any?) {
@@ -24,7 +28,7 @@ class DevicesStreamHandlerImpl : DevicesStreamHandler() {
 
     fun onDevice(device: YuchengDeviceEvent) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Devices stream handler onDevice")
-        eventSink?.success(device)
+        uiThreadHandler?.post { eventSink?.success(device) }
     }
 
     fun detach() {
@@ -36,10 +40,12 @@ class DevicesStreamHandlerImpl : DevicesStreamHandler() {
 
 class SleepDataHandlerImpl : SleepDataStreamHandler() {
     private var eventSink: PigeonEventSink<YuchengSleepEvent>? = null
+    private var uiThreadHandler: Handler? = null
 
     override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengSleepEvent>) {
         Log.d( YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler onListen")
         eventSink = sink
+        uiThreadHandler = Handler(Looper.getMainLooper())
     }
 
     override fun onCancel(p0: Any?) {
@@ -49,7 +55,7 @@ class SleepDataHandlerImpl : SleepDataStreamHandler() {
 
     fun onSleepData(sleepData: YuchengSleepEvent) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler onSleepData")
-        eventSink?.success(sleepData)
+        uiThreadHandler?.post { eventSink?.success(sleepData) }
     }
 
     fun detach() {
@@ -60,11 +66,13 @@ class SleepDataHandlerImpl : SleepDataStreamHandler() {
 }
 
 class DeviceStateStreamHandlerImpl : DeviceStateStreamHandler() {
-    private var eventSink: PigeonEventSink<YuchengProductStateEvent>? = null
+    private var eventSink: PigeonEventSink<YuchengDeviceStateEvent>? = null
+    private var uiThreadHandler: Handler? = null
 
-    override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengProductStateEvent>) {
+    override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengDeviceStateEvent>) {
         Log.d( YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler onListen")
         eventSink = sink
+        uiThreadHandler = Handler(Looper.getMainLooper())
     }
 
     override fun onCancel(p0: Any?) {
@@ -72,9 +80,9 @@ class DeviceStateStreamHandlerImpl : DeviceStateStreamHandler() {
         eventSink = null
     }
 
-    fun onState(state: YuchengProductStateEvent) {
+    fun onState(state: YuchengDeviceStateEvent) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler onSleepData")
-        eventSink?.success(state)
+        uiThreadHandler?.post { eventSink?.success(state) }
     }
 
     fun detach() {

@@ -5,28 +5,20 @@ import YuchengDevice
 import YuchengDeviceCompleteEvent
 import YuchengDeviceDataEvent
 import YuchengDeviceEvent
+import YuchengDeviceStateDataEvent
+import YuchengDeviceStateEvent
 import YuchengHostApi
 import YuchengProductState
-import YuchengProductStateDataEvent
-import YuchengProductStateEvent
 import YuchengSleepEvent
 import android.util.Log
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
-import com.yucheng.ycbtsdk.bean.ScanDeviceBean
 import com.yucheng.ycbtsdk.response.BleScanResponse
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.Boolean
-import kotlin.Double
-import kotlin.Exception
-import kotlin.Int
-import kotlin.Long
-import kotlin.Result
-import kotlin.Unit
 
 
 private const val SCAN_PERIOD: Int = 10
@@ -34,24 +26,31 @@ private const val SCAN_PERIOD: Int = 10
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
     private val onSleepData: (sleepData: YuchengSleepEvent) -> Unit,
-    private val onState: (state: YuchengProductStateEvent) -> Unit,
+    private val onState: (state: YuchengDeviceStateEvent) -> Unit,
+    private val sleepDataConverter: YuchengSleepDataConverter,
 ) : YuchengHostApi {
 
     init {
         YCBTClient.registerBleStateChange { state ->
             when (state) {
                 Constants.BLEState.Connected -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.CONNECTED))
+                    onState(YuchengDeviceStateDataEvent(YuchengProductState.CONNECTED))
                 }
-                Constants.BLEState.TimeOut -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.TIME_OUT))
-                }
-                Constants.BLEState.Disconnect -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.DISCONNECTED))
-                }
-                else -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.UNKNOWN))
 
+                Constants.BLEState.TimeOut -> {
+                    onState(YuchengDeviceStateDataEvent(YuchengProductState.TIME_OUT))
+                }
+
+                Constants.BLEState.Disconnect -> {
+                    onState(YuchengDeviceStateDataEvent(YuchengProductState.DISCONNECTED))
+                }
+
+                Constants.BLEState.ReadWriteOK -> {
+                    onState(YuchengDeviceStateDataEvent(YuchengProductState.READ_WRITE_OK))
+                }
+
+                else -> {
+                    onState(YuchengDeviceStateDataEvent(YuchengProductState.UNKNOWN))
                 }
             }
         }
@@ -61,7 +60,7 @@ class YuchengApiImpl(
     private var devices: MutableList<YuchengDevice> = mutableListOf()
     private var selectedDevice: YuchengDevice? = null
     private val sleepDataList: MutableList<YuchengSleepEvent> = mutableListOf()
-    private val sleepDataCompleter = CompletableDeferred<List<YuchengSleepEvent>?>()
+    private var sleepDataCompleter: CompletableDeferred<List<YuchengSleepEvent>?>? = null
 
     override fun startScanDevices(scanTimeInSeconds: Double?) {
         if (YCBTClient.isScaning()) {
@@ -114,10 +113,14 @@ class YuchengApiImpl(
 
     private fun isDeviceConnected(device: YuchengDevice?): Boolean {
         if (device == null) return false
-        if (!devices.contains(device)) return false
-        return YCBTClient.connectState() == Constants.BLEState.Connected
+        return try {
+            YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+        } catch (e: Exception) {
+            false
+        }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override fun connect(device: YuchengDevice?, callback: (Result<Boolean>) -> Unit) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start connect")
         val macAddress = device?.uuid
@@ -127,51 +130,29 @@ class YuchengApiImpl(
         }
         selectedDevice = device
         var isCompleted = false
-        YCBTClient.connectBle(macAddress) { state ->
-            when (state) {
-                Constants.BLEState.Connected -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.CONNECTED))
-                }
-
-                Constants.BLEState.TimeOut -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.TIME_OUT))
-                    callback(Result.success(false))
-                    isCompleted = true
-                    return@connectBle
-                }
-
-                Constants.BLEState.Disconnect -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.DISCONNECTED))
-                    callback(Result.success(false))
-                    isCompleted = true
-                    return@connectBle
-                }
-
-                else -> {
-                    onState(YuchengProductStateDataEvent(YuchengProductState.UNKNOWN))
-                    callback(Result.success(false))
-                    isCompleted = true
-                    return@connectBle
-                }
-            }
-            callback(Result.success(true))
+        YCBTClient.connectBle(macAddress) { _ ->
+            val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+            callback(Result.success(isConnected))
             isCompleted = true
         }
+        GlobalScope.launch {
+            delay(1000 * 15)
+            if (isCompleted) return@launch
+            callback(Result.success(false))
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun reconnect(callback: (Result<Boolean>) -> Unit) {
+        var isCompleted = false;
         try {
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Try connect")
-            YCBTClient.healthHistoryData(
-                Constants.DATATYPE.Health_HistorySleep
-            ) { code, ratio, data ->
-                if (data != null) {
-                    Log.d("SLEEP DATA", data.toString())
-                } else {
-                    Log.e("NO SLEEP DATA", "NO SLEEP DATA")
+            YCBTClient.reconnectBle {
+                if (YCBTClient.connectState() == Constants.BLEState.ReadWriteOK) {
+                    isCompleted = true
+                    callback(Result.success(true))
                 }
-                Log.d("SLEEP CODE", code.toString())
-                Log.d("SLEEP RATIO", ratio.toString())
             }
         } catch (e: Exception) {
-            Log.e(CONNECT, e.toString())
             callback(Result.failure(e))
         }
         GlobalScope.launch {
@@ -194,33 +175,45 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun getSleepData(callback: (Result<List<YuchengSleepEvent?>>) -> Unit) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get sleep data")
-        if (!isDeviceConnected(selectedDevice)) callback(Result.success(listOf()))
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) callback(
+            Result.success(
+                listOf()
+            )
+        )
+        sleepDataCompleter = CompletableDeferred()
         if (sleepDataList.isNotEmpty()) callback(Result.success(sleepDataList))
-
-        var isCompleted = false
         try {
             YCBTClient.healthHistoryData(
                 Constants.DATATYPE.Health_HistorySleep
             ) { code, ratio, data ->
                 if (data != null) {
-                    Log.d("SLEEP DATA", data.toString())
+                    val sleepData = data["data"] as List<*>? ?: return@healthHistoryData
+                    val sleepEvents = sleepData.map {
+                        val yuchengSleepEvent = sleepDataConverter.convert(it)
+                        return@map yuchengSleepEvent
+                    }
+                    sleepDataList.addAll(sleepEvents)
+                    for (i in 0 until sleepDataList.size) {
+                        onSleepData(sleepEvents[i])
+                    }
+                    Log.d("SLEEP DATA CONVERTED", sleepEvents.toString())
                 } else {
                     Log.e("NO SLEEP DATA", "NO SLEEP DATA")
                 }
                 Log.d("SLEEP CODE", code.toString())
                 Log.d("SLEEP RATIO", ratio.toString())
-                isCompleted = true
-                sleepDataCompleter.complete(null)
+                if (sleepDataCompleter?.isCompleted == false) {
+                    sleepDataCompleter?.complete(null)
+                }
             }
         } catch (e: Exception) {
             Log.e(GET_SLEEP_DATA, e.toString())
             callback(Result.failure(e))
-            isCompleted = true
-            sleepDataCompleter.completeExceptionally(e)
+            sleepDataCompleter?.completeExceptionally(e)
         }
         GlobalScope.launch {
             try {
-                val sleepData = sleepDataCompleter.await()
+                val sleepData = sleepDataCompleter?.await()
                 callback(Result.success(sleepData ?: listOf()))
                 sleepDataList.clear()
             } catch (e: Exception) {
@@ -229,14 +222,22 @@ class YuchengApiImpl(
         }
 
         GlobalScope.launch {
-            delay(1000 * 20)
-            if (isCompleted) return@launch
-            callback(Result.success(listOf()))
+            delay(1000 * 10)
+            if (sleepDataCompleter?.isCompleted == false) {
+                sleepDataCompleter?.complete(null)
+            }
         }
     }
 
     override fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit) {
-        callback(Result.success(null))
+        try {
+            YCBTClient.getDeviceInfo { code, ratio, data ->
+                Log.d(YUCHENG_API, data.toString())
+                callback(Result.success(null))
+            }
+        } catch (e: Exception) {
+            callback(Result.failure(e))
+        }
     }
 
 

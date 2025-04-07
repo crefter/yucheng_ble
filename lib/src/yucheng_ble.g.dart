@@ -44,130 +44,24 @@ enum YuchengProductState {
   connectedFailed,
   disconnected,
   unavailable,
+  readWriteOK,
   timeOut,
 }
 
 sealed class YuchengSleepEvent {
 }
 
-/// Старый формат в минутах
-class YuchengSleepDataMinutes {
-  YuchengSleepDataMinutes({
-    required this.deepSleepMinutes,
-    required this.remSleepMinutes,
-    required this.lightSleepMinutes,
-  });
-
-  int deepSleepMinutes;
-
-  int remSleepMinutes;
-
-  int lightSleepMinutes;
-
-  List<Object?> _toList() {
-    return <Object?>[
-      deepSleepMinutes,
-      remSleepMinutes,
-      lightSleepMinutes,
-    ];
-  }
-
-  Object encode() {
-    return _toList();  }
-
-  static YuchengSleepDataMinutes decode(Object result) {
-    result as List<Object?>;
-    return YuchengSleepDataMinutes(
-      deepSleepMinutes: result[0]! as int,
-      remSleepMinutes: result[1]! as int,
-      lightSleepMinutes: result[2]! as int,
-    );
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) {
-    if (other is! YuchengSleepDataMinutes || other.runtimeType != runtimeType) {
-      return false;
-    }
-    if (identical(this, other)) {
-      return true;
-    }
-    return 
-      deepSleepMinutes == other.deepSleepMinutes
-      && remSleepMinutes == other.remSleepMinutes
-      && lightSleepMinutes == other.lightSleepMinutes;
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
-}
-
-/// Если deepSleepCount == 0xFFFF, то новый формат в секундах
-class YuchengSleepDataSeconds {
-  YuchengSleepDataSeconds({
-    required this.deepSleepSeconds,
-    required this.remSleepSeconds,
-    required this.lightSleepSeconds,
-  });
-
-  int deepSleepSeconds;
-
-  int remSleepSeconds;
-
-  int lightSleepSeconds;
-
-  List<Object?> _toList() {
-    return <Object?>[
-      deepSleepSeconds,
-      remSleepSeconds,
-      lightSleepSeconds,
-    ];
-  }
-
-  Object encode() {
-    return _toList();  }
-
-  static YuchengSleepDataSeconds decode(Object result) {
-    result as List<Object?>;
-    return YuchengSleepDataSeconds(
-      deepSleepSeconds: result[0]! as int,
-      remSleepSeconds: result[1]! as int,
-      lightSleepSeconds: result[2]! as int,
-    );
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) {
-    if (other is! YuchengSleepDataSeconds || other.runtimeType != runtimeType) {
-      return false;
-    }
-    if (identical(this, other)) {
-      return true;
-    }
-    return 
-      deepSleepSeconds == other.deepSleepSeconds
-      && remSleepSeconds == other.remSleepSeconds
-      && lightSleepSeconds == other.lightSleepSeconds;
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
-}
-
 class YuchengSleepDataEvent extends YuchengSleepEvent {
   YuchengSleepDataEvent({
     required this.startTimeStamp,
     required this.endTimeStamp,
-    required this.deepSleepCount,
-    required this.lightSleepCount,
-    this.minutes,
-    this.seconds,
+    required this.deepCount,
+    required this.lightCount,
+    required this.awakeCount,
+    required this.deepInSeconds,
+    required this.remInSeconds,
+    required this.lightInSeconds,
+    required this.awakeInSeconds,
     required this.details,
   });
 
@@ -178,15 +72,19 @@ class YuchengSleepDataEvent extends YuchengSleepEvent {
   int endTimeStamp;
 
   /// Если равен 0xFFFF, то новый формат в секундах, иначе старый в минутах
-  int deepSleepCount;
+  int deepCount;
 
-  int lightSleepCount;
+  int lightCount;
 
-  /// Старый формат, если [deepSleepCount] != 0xFFFF
-  YuchengSleepDataMinutes? minutes;
+  int awakeCount;
 
-  /// Новый формат, если [deepSleepCount] == 0xFFFF
-  YuchengSleepDataSeconds? seconds;
+  int deepInSeconds;
+
+  int remInSeconds;
+
+  int lightInSeconds;
+
+  int awakeInSeconds;
 
   List<YuchengSleepDataDetail> details;
 
@@ -194,10 +92,13 @@ class YuchengSleepDataEvent extends YuchengSleepEvent {
     return <Object?>[
       startTimeStamp,
       endTimeStamp,
-      deepSleepCount,
-      lightSleepCount,
-      minutes,
-      seconds,
+      deepCount,
+      lightCount,
+      awakeCount,
+      deepInSeconds,
+      remInSeconds,
+      lightInSeconds,
+      awakeInSeconds,
       details,
     ];
   }
@@ -210,11 +111,14 @@ class YuchengSleepDataEvent extends YuchengSleepEvent {
     return YuchengSleepDataEvent(
       startTimeStamp: result[0]! as int,
       endTimeStamp: result[1]! as int,
-      deepSleepCount: result[2]! as int,
-      lightSleepCount: result[3]! as int,
-      minutes: result[4] as YuchengSleepDataMinutes?,
-      seconds: result[5] as YuchengSleepDataSeconds?,
-      details: (result[6] as List<Object?>?)!.cast<YuchengSleepDataDetail>(),
+      deepCount: result[2]! as int,
+      lightCount: result[3]! as int,
+      awakeCount: result[4]! as int,
+      deepInSeconds: result[5]! as int,
+      remInSeconds: result[6]! as int,
+      lightInSeconds: result[7]! as int,
+      awakeInSeconds: result[8]! as int,
+      details: (result[9] as List<Object?>?)!.cast<YuchengSleepDataDetail>(),
     );
   }
 
@@ -230,10 +134,13 @@ class YuchengSleepDataEvent extends YuchengSleepEvent {
     return 
       startTimeStamp == other.startTimeStamp
       && endTimeStamp == other.endTimeStamp
-      && deepSleepCount == other.deepSleepCount
-      && lightSleepCount == other.lightSleepCount
-      && minutes == other.minutes
-      && seconds == other.seconds
+      && deepCount == other.deepCount
+      && lightCount == other.lightCount
+      && awakeCount == other.awakeCount
+      && deepInSeconds == other.deepInSeconds
+      && remInSeconds == other.remInSeconds
+      && lightInSeconds == other.lightInSeconds
+      && awakeInSeconds == other.awakeInSeconds
       && _deepEquals(details, other.details);
   }
 
@@ -342,11 +249,11 @@ class YuchengSleepErrorEvent extends YuchengSleepEvent {
 ;
 }
 
-sealed class YuchengProductStateEvent {
+sealed class YuchengDeviceStateEvent {
 }
 
-class YuchengProductStateDataEvent extends YuchengProductStateEvent {
-  YuchengProductStateDataEvent({
+class YuchengDeviceStateDataEvent extends YuchengDeviceStateEvent {
+  YuchengDeviceStateDataEvent({
     required this.state,
   });
 
@@ -361,9 +268,9 @@ class YuchengProductStateDataEvent extends YuchengProductStateEvent {
   Object encode() {
     return _toList();  }
 
-  static YuchengProductStateDataEvent decode(Object result) {
+  static YuchengDeviceStateDataEvent decode(Object result) {
     result as List<Object?>;
-    return YuchengProductStateDataEvent(
+    return YuchengDeviceStateDataEvent(
       state: result[0]! as YuchengProductState,
     );
   }
@@ -371,7 +278,7 @@ class YuchengProductStateDataEvent extends YuchengProductStateEvent {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! YuchengProductStateDataEvent || other.runtimeType != runtimeType) {
+    if (other is! YuchengDeviceStateDataEvent || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -387,8 +294,8 @@ class YuchengProductStateDataEvent extends YuchengProductStateEvent {
 ;
 }
 
-class YuchengProductStateErrorEvent extends YuchengProductStateEvent {
-  YuchengProductStateErrorEvent({
+class YuchengDeviceStateErrorEvent extends YuchengDeviceStateEvent {
+  YuchengDeviceStateErrorEvent({
     required this.state,
     required this.error,
   });
@@ -407,9 +314,9 @@ class YuchengProductStateErrorEvent extends YuchengProductStateEvent {
   Object encode() {
     return _toList();  }
 
-  static YuchengProductStateErrorEvent decode(Object result) {
+  static YuchengDeviceStateErrorEvent decode(Object result) {
     result as List<Object?>;
-    return YuchengProductStateErrorEvent(
+    return YuchengDeviceStateErrorEvent(
       state: result[0]! as YuchengProductState,
       error: result[1]! as String,
     );
@@ -418,7 +325,7 @@ class YuchengProductStateErrorEvent extends YuchengProductStateEvent {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! YuchengProductStateErrorEvent || other.runtimeType != runtimeType) {
+    if (other is! YuchengDeviceStateErrorEvent || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -447,6 +354,8 @@ class YuchengDevice {
 
   String deviceName;
 
+  /// Android - тут mac address для подключения
+  /// IOS - uuid девайса
   String uuid;
 
   /// true - уже изначально подключен
@@ -623,35 +532,29 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is YuchengProductState) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is YuchengSleepDataMinutes) {
+    }    else if (value is YuchengSleepDataEvent) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataSeconds) {
+    }    else if (value is YuchengSleepDataDetail) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataEvent) {
+    }    else if (value is YuchengSleepErrorEvent) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataDetail) {
+    }    else if (value is YuchengDeviceStateDataEvent) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepErrorEvent) {
+    }    else if (value is YuchengDeviceStateErrorEvent) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengProductStateDataEvent) {
+    }    else if (value is YuchengDevice) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengProductStateErrorEvent) {
+    }    else if (value is YuchengDeviceDataEvent) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDevice) {
-      buffer.putUint8(138);
-      writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceDataEvent) {
-      buffer.putUint8(139);
-      writeValue(buffer, value.encode());
     }    else if (value is YuchengDeviceCompleteEvent) {
-      buffer.putUint8(140);
+      buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -668,24 +571,20 @@ class _PigeonCodec extends StandardMessageCodec {
         final int? value = readValue(buffer) as int?;
         return value == null ? null : YuchengProductState.values[value];
       case 131: 
-        return YuchengSleepDataMinutes.decode(readValue(buffer)!);
-      case 132: 
-        return YuchengSleepDataSeconds.decode(readValue(buffer)!);
-      case 133: 
         return YuchengSleepDataEvent.decode(readValue(buffer)!);
-      case 134: 
+      case 132: 
         return YuchengSleepDataDetail.decode(readValue(buffer)!);
-      case 135: 
+      case 133: 
         return YuchengSleepErrorEvent.decode(readValue(buffer)!);
+      case 134: 
+        return YuchengDeviceStateDataEvent.decode(readValue(buffer)!);
+      case 135: 
+        return YuchengDeviceStateErrorEvent.decode(readValue(buffer)!);
       case 136: 
-        return YuchengProductStateDataEvent.decode(readValue(buffer)!);
-      case 137: 
-        return YuchengProductStateErrorEvent.decode(readValue(buffer)!);
-      case 138: 
         return YuchengDevice.decode(readValue(buffer)!);
-      case 139: 
+      case 137: 
         return YuchengDeviceDataEvent.decode(readValue(buffer)!);
-      case 140: 
+      case 138: 
         return YuchengDeviceCompleteEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -736,6 +635,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Работает для IOS, для андройд будет просто проверка, подключен ли какой-либо девайс к сдк
   /// [device] - девайс, который нужно проверить
   /// Проверяет, подключен ли данный девайс
   Future<bool> isDeviceConnected(YuchengDevice device) async {
@@ -775,6 +675,34 @@ class YuchengHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[device]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as bool?)!;
+    }
+  }
+
+  Future<bool> reconnect() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.reconnect$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -899,14 +827,14 @@ Stream<YuchengSleepEvent> sleepData( {String instanceName = ''}) {
   });
 }
     
-Stream<YuchengProductStateEvent> deviceState( {String instanceName = ''}) {
+Stream<YuchengDeviceStateEvent> deviceState( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
   final EventChannel deviceStateChannel =
       EventChannel('dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.deviceState$instanceName', pigeonMethodCodec);
   return deviceStateChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as YuchengProductStateEvent;
+    return event as YuchengDeviceStateEvent;
   });
 }
     
