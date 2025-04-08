@@ -55,6 +55,7 @@ android {
 
     defaultConfig {
         minSdk = 21
+        multiDexEnabled true
     }
 
     dependencies {
@@ -104,6 +105,7 @@ dependencies {
     }
 
     implementation 'no.nordicsemi.android:dfu:1.10.1'
+    implementation "androidx.multidex:multidex:2.0.1"
 
     implementation files('libs/rtk-bbpro-core-1.6.1.jar')
     implementation files('libs/rtk-core-1.2.1.jar')

@@ -34,7 +34,7 @@ SPEC CHECKSUMS:
   flutter_blue_plus_darwin: 3ea4ec9133b377febcc8a70b28cd2d2dc9242bd9
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
   permission_handler_apple: 9878588469a2b0d0fc1e048d9f43605f92e6cec2
-  yucheng_ble: 159e060ac4864cac4e8f1348ac886b564d57671e
+  yucheng_ble: 6020e05000676ca64fb8de3aa3e5abed17fe3b9b
 
 PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796
 
