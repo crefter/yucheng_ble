@@ -78,6 +78,6 @@ class YuchengSleepDataConverter(private val gson: Gson) {
     }
 
     private fun sleepDurationFormat(duration: Int, isOldFormat: Boolean): Int {
-        return duration * (if (isOldFormat) 1000 else 1)
+        return duration * (if (isOldFormat) 60 else 1)
     }
 }

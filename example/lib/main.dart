@@ -120,7 +120,7 @@ class _MainScreenState extends State<MainScreen> {
     deviceStateSub = _ble.deviceStateStream().listen(
       (event) {
         if (event is YuchengDeviceStateDataEvent) {
-          if (event.state == YuchengProductState.connected) {
+          if (event.state == YuchengProductState.readWriteOK) {
             isDeviceConnected = true;
           }
           setState(() {
