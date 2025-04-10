@@ -6,6 +6,7 @@
 //
 import YCProductSDK
 import Flutter
+import CoreBluetooth
 
 class DeviceStateStreamHandlerImpl : DeviceStateStreamHandler {
     private var eventSink: PigeonEventSink<YuchengDeviceStateEvent>? = nil;

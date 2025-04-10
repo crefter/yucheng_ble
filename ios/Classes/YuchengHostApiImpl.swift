@@ -5,6 +5,8 @@
 //  Created by Maxim Zarechnev on 10.04.2025.
 //
 import YCProductSDK
+import CoreBluetooth
+import Flutter
 
 enum UnimplementedError : Error {
     case notImplemented(String)
