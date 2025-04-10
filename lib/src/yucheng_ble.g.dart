@@ -612,7 +612,7 @@ class YuchengHostApi {
   ///
   /// Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
   /// на bluetooth
-  Future<void> startScanDevices(double? scanTimeInSeconds) async {
+  Future<List<YuchengDevice>> startScanDevices(double? scanTimeInSeconds) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.startScanDevices$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -630,8 +630,13 @@ class YuchengHostApi {
         message: pigeonVar_replyList[1] as String?,
         details: pigeonVar_replyList[2],
       );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
     } else {
-      return;
+      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<YuchengDevice>();
     }
   }
 

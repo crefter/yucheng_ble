@@ -427,7 +427,7 @@ interface YuchengHostApi {
    * Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
    * на bluetooth
    */
-  fun startScanDevices(scanTimeInSeconds: Double?)
+  fun startScanDevices(scanTimeInSeconds: Double?, callback: (Result<List<YuchengDevice>>) -> Unit)
   /**
    * Работает для IOS, для андройд будет просто проверка, подключен ли какой-либо девайс к сдк
    * [device] - девайс, который нужно проверить
@@ -467,13 +467,15 @@ interface YuchengHostApi {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val scanTimeInSecondsArg = args[0] as Double?
-            val wrapped: List<Any?> = try {
-              api.startScanDevices(scanTimeInSecondsArg)
-              listOf(null)
-            } catch (exception: Throwable) {
-              wrapError(exception)
+            api.startScanDevices(scanTimeInSecondsArg) { result: Result<List<YuchengDevice>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

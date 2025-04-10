@@ -448,7 +448,7 @@ protocol YuchengHostApi {
   ///
   /// Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
   /// на bluetooth
-  func startScanDevices(scanTimeInSeconds: Double?) throws
+  func startScanDevices(scanTimeInSeconds: Double?, completion: @escaping (Result<[YuchengDevice], Error>) -> Void)
   /// Работает для IOS, для андройд будет просто проверка, подключен ли какой-либо девайс к сдк
   /// [device] - девайс, который нужно проверить
   /// Проверяет, подключен ли данный девайс
@@ -484,11 +484,13 @@ class YuchengHostApiSetup {
       startScanDevicesChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let scanTimeInSecondsArg: Double? = nilOrValue(args[0])
-        do {
-          try api.startScanDevices(scanTimeInSeconds: scanTimeInSecondsArg)
-          reply(wrapResult(nil))
-        } catch {
-          reply(wrapError(error))
+        api.startScanDevices(scanTimeInSeconds: scanTimeInSecondsArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
         }
       }
     } else {

@@ -7,7 +7,7 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   final YuchengHostApi _api = YuchengHostApi();
 
   @override
-  void startScanDevices(double? scanTimeInSeconds) =>
+  Future<List<YuchengDevice>> startScanDevices(double? scanTimeInSeconds) =>
       _api.startScanDevices(scanTimeInSeconds);
 
   @override

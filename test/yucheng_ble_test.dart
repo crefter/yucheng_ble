@@ -57,8 +57,10 @@ class MockYuchengBlePlatform
   }
 
   @override
-  void startScanDevices(double? scanTimeInSeconds) {
+  Future<List<YuchengDevice>> startScanDevices(
+      double? scanTimeInSeconds) async {
     // TODO: implement startScanDevices
+    throw UnimplementedError();
   }
 
   @override

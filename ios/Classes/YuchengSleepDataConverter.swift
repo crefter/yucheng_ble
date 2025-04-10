@@ -10,11 +10,15 @@ import YCProductSDK
 class YuchengSleepDataConverter {
     func convert(sleepDataFromDevice: YCHealthDataSleep) -> YuchengSleepDataEvent {
         var sleepDetails: [YuchengSleepDataDetail] = []
+        var awakeCount = 0;
+        var awakeSeconds = 0;
         for detail in sleepDataFromDevice.sleepDetailDatas {
             var type = YuchengSleepType.unknown
             let detailType = detail.sleepType
             if (detailType == YCHealthDataSleepType.awake) {
                 type = .awake
+                awakeCount += 1
+                awakeSeconds += Int(detail.duration)
             } else if (detailType == YCHealthDataSleepType.deepSleep) {
                 type = .deep
             } else if (detailType == YCHealthDataSleepType.lightSleep) {
@@ -32,7 +36,7 @@ class YuchengSleepDataConverter {
         let lightSeconds = isOldFormat ? sleepDataFromDevice.lightSleepMinutes * 60 : sleepDataFromDevice.lightSleepSeconds
         let remSeconds = isOldFormat ? sleepDataFromDevice.remSleepMinutes * 60 : sleepDataFromDevice.remSleepSeconds
         
-        let event = YuchengSleepDataEvent(startTimeStamp: Int64(sleepDataFromDevice.startTimeStamp), endTimeStamp: Int64(sleepDataFromDevice.endTimeStamp), deepCount: Int64(sleepDataFromDevice.deepSleepCount), lightCount: Int64(sleepDataFromDevice.lightSleepCount),  awakeCount: Int64(0), deepInSeconds: Int64(deepSeconds), remInSeconds: Int64(remSeconds), lightInSeconds: Int64(lightSeconds), awakeInSeconds: Int64(0), details: sleepDetails )
+        let event = YuchengSleepDataEvent(startTimeStamp: Int64(sleepDataFromDevice.startTimeStamp), endTimeStamp: Int64(sleepDataFromDevice.endTimeStamp), deepCount: Int64(sleepDataFromDevice.deepSleepCount), lightCount: Int64(sleepDataFromDevice.lightSleepCount),  awakeCount: Int64(awakeCount), deepInSeconds: Int64(deepSeconds), remInSeconds: Int64(remSeconds), lightInSeconds: Int64(lightSeconds), awakeInSeconds: Int64(awakeSeconds), details: sleepDetails )
         return event
     }
 }

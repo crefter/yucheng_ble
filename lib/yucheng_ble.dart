@@ -42,7 +42,7 @@ extension YuchengSleepDataDetailX on YuchengSleepDataDetail {
 }
 
 class YuchengBle {
-  void startScanDevices(double? scanTimeInSeconds) =>
+  Future<List<YuchengDevice>> startScanDevices(double? scanTimeInSeconds) =>
       YuchengBlePlatform.instance.startScanDevices(scanTimeInSeconds);
 
   Future<bool> isDeviceConnected(YuchengDevice? device) =>

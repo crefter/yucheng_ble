@@ -59,17 +59,22 @@ class YuchengApiImpl(
     private var index: Long = 0
     private var devices: MutableList<YuchengDevice> = mutableListOf()
     private var selectedDevice: YuchengDevice? = null
-    private val sleepDataList: MutableList<YuchengSleepEvent> = mutableListOf()
 
-    override fun startScanDevices(scanTimeInSeconds: Double?) {
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun startScanDevices(
+        scanTimeInSeconds: Double?,
+        callback: (Result<List<YuchengDevice>>) -> Unit
+    ) {
         if (YCBTClient.isScaning()) {
             YCBTClient.stopScanBle();
         }
+        val completer = CompletableDeferred<List<YuchengDevice>>()
         try {
             Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start scan")
             YCBTClient.startScanBle(BleScanResponse { _, device ->
                 if (device == null) {
                     onDevice(YuchengDeviceCompleteEvent(completed = true))
+                    if (!completer.isCompleted) completer.complete(devices)
                     Log.d(YuchengBlePlugin.PLUGIN_TAG, "End scan")
                 } else {
                     val ycDevice =
@@ -92,6 +97,20 @@ class YuchengApiImpl(
             }, scanTimeInSeconds?.toInt() ?: SCAN_PERIOD)
         } catch (e: Exception) {
             Log.e(START_SCAN, e.toString())
+            if (!completer.isCompleted) completer.completeExceptionally(e)
+            onDevice(YuchengDeviceCompleteEvent(completed = false))
+        }
+        GlobalScope.launch {
+            try {
+                callback(Result.success(completer.await()))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+
+        GlobalScope.launch {
+            delay(1000 * 15)
+            if (!completer.isCompleted) completer.complete(devices)
         }
     }
 
@@ -130,37 +149,44 @@ class YuchengApiImpl(
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start connect")
         val macAddress = device.uuid
         selectedDevice = device
-        var isCompleted = false
-        YCBTClient.connectBle(macAddress) { _ ->
-            val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
-            callback(Result.success(isConnected))
-            isCompleted = true
+        val completer = CompletableDeferred<Boolean>()
+        YCBTClient.connectBle(macAddress) { code ->
+            if (code == 0) {
+                Log.d("AAAAAAAAAAAAAAAAA", code.toString())
+                val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+                if (!completer.isCompleted) completer.complete(isConnected)
+            }
+        }
+        GlobalScope.launch {
+            callback(Result.success(completer.await()))
         }
         GlobalScope.launch {
             delay(1000 * 15)
-            if (isCompleted) return@launch
-            callback(Result.success(false))
+            if (!completer.isCompleted) completer.complete(false)
         }
     }
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun reconnect(callback: (Result<Boolean>) -> Unit) {
-        var isCompleted = false;
+        val completer = CompletableDeferred<Boolean>()
         try {
             YCBTClient.reconnectBle {
-                if (YCBTClient.connectState() == Constants.BLEState.ReadWriteOK) {
-                    isCompleted = true
-                    callback(Result.success(true))
-                }
+                val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK;
+                completer.complete(isConnected)
             }
         } catch (e: Exception) {
-            isCompleted = true
-            callback(Result.failure(e))
+            if (!completer.isCompleted) completer.completeExceptionally(e)
+        }
+        GlobalScope.launch {
+            try {
+                callback(Result.success(completer.await()))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
         }
         GlobalScope.launch {
             delay(1000 * 15)
-            if (isCompleted) return@launch
-            callback(Result.success(false))
+            if (!completer.isCompleted) completer.complete(false)
         }
     }
 
@@ -181,6 +207,7 @@ class YuchengApiImpl(
             callback(Result.success(listOf()))
         }
         val sleepDataCompleter = CompletableDeferred<List<YuchengSleepEvent>>()
+        val sleepDataList: MutableList<YuchengSleepEvent> = mutableListOf()
         try {
             YCBTClient.healthHistoryData(
                 Constants.DATATYPE.Health_HistorySleep
@@ -214,7 +241,6 @@ class YuchengApiImpl(
             try {
                 val sleepData = sleepDataCompleter.await()
                 callback(Result.success(sleepData))
-                sleepDataList.clear()
             } catch (e: Exception) {
                 Log.e("GET SLEEP DATA ERROR", e.toString())
                 callback(Result.failure(e))

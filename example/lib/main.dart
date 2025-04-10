@@ -49,9 +49,9 @@ class _MainScreenState extends State<MainScreen> {
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
   late final StreamSubscription<YuchengDeviceStateEvent> deviceStateSub;
-  final List<YuchengDeviceEvent> devices = [];
+  final List<YuchengDevice> devices = [];
   final List<YuchengSleepDataEvent> sleepData = [];
-  final List<YuchengDeviceStateEvent> productState = [];
+  final List<YuchengDeviceStateEvent> deviceState = [];
   bool isDeviceScanning = false;
   YuchengDevice? selectedDevice;
   bool isDeviceConnected = false;
@@ -85,9 +85,6 @@ class _MainScreenState extends State<MainScreen> {
           });
           return;
         }
-        setState(() {
-          devices.add(event);
-        });
         print(event);
       },
       onError: (e) {
@@ -122,7 +119,7 @@ class _MainScreenState extends State<MainScreen> {
             isDeviceConnected = true;
           }
           setState(() {
-            productState.add(event);
+            deviceState.add(event);
           });
           print('PRODUCT STATE = $event');
         } else if (event is YuchengDeviceStateErrorEvent) {
@@ -189,7 +186,10 @@ class _MainScreenState extends State<MainScreen> {
                     setState(() {
                       isDeviceScanning = true;
                     });
-                    _ble.startScanDevices(null);
+                    final devices = await _ble.startScanDevices(null);
+                    setState(() {
+                      this.devices.addAll(devices);
+                    });
                   } else {
                     if (!context.mounted) return;
                     setState(() {
@@ -209,9 +209,9 @@ class _MainScreenState extends State<MainScreen> {
             SliverList.separated(
               itemCount: devices.length,
               itemBuilder: (context, index) {
-                final event = devices[index] as YuchengDeviceDataEvent;
+                final event = devices[index];
                 final deviceName = event.deviceName;
-                final mac = event.mac;
+                final mac = event.uuid;
 
                 return Material(
                   type: MaterialType.transparency,
@@ -258,9 +258,9 @@ class _MainScreenState extends State<MainScreen> {
               },
             ),
             SliverList.separated(
-              itemCount: productState.length,
+              itemCount: deviceState.length,
               itemBuilder: (context, index) {
-                final event = productState[index];
+                final event = deviceState[index];
 
                 final text = switch (event) {
                   YuchengDeviceStateDataEvent() => event.state.name,
@@ -301,9 +301,10 @@ class _MainScreenState extends State<MainScreen> {
                       ElevatedButton(
                         onPressed: () async {
                           try {
-                            isDeviceConnected =
+                            final isDeviceConnected =
                                 await _ble.connect(selectedDevice!);
                             if (!context.mounted) return;
+                            this.isDeviceConnected = isDeviceConnected;
                             if (isDeviceConnected) {
                               _showSnackBar(context, 'Подключился!');
                             }
@@ -335,10 +336,17 @@ class _MainScreenState extends State<MainScreen> {
                         onPressed: () async {
                           try {
                             final data = await _ble.getSleepData();
-                            final onlySleepData =
+                            final sleepDataFromDevice =
                                 data.whereType<YuchengSleepDataEvent>();
                             setState(() {
-                              sleepData.addAll(onlySleepData);
+                              sleepData.addAll(sleepDataFromDevice);
+                            });
+                            sleepDataFromDevice.forEach((event) {
+                              var awakeCount = event.details
+                                  .where(
+                                      (e) => e.type == YuchengSleepType.awake)
+                                  .length;
+                              print("AWAKE COUNT IN DETAILS IS = $awakeCount");
                             });
                             print(data);
                           } catch (e) {

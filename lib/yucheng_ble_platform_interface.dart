@@ -24,7 +24,7 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  void startScanDevices(double? scanTimeInSeconds) {
+  Future<List<YuchengDevice>> startScanDevices(double? scanTimeInSeconds) {
     throw UnimplementedError('startScanDevices has not been implemented.');
   }
 

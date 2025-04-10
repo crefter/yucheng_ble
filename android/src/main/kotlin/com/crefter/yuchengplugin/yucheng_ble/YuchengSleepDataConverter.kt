@@ -16,7 +16,7 @@ private class SleepDataBean(
         value =
             "rapidEyeMovementTotal", alternate = ["remTimes"]
     )
-    var rapidEyeMovementTotal: Int, // eyeMovementTotal
+    val rapidEyeMovementTotal: Int, // eyeMovementTotal
     val wakeCount: Int,// number of times awake
     val wakeDuration: Int,// length of time awake
     val sleepData: List<SleepData> = ArrayList(), // sleep data
@@ -42,10 +42,10 @@ class YuchengSleepDataConverter(private val gson: Gson) {
         val converted = gson.fromJson(sleepDataBean.toString(), SleepDataBean::class.java)
         val deepSleepCount = converted.deepSleepCount.toLong()
         val isOldFormat = deepSleepCount.toInt() != 0xFFFF
-        val deepSleepInSeconds = sleepDurationFormat(converted.deepSleepTotal, isOldFormat)
-        val remSleepInSeconds = sleepDurationFormat(converted.rapidEyeMovementTotal, isOldFormat)
-        val lightSleepInSeconds = sleepDurationFormat(converted.lightSleepTotal, isOldFormat)
-        val awakeSleepInSeconds = sleepDurationFormat(converted.wakeDuration, isOldFormat)
+        val deepSleepInSeconds = formatSleepDuration(converted.deepSleepTotal, isOldFormat)
+        val remSleepInSeconds = formatSleepDuration(converted.rapidEyeMovementTotal, isOldFormat)
+        val lightSleepInSeconds = formatSleepDuration(converted.lightSleepTotal, isOldFormat)
+        val awakeSleepInSeconds = formatSleepDuration(converted.wakeDuration, isOldFormat)
 
         val details = converted.sleepData.map {
                 detail ->
@@ -77,7 +77,7 @@ class YuchengSleepDataConverter(private val gson: Gson) {
         )
     }
 
-    private fun sleepDurationFormat(duration: Int, isOldFormat: Boolean): Int {
+    private fun formatSleepDuration(duration: Int, isOldFormat: Boolean): Int {
         return duration * (if (isOldFormat) 60 else 1)
     }
 }

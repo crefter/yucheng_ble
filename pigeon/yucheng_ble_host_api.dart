@@ -178,7 +178,8 @@ abstract class YuchengHostApi {
   ///
   /// Перед сканированием нужно проверить, включен ли bluetooth и запросить разрешения
   /// на bluetooth
-  void startScanDevices(double? scanTimeInSeconds);
+  @async
+  List<YuchengDevice> startScanDevices(double? scanTimeInSeconds);
 
   /// Работает для IOS, для андройд будет просто проверка, подключен ли какой-либо девайс к сдк
   /// [device] - девайс, который нужно проверить
