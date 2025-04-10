@@ -4,6 +4,8 @@
 //
 //  Created by Maxim Zarechnev on 10.04.2025.
 //
+import YCProductSDK
+
 enum UnimplementedError : Error {
     case notImplemented(String)
 }

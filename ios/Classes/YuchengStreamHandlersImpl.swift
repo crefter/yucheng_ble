@@ -4,6 +4,8 @@
 //
 //  Created by Maxim Zarechnev on 10.04.2025.
 //
+import YCProductSDK
+import Flutter
 
 class DeviceStateStreamHandlerImpl : DeviceStateStreamHandler {
     private var eventSink: PigeonEventSink<YuchengDeviceStateEvent>? = nil;
