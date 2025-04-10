@@ -57,7 +57,6 @@ class YuchengApiImpl(
     }
 
     private var index: Long = 0
-    private var devices: MutableList<YuchengDevice> = mutableListOf()
     private var selectedDevice: YuchengDevice? = null
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -68,6 +67,7 @@ class YuchengApiImpl(
         if (YCBTClient.isScaning()) {
             YCBTClient.stopScanBle();
         }
+        val devices: MutableList<YuchengDevice> = mutableListOf()
         val completer = CompletableDeferred<List<YuchengDevice>>()
         try {
             Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start scan")
