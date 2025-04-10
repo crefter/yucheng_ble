@@ -170,9 +170,11 @@ class YuchengApiImpl(
     override fun reconnect(callback: (Result<Boolean>) -> Unit) {
         val completer = CompletableDeferred<Boolean>()
         try {
-            YCBTClient.reconnectBle {
-                val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK;
-                completer.complete(isConnected)
+            YCBTClient.reconnectBle { code ->
+                if (code == 0) {
+                    val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK;
+                    completer.complete(isConnected)
+                }
             }
         } catch (e: Exception) {
             if (!completer.isCompleted) completer.completeExceptionally(e)
