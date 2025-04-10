@@ -73,7 +73,7 @@ class YuchengHostApiImpl : YuchengHostApi {
        var lastConnectedDevice = YCProduct.shared.currentPeripheral;
        var ycDevices: [YuchengDevice] = [];
        do {
-           YCProduct.scanningDevice(delayTime: scanTimeInSeconds ?? 3.0) { devices, error in
+           YCProduct.scanningDevice(delayTime: scanTimeInSeconds ?? 10.0) { devices, error in
                if (error != nil) {
                    self.onDevice(YuchengDeviceCompleteEvent(completed: false))
                    isCompleted = true;
@@ -97,7 +97,7 @@ class YuchengHostApiImpl : YuchengHostApi {
            self.onDevice(YuchengDeviceCompleteEvent(completed: false))
            completion(.failure(e))
        }
-       DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+       DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
            if (isCompleted) {
                return;
            }

@@ -81,7 +81,10 @@ class DeviceStateStreamHandlerImpl : DeviceStateStreamHandler() {
     }
 
     fun onState(state: YuchengDeviceStateEvent) {
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onSleepData")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")
+        if (uiThreadHandler == null) {
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "UI THREAD IS NULL!")
+        }
         uiThreadHandler?.post { eventSink?.success(state) }
     }
 
