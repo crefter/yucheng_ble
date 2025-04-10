@@ -45,10 +45,10 @@ class YuchengBle {
   void startScanDevices(double? scanTimeInSeconds) =>
       YuchengBlePlatform.instance.startScanDevices(scanTimeInSeconds);
 
-  Future<bool> isDeviceConnected(YuchengDevice device) =>
+  Future<bool> isDeviceConnected(YuchengDevice? device) =>
       YuchengBlePlatform.instance.isDeviceConnected(device);
 
-  Future<bool> connect(YuchengDevice? device) =>
+  Future<bool> connect(YuchengDevice device) =>
       YuchengBlePlatform.instance.connect(device);
 
   Future<void> disconnect() => YuchengBlePlatform.instance.disconnect();

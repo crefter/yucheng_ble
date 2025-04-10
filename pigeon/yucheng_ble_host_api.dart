@@ -184,11 +184,11 @@ abstract class YuchengHostApi {
   /// [device] - девайс, который нужно проверить
   /// Проверяет, подключен ли данный девайс
   @async
-  bool isDeviceConnected(YuchengDevice device);
+  bool isDeviceConnected(YuchengDevice? device);
 
   /// Подключить девайс к сдк
   @async
-  bool connect(YuchengDevice? device);
+  bool connect(YuchengDevice device);
 
   @async
   bool reconnect();

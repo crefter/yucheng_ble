@@ -101,9 +101,7 @@ class _MainScreenState extends State<MainScreen> {
     sleepDataSub = _ble.sleepDataStream().listen(
       (event) {
         if (event is YuchengSleepDataEvent) {
-          setState(() {
-            sleepData.add(event);
-          });
+          print(event.toJson());
         } else if (event is YuchengSleepErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
@@ -337,6 +335,11 @@ class _MainScreenState extends State<MainScreen> {
                         onPressed: () async {
                           try {
                             final data = await _ble.getSleepData();
+                            final onlySleepData =
+                                data.whereType<YuchengSleepDataEvent>();
+                            setState(() {
+                              sleepData.addAll(onlySleepData);
+                            });
                             print(data);
                           } catch (e) {
                             if (!context.mounted) return;

@@ -11,11 +11,11 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
       _api.startScanDevices(scanTimeInSeconds);
 
   @override
-  Future<bool> isDeviceConnected(YuchengDevice device) =>
+  Future<bool> isDeviceConnected(YuchengDevice? device) =>
       _api.isDeviceConnected(device);
 
   @override
-  Future<bool> connect(YuchengDevice? device) => _api.connect(device);
+  Future<bool> connect(YuchengDevice device) => _api.connect(device);
 
   @override
   Future<void> disconnect() => _api.disconnect();

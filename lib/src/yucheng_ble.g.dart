@@ -638,7 +638,7 @@ class YuchengHostApi {
   /// Работает для IOS, для андройд будет просто проверка, подключен ли какой-либо девайс к сдк
   /// [device] - девайс, который нужно проверить
   /// Проверяет, подключен ли данный девайс
-  Future<bool> isDeviceConnected(YuchengDevice device) async {
+  Future<bool> isDeviceConnected(YuchengDevice? device) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.isDeviceConnected$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -667,7 +667,7 @@ class YuchengHostApi {
   }
 
   /// Подключить девайс к сдк
-  Future<bool> connect(YuchengDevice? device) async {
+  Future<bool> connect(YuchengDevice device) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.connect$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,

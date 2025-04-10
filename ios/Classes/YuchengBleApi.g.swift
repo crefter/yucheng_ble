@@ -452,9 +452,9 @@ protocol YuchengHostApi {
   /// Работает для IOS, для андройд будет просто проверка, подключен ли какой-либо девайс к сдк
   /// [device] - девайс, который нужно проверить
   /// Проверяет, подключен ли данный девайс
-  func isDeviceConnected(device: YuchengDevice, completion: @escaping (Result<Bool, Error>) -> Void)
+  func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Подключить девайс к сдк
-  func connect(device: YuchengDevice?, completion: @escaping (Result<Bool, Error>) -> Void)
+  func connect(device: YuchengDevice, completion: @escaping (Result<Bool, Error>) -> Void)
   func reconnect(completion: @escaping (Result<Bool, Error>) -> Void)
   /// Отключить девайс от сдк
   func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
@@ -501,7 +501,7 @@ class YuchengHostApiSetup {
     if let api = api {
       isDeviceConnectedChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let deviceArg = args[0] as! YuchengDevice
+        let deviceArg: YuchengDevice? = nilOrValue(args[0])
         api.isDeviceConnected(device: deviceArg) { result in
           switch result {
           case .success(let res):
@@ -519,7 +519,7 @@ class YuchengHostApiSetup {
     if let api = api {
       connectChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let deviceArg: YuchengDevice? = nilOrValue(args[0])
+        let deviceArg = args[0] as! YuchengDevice
         api.connect(device: deviceArg) { result in
           switch result {
           case .success(let res):

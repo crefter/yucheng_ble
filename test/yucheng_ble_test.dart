@@ -9,10 +9,7 @@ class MockYuchengBlePlatform
     with MockPlatformInterfaceMixin
     implements YuchengBlePlatform {
   @override
-  Future<String?> getPlatformVersion() => Future.value('42');
-
-  @override
-  Future<bool> connect(YuchengDevice? device) {
+  Future<bool> connect(YuchengDevice device) {
     // TODO: implement connect
     throw UnimplementedError();
   }
@@ -48,7 +45,7 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<bool> isDeviceConnected(YuchengDevice device) {
+  Future<bool> isDeviceConnected(YuchengDevice? device) {
     // TODO: implement isDeviceConnected
     throw UnimplementedError();
   }

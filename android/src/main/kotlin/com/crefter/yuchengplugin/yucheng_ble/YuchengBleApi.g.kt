@@ -433,9 +433,9 @@ interface YuchengHostApi {
    * [device] - девайс, который нужно проверить
    * Проверяет, подключен ли данный девайс
    */
-  fun isDeviceConnected(device: YuchengDevice, callback: (Result<Boolean>) -> Unit)
+  fun isDeviceConnected(device: YuchengDevice?, callback: (Result<Boolean>) -> Unit)
   /** Подключить девайс к сдк */
-  fun connect(device: YuchengDevice?, callback: (Result<Boolean>) -> Unit)
+  fun connect(device: YuchengDevice, callback: (Result<Boolean>) -> Unit)
   fun reconnect(callback: (Result<Boolean>) -> Unit)
   /** Отключить девайс от сдк */
   fun disconnect(callback: (Result<Unit>) -> Unit)
@@ -484,7 +484,7 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val deviceArg = args[0] as YuchengDevice
+            val deviceArg = args[0] as YuchengDevice?
             api.isDeviceConnected(deviceArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
@@ -504,7 +504,7 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val deviceArg = args[0] as YuchengDevice?
+            val deviceArg = args[0] as YuchengDevice
             api.connect(deviceArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {

@@ -11,15 +11,17 @@ private class YuchengHostApiImpl : YuchengHostApi {
     private let onDevice: (_: YuchengDeviceEvent) -> Void;
     private let onSleepData: (_: YuchengSleepEvent) -> Void;
     private let onState: (_: YuchengDeviceStateEvent) -> Void;
+    private let converter: YuchengSleepDataConverter;
     private var scannedDevices: [CBPeripheral] = [];
     private var currentDevice: CBPeripheral? = nil;
     private var sleepData: [YuchengSleepDataEvent] = [];
     private var index: Int = 0;
     
-    init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, onState: @escaping (_: YuchengDeviceStateEvent) -> Void) {
+    init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, onState: @escaping (_: YuchengDeviceStateEvent) -> Void, converter: YuchengSleepDataConverter) {
         self.onDevice = onDevice
         self.onSleepData = onSleepData
         self.onState = onState
+        self.converter = converter
         initApi()
     }
     
@@ -83,39 +85,42 @@ private class YuchengHostApiImpl : YuchengHostApi {
         }
     }
     
-    func isDeviceConnected(device: YuchengDevice, completion: @escaping (Result<Bool, any Error>) -> Void)
+    func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, any Error>) -> Void)
     {
         do {
             var lastConnectedDevice = YCProduct.shared.currentPeripheral;
-            var isConnected = (lastConnectedDevice?.macAddress == device.uuid);
+            if (device == nil) {
+                completion(.success(lastConnectedDevice != nil))
+            }
+            
+            var isConnected = (lastConnectedDevice?.macAddress == device?.uuid);
             completion(.success(isConnected))
         } catch (let e) {
             completion(.failure(e))
         }
     }
     
-    func connect(device: YuchengDevice?, completion: @escaping (Result<Bool, any Error>) -> Void) {
-        if (device == nil) {
-            completion(.success(false));
-            return;
-        }
+    func connect(device: YuchengDevice, completion: @escaping (Result<Bool, any Error>) -> Void) {
         if (currentDevice != nil) {
-            if (device?.deviceName == currentDevice?.name || device?.uuid == currentDevice?.macAddress) {
+            if (device.deviceName == currentDevice?.name || device.uuid == currentDevice?.macAddress) {
                 completion(.success(true))
                 return;
             }
         }
         
         currentDevice = scannedDevices.first(where: { scannedDevice in
-            scannedDevice.name == device?.deviceName || scannedDevice.macAddress == device?.uuid
+            scannedDevice.name == device.deviceName || scannedDevice.macAddress == device.uuid
         })
         
         if (currentDevice == nil) {
             currentDevice = YCProduct.shared.currentPeripheral;
         }
-        if (currentDevice == nil) {
-            completion(.success(false))
-            return;
+        
+        if (currentDevice != nil) {
+            if (device.deviceName == currentDevice?.name || device.uuid == currentDevice?.macAddress) {
+                completion(.success(true))
+                return;
+            }
         }
         
         var isCompleted = false;
@@ -189,33 +194,9 @@ private class YuchengHostApiImpl : YuchengHostApi {
                           info.deepSleepMinutes,
                           info.sleepDetailDatas
                     )
-                    var sleepDetails: [YuchengSleepDataDetail] = []
-                    
-                    for detail in info.sleepDetailDatas {
-                        var type = YuchengSleepType.unknown
-                        let detailType = detail.sleepType
-                        if (detailType == YCHealthDataSleepType.awake) {
-                            type = .awake
-                        } else if (detailType == YCHealthDataSleepType.deepSleep) {
-                            type = .deep
-                        } else if (detailType == YCHealthDataSleepType.lightSleep) {
-                            type = .light
-                        } else if (detailType == YCHealthDataSleepType.unknow) {
-                            type = .unknown
-                        } else if (detailType == YCHealthDataSleepType.rem) {
-                            type = .rem
-                        }
-                        sleepDetails.append(YuchengSleepDataDetail(startTimeStamp: Int64(detail.startTimeStamp), duration: Int64(detail.duration), type: type))
-                    }
-                    let isOldFormat = info.deepSleepCount != 0xFFFF;
-                    
-                    let deepSeconds = isOldFormat ? info.deepSleepMinutes * 60 : info.deepSleepSeconds
-                    let lightSeconds = isOldFormat ? info.lightSleepMinutes * 60 : info.lightSleepSeconds
-                    let remSeconds = isOldFormat ? info.remSleepMinutes * 60 : info.remSleepSeconds
-                    
-                    let event = YuchengSleepDataEvent(startTimeStamp: Int64(info.startTimeStamp), endTimeStamp: Int64(info.endTimeStamp), deepCount: Int64(info.deepSleepCount), lightCount: Int64(info.lightSleepCount),  awakeCount: Int64(0), deepInSeconds: Int64(deepSeconds), remInSeconds: Int64(remSeconds), lightInSeconds: Int64(lightSeconds), awakeInSeconds: Int64(0), details: sleepDetails )
-                    self.onSleepData(event)
-                    self.sleepData.append(event)
+                    let sleepData = self.converter.convert(sleepDataFromDevice: info)
+                    self.onSleepData(sleepData)
+                    self.sleepData.append(sleepData)
                 }
                 completion(.success(self.sleepData))
                 self.sleepData = []
@@ -315,6 +296,7 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
     private static var devicesHandler: DeviceStreamHandlerImpl? = nil
     private static var sleepDataHandler: SleepDataHandlerImpl? = nil
     private static var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = nil
+    private static let converter = YuchengSleepDataConverter()
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         print("Register 1")
@@ -339,7 +321,7 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             sleepDataHandler?.onSleepDataChanged(event)
         }, onState: { event in
             deviceStateStreamHandler?.onDeviceStateChanged(event)
-        })
+        }, converter: converter)
         
         print("Register 4")
         

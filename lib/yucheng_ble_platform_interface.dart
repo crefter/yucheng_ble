@@ -28,11 +28,11 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('startScanDevices has not been implemented.');
   }
 
-  Future<bool> isDeviceConnected(YuchengDevice device) {
+  Future<bool> isDeviceConnected(YuchengDevice? device) {
     throw UnimplementedError('isDeviceConnected has not been implemented.');
   }
 
-  Future<bool> connect(YuchengDevice? device) {
+  Future<bool> connect(YuchengDevice device) {
     throw UnimplementedError('connect has not been implemented.');
   }
 
