@@ -75,6 +75,9 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
 
     fun onState(state: YuchengDeviceStateEvent) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")
+        if (eventSink == null) {
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state EVENT SINK IS NULL!")
+        }
         uiThreadHandler.post {
             eventSink?.success(state)
         }
