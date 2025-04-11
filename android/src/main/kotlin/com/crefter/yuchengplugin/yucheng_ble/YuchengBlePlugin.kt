@@ -61,7 +61,6 @@ class YuchengBlePlugin : FlutterPlugin {
         api = if (api == null) YuchengApiImpl(
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
-            onState = { data -> deviceStateStreamHandler?.onState(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
             onReconnect = {
                 Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
@@ -71,6 +70,48 @@ class YuchengBlePlugin : FlutterPlugin {
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, false)
+        YCBTClient.registerBleStateChange { state ->
+            when (state) {
+                Constants.BLEState.Connected -> {
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.CONNECTED
+                        )
+                    )
+                }
+
+                Constants.BLEState.TimeOut -> {
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.TIME_OUT
+                        )
+                    )
+                }
+
+                Constants.BLEState.Disconnect -> {
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.DISCONNECTED
+                        )
+                    )
+                }
+
+                Constants.BLEState.ReadWriteOK -> {
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.READ_WRITE_OK
+                        )
+                    )
+                }
+                else -> {
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.UNKNOWN
+                        )
+                    )
+                }
+            }
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {

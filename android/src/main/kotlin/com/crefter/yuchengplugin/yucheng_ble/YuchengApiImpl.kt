@@ -26,59 +26,12 @@ private const val SCAN_PERIOD: Int = 10
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
     private val onSleepData: (sleepData: YuchengSleepEvent) -> Unit,
-    private val onState: (state: YuchengDeviceStateEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
     private val onReconnect: () -> Unit,
 ) : YuchengHostApi {
 
     private var index: Long = 0
     private var selectedDevice: YuchengDevice? = null
-
-    init {
-        YCBTClient.registerBleStateChange { state ->
-            when (state) {
-                Constants.BLEState.Connected -> {
-                    onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.CONNECTED
-                        )
-                    )
-                }
-
-                Constants.BLEState.TimeOut -> {
-                    onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.TIME_OUT
-                        )
-                    )
-                }
-
-                Constants.BLEState.Disconnect -> {
-                    onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.DISCONNECTED
-                        )
-                    )
-                }
-
-                Constants.BLEState.ReadWriteOK -> {
-                    onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.READ_WRITE_OK
-                        )
-                    )
-                }
-
-                else -> {
-                    onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.UNKNOWN
-                        )
-                    )
-                }
-            }
-        }
-    }
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startScanDevices(
