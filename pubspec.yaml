@@ -1,6 +1,6 @@
 name: yucheng_ble
 description: "Plugin for yucheng"
-version: 0.0.32
+version: 0.0.33
 publish_to: none
 
 environment:
