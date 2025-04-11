@@ -108,6 +108,8 @@ dependencies {
     implementation "androidx.multidex:multidex:2.0.1"
 
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0'
+    implementation 'com.alibaba:fastjson:1.2.83'
+    implementation 'org.apache.commons:commons-text:1.9'
 
     implementation files('libs/rtk-bbpro-core-1.6.1.jar')
     implementation files('libs/rtk-core-1.2.1.jar')
