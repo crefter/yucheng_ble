@@ -20,54 +20,19 @@ enum NoDeviceError : Error {
 class YuchengHostApiImpl : YuchengHostApi {
    private let onDevice: (_: YuchengDeviceEvent) -> Void;
    private let onSleepData: (_: YuchengSleepEvent) -> Void;
-   private let onState: (_: YuchengDeviceStateEvent) -> Void;
    private let converter: YuchengSleepDataConverter;
    private var scannedDevices: [CBPeripheral] = [];
    private var currentDevice: CBPeripheral? = nil;
    private var sleepData: [YuchengSleepDataEvent] = [];
    private var index: Int = 0;
    
-   init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, onState: @escaping (_: YuchengDeviceStateEvent) -> Void, converter: YuchengSleepDataConverter) {
+   init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, converter: YuchengSleepDataConverter) {
        self.onDevice = onDevice
        self.onSleepData = onSleepData
-       self.onState = onState
        self.converter = converter
-       initApi()
    }
    
-   func initApi() {
-       NotificationCenter.default.addObserver(
-           self,
-           selector: #selector(deviceStateChange(_:)),
-           name: YCProduct.deviceStateNotification,
-           object: nil
-       )
-   }
-   
-   @objc private func deviceStateChange(_ ntf: Notification) {
-       guard let info = ntf.userInfo as? [String: Any],
-             let state = info[YCProduct.connecteStateKey] as? YCProductState else {
-           return
-       }
-       if (state == YCProductState.connected) {
-           onState(YuchengDeviceStateDataEvent(state: YuchengProductState.connected))
-       } else if (state == YCProductState.connectedFailed) {
-           onState(YuchengDeviceStateDataEvent(state: YuchengProductState.connectedFailed))
-       } else if (state == YCProductState.disconnected) {
-           onState(YuchengDeviceStateDataEvent(state: YuchengProductState.disconnected))
-       } else if (state == YCProductState.unavailable) {
-           onState(YuchengDeviceStateDataEvent(state: YuchengProductState.unavailable))
-       } else if (state == YCProductState.timeout) {
-           onState(YuchengDeviceStateDataEvent(state: YuchengProductState.timeOut))
-       } else if (state == YCProductState.succeed) {
-           onState(YuchengDeviceStateDataEvent(state: YuchengProductState.readWriteOK))
-           currentDevice = YCProduct.shared.currentPeripheral
-       }
-       else {
-           onState(YuchengDeviceStateDataEvent(state: YuchengProductState.unknown))
-       }
-       print("STATE: " + state.toString)
-   }
+
    
    func startScanDevices(scanTimeInSeconds: Double?, completion: @escaping (Result<[YuchengDevice], any Error>) -> Void) {
        var isCompleted = false

@@ -3,12 +3,14 @@ package com.crefter.yuchengplugin.yucheng_ble
 import DeviceStateStreamHandler
 import DevicesStreamHandler
 import SleepDataStreamHandler
+import YuchengDeviceStateDataEvent
 import YuchengHostApi
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.gatt.Reconnect
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -42,14 +44,31 @@ class YuchengBlePlugin : FlutterPlugin {
         api = YuchengApiImpl(
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
-            onState = { data ->  deviceStateStreamHandler?.onState(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
         )
 
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
-        Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true);
+        YCBTClient.registerBleStateChange { state ->
+            when (state) {
+                Constants.BLEState.Connected -> {
+                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.CONNECTED))
+                }
+                Constants.BLEState.TimeOut -> {
+                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.TIME_OUT))
+                }
+                Constants.BLEState.Disconnect -> {
+                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.DISCONNECTED))
+                }
+                Constants.BLEState.ReadWriteOK -> {
+                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.READ_WRITE_OK))
+                }
+                else -> {
+                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.UNKNOWN))
+                }
+            }
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {

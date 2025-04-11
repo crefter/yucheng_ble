@@ -75,7 +75,9 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
 
     fun onState(state: YuchengDeviceStateEvent) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")
-        uiThreadHandler.post { eventSink?.success(state) }
+        uiThreadHandler.post {
+            eventSink?.success(state)
+        }
     }
 
     fun detach() {

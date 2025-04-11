@@ -31,14 +31,56 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             devicesHandler?.onDeviceChanged(event)
         }, onSleepData: { event in
             sleepDataHandler?.onSleepDataChanged(event)
-        }, onState: { event in
-            deviceStateStreamHandler?.onDeviceStateChanged(event)
         }, converter: converter)
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(deviceStateChange(_:)),
+            name: YCProduct.deviceStateNotification,
+            object: nil
+        )
         
         print("Register 4")
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)
         print("Register 5")
+        
+    }
+    func addObserver() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(deviceStateChange(_:)),
+            name: YCProduct.deviceStateNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func deviceStateChange(_ ntf: Notification) {
+        guard let info = ntf.userInfo as? [String: Any],
+              let state = info[YCProduct.connecteStateKey] as? YCProductState else {
+            return
+        }
+        if (state == YCProductState.connected) {
+            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.connected))
+        } else if (state == YCProductState.connectedFailed) {
+            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.connectedFailed))
+        } else if (state == YCProductState.disconnected) {
+            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.disconnected))
+        } else if (state == YCProductState.unavailable) {
+            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.unavailable))
+        } else if (state == YCProductState.timeout) {
+            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.timeOut))
+        } else if (state == YCProductState.succeed) {
+            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.readWriteOK))
+        }
+        else {
+            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.unknown))
+        }
+        print("STATE: " + state.toString)
+    }
+    
+    private func onState(_ event: YuchengDeviceStateEvent) {
+        self.deviceStateStreamHandler?.onDeviceStateChanged(event)
     }
     
     public func detachFromEngine(for registrar: any FlutterPluginRegistrar) {
