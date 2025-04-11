@@ -18,13 +18,6 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin {
-    private var api: YuchengApiImpl? = null
-    private var devicesHandler: DevicesStreamHandlerImpl? = null
-    private var sleepDataHandler: SleepDataHandlerImpl? = null
-    private var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = null
-    private var gson: Gson? = null
-    private var handler: Handler? = null
-
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start attaching to engine")
         handler = if (handler == null) Handler(Looper.getMainLooper()) else handler
@@ -128,6 +121,12 @@ class YuchengBlePlugin : FlutterPlugin {
     }
 
     companion object {
+        private var api: YuchengApiImpl? = null
+        private var devicesHandler: DevicesStreamHandlerImpl? = null
+        private var sleepDataHandler: SleepDataHandlerImpl? = null
+        private var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = null
+        private var gson: Gson? = null
+        private var handler: Handler? = null
         val PLUGIN_TAG: String = "YuchengBlePlugin"
     }
 }
