@@ -11,10 +11,8 @@ import YuchengHostApi
 import YuchengProductState
 import YuchengSleepEvent
 import android.util.Log
-import com.crefter.yuchengplugin.yucheng_ble.YuchengBlePlugin.Companion.deviceStateStreamHandler
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
-import com.yucheng.ycbtsdk.gatt.Reconnect
 import com.yucheng.ycbtsdk.response.BleScanResponse
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -38,10 +36,6 @@ class YuchengApiImpl(
 
     init {
         YCBTClient.registerBleStateChange { state ->
-            Log.d(
-                YuchengBlePlugin.PLUGIN_TAG,
-                "Device state stream handler sink register ble state change = $deviceStateStreamHandler"
-            )
             when (state) {
                 Constants.BLEState.Connected -> {
                     onState(
