@@ -27,7 +27,7 @@ class YuchengBlePlugin : FlutterPlugin {
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start attaching to engine")
-        handler = Handler(Looper.getMainLooper())
+        handler = if (handler == null) Handler(Looper.getMainLooper()) else handler
 
         devicesHandler =
             if (devicesHandler == null) DevicesStreamHandlerImpl(handler!!) else devicesHandler
@@ -43,11 +43,19 @@ class YuchengBlePlugin : FlutterPlugin {
 
         gson = GsonBuilder().create()
 
-        DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!)
-        SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!)
+        val hashCode = this.hashCode()
+
+        Log.d(
+            YuchengBlePlugin.PLUGIN_TAG,
+            "Device state stream handler sink this hashcode = $hashCode"
+        )
+
+        DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!, instanceName = "$hashCode")
+        SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!, instanceName = "$hashCode")
         DeviceStateStreamHandler.register(
             flutterPluginBinding.binaryMessenger,
-            deviceStateStreamHandler!!
+            deviceStateStreamHandler!!,
+            instanceName = "$hashCode"
         )
 
         api = if (api == null) YuchengApiImpl(
