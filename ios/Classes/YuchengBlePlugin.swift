@@ -31,7 +31,7 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
                 devicesHandler?.onDeviceChanged(event)
             }, onSleepData: { event in
                 sleepDataHandler?.onSleepDataChanged(event)
-            }, converter: converter)
+            }, onState: {event in deviceStateStreamHandler?.onDeviceStateChanged(event)}, converter: converter)
         }
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)

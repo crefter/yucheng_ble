@@ -20,19 +20,25 @@ enum NoDeviceError : Error {
 class YuchengHostApiImpl : YuchengHostApi {
    private let onDevice: (_: YuchengDeviceEvent) -> Void;
    private let onSleepData: (_: YuchengSleepEvent) -> Void;
+   private let onState: (_: YuchengDeviceStateEvent) -> Void;
    private let converter: YuchengSleepDataConverter;
    private var scannedDevices: [CBPeripheral] = [];
    private var currentDevice: CBPeripheral? = nil;
    private var sleepData: [YuchengSleepDataEvent] = [];
    private var index: Int = 0;
    
-   init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, converter: YuchengSleepDataConverter) {
+    init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, onState: @escaping (_: YuchengDeviceStateEvent) -> Void, converter: YuchengSleepDataConverter) {
        self.onDevice = onDevice
        self.onSleepData = onSleepData
        self.converter = converter
+       self.onState = onState
+       DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: {
+           var currentDevice: CBPeripheral? = YCProduct.shared.currentPeripheral;
+           if (currentDevice != nil) {
+               onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
+           }
+       })
    }
-   
-
    
    func startScanDevices(scanTimeInSeconds: Double?, completion: @escaping (Result<[YuchengDevice], any Error>) -> Void) {
        var isCompleted = false
