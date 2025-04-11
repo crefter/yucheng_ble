@@ -25,17 +25,11 @@ class YuchengBlePlugin : FlutterPlugin {
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         handler = Handler(Looper.getMainLooper())
-        if (handler == null) {
-            Log.e(PLUGIN_TAG, "HANDLER IS NULL")
-        }
         devicesHandler = DevicesStreamHandlerImpl(handler!!)
         sleepDataHandler = SleepDataHandlerImpl(handler!!)
         deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
 
         gson = GsonBuilder().create()
-
-        YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
-        Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true);
 
         DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!)
         SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!)
@@ -50,15 +44,16 @@ class YuchengBlePlugin : FlutterPlugin {
             onState = { data ->  deviceStateStreamHandler?.onState(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
         )
+
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
+
+        YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
+        Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true);
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         YuchengHostApi.setUp(binding.binaryMessenger, null)
         YCBTClient.stopScanBle()
-        devicesHandler?.detach()
-        sleepDataHandler?.detach()
-        deviceStateStreamHandler?.detach()
     }
 
     companion object {
