@@ -22,16 +22,13 @@ class YuchengBlePlugin : FlutterPlugin {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start attaching to engine")
         handler = if (handler == null) Handler(Looper.getMainLooper()) else handler
 
-        devicesHandler =
-            if (devicesHandler == null) DevicesStreamHandlerImpl(handler!!) else devicesHandler
-        sleepDataHandler =
-            if (sleepDataHandler == null) SleepDataHandlerImpl(handler!!) else sleepDataHandler
-        deviceStateStreamHandler =
-            if (deviceStateStreamHandler == null) DeviceStateStreamHandlerImpl(handler!!) else deviceStateStreamHandler
+        devicesHandler = DevicesStreamHandlerImpl(handler!!)
+        sleepDataHandler = SleepDataHandlerImpl(handler!!)
+        deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
 
         Log.d(
             YuchengBlePlugin.PLUGIN_TAG,
-            "Device state stream handler = $deviceStateStreamHandler"
+            "Device state stream handler sink = $deviceStateStreamHandler"
         )
 
         gson = GsonBuilder().create()
@@ -43,12 +40,11 @@ class YuchengBlePlugin : FlutterPlugin {
             "Device state stream handler sink this hashcode = $hashCode"
         )
 
-        DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!, instanceName = "$hashCode")
-        SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!, instanceName = "$hashCode")
+        DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!)
+        SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!)
         DeviceStateStreamHandler.register(
             flutterPluginBinding.binaryMessenger,
-            deviceStateStreamHandler!!,
-            instanceName = "$hashCode"
+            deviceStateStreamHandler!!
         )
 
         api = if (api == null) YuchengApiImpl(
@@ -66,7 +62,7 @@ class YuchengBlePlugin : FlutterPlugin {
         YCBTClient.registerBleStateChange { state ->
             Log.d(
                 YuchengBlePlugin.PLUGIN_TAG,
-                "Device state stream handler register ble state change = $deviceStateStreamHandler"
+                "Device state stream handler sink register ble state change = $deviceStateStreamHandler"
             )
             when (state) {
                 Constants.BLEState.Connected -> {
