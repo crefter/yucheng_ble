@@ -4,6 +4,9 @@ import DeviceStateStreamHandler
 import DevicesStreamHandler
 import SleepDataStreamHandler
 import YuchengHostApi
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.yucheng.ycbtsdk.YCBTClient
@@ -18,11 +21,16 @@ class YuchengBlePlugin : FlutterPlugin {
     private var sleepDataHandler: SleepDataHandlerImpl? = null
     private var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = null
     private var gson: Gson? = null
+    private var handler: Handler? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        devicesHandler = DevicesStreamHandlerImpl()
-        sleepDataHandler = SleepDataHandlerImpl()
-        deviceStateStreamHandler = DeviceStateStreamHandlerImpl()
+        handler = Handler(Looper.getMainLooper())
+        if (handler == null) {
+            Log.e(PLUGIN_TAG, "HANDLER IS NULL")
+        }
+        devicesHandler = DevicesStreamHandlerImpl(handler!!)
+        sleepDataHandler = SleepDataHandlerImpl(handler!!)
+        deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
 
         gson = GsonBuilder().create()
 
