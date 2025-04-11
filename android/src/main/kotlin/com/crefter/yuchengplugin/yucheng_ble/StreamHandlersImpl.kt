@@ -67,6 +67,7 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
 
     override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengDeviceStateEvent>) {
         eventSink = sink
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $this")
         Log.d( YuchengBlePlugin.PLUGIN_TAG, "Device state handler onListen")
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler sink = $sink")
     }
@@ -77,12 +78,13 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
     }
 
     fun onState(state: YuchengDeviceStateEvent) {
-        if (eventSink == null) {
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state EVENT SINK IS NULL!")
-        }
         uiThreadHandler.post {
             eventSink?.success(state)
         }
+        if (eventSink == null) {
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state EVENT SINK IS NULL!")
+        }
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $this")
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")
     }
 

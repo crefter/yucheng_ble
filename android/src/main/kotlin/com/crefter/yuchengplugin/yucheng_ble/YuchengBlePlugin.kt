@@ -26,11 +26,14 @@ class YuchengBlePlugin : FlutterPlugin {
     private var handler: Handler? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start attaching to engine")
         handler = Handler(Looper.getMainLooper())
 
         devicesHandler = DevicesStreamHandlerImpl(handler!!)
         sleepDataHandler = SleepDataHandlerImpl(handler!!)
         deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
+
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $deviceStateStreamHandler")
 
         gson = GsonBuilder().create()
 
@@ -48,10 +51,13 @@ class YuchengBlePlugin : FlutterPlugin {
             onReconnect = { Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)}
         )
 
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $deviceStateStreamHandler")
+
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, false)
         YCBTClient.registerBleStateChange { state ->
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $deviceStateStreamHandler")
             when (state) {
                 Constants.BLEState.Connected -> {
                     deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.CONNECTED))
