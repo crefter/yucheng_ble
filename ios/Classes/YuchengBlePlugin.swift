@@ -44,9 +44,6 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)
         print("Register 5")
-        
-    }
-    func addObserver() {
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(deviceStateChange(_:)),
@@ -80,7 +77,7 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
     }
     
     private func onState(_ event: YuchengDeviceStateEvent) {
-        self.deviceStateStreamHandler?.onDeviceStateChanged(event)
+        YuchengBlePlugin.deviceStateStreamHandler?.onDeviceStateChanged(event)
     }
     
     public func detachFromEngine(for registrar: any FlutterPluginRegistrar) {
