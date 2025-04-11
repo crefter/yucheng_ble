@@ -13,6 +13,7 @@ import YuchengSleepEvent
 import android.util.Log
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
+import com.yucheng.ycbtsdk.gatt.Reconnect
 import com.yucheng.ycbtsdk.response.BleScanResponse
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -27,6 +28,7 @@ class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
     private val onSleepData: (sleepData: YuchengSleepEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
+    private val onReconnect: () -> Unit,
 ) : YuchengHostApi {
 
     private var index: Long = 0
@@ -143,6 +145,7 @@ class YuchengApiImpl(
     override fun reconnect(callback: (Result<Boolean>) -> Unit) {
         val completer = CompletableDeferred<Boolean>()
         try {
+            onReconnect()
             YCBTClient.reconnectBle { code ->
                 Log.e("RECONNECT BLE", "CODE = $code")
                 if (code == 0) {

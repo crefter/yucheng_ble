@@ -9,7 +9,6 @@ import YuchengDeviceStateEvent
 import YuchengSleepEvent
 import android.os.Handler
 import android.util.Log
-import androidx.core.os.postDelayed
 
 class DevicesStreamHandlerImpl(private val uiThreadHandler: Handler) : DevicesStreamHandler() {
     private var eventSink: PigeonEventSink<YuchengDeviceEvent>? = null
@@ -81,7 +80,7 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
         if (eventSink == null) {
             Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state EVENT SINK IS NULL!")
         }
-        uiThreadHandler.postDelayed(50) {
+        uiThreadHandler.post {
             eventSink?.success(state)
         }
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")

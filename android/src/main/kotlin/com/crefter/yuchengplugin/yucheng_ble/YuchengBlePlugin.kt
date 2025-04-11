@@ -45,11 +45,12 @@ class YuchengBlePlugin : FlutterPlugin {
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
+            onReconnect = { Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)}
         )
 
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
-        YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
+        YCBTClient.initClient(flutterPluginBinding.applicationContext, false)
         YCBTClient.registerBleStateChange { state ->
             when (state) {
                 Constants.BLEState.Connected -> {
