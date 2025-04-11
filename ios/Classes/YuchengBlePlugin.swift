@@ -39,13 +39,13 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         _ = YCProduct.shared;
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(deviceStateChange(_:)),
+            selector: #selector(self.deviceStateChange(_:)),
             name: YCProduct.deviceStateNotification,
             object: nil
         )
     }
     
-    @objc private func deviceStateChange(_ ntf: Notification) {
+    @objc class func deviceStateChange(_ ntf: Notification) {
         guard let info = ntf.userInfo as? [String: Any],
               let state = info[YCProduct.connecteStateKey] as? YCProductState else {
             return
