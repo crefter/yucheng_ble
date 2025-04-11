@@ -29,11 +29,17 @@ class YuchengBlePlugin : FlutterPlugin {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start attaching to engine")
         handler = Handler(Looper.getMainLooper())
 
-        devicesHandler = DevicesStreamHandlerImpl(handler!!)
-        sleepDataHandler = SleepDataHandlerImpl(handler!!)
-        deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
+        devicesHandler =
+            if (devicesHandler == null) DevicesStreamHandlerImpl(handler!!) else devicesHandler
+        sleepDataHandler =
+            if (sleepDataHandler == null) SleepDataHandlerImpl(handler!!) else sleepDataHandler
+        deviceStateStreamHandler =
+            if (deviceStateStreamHandler == null) DeviceStateStreamHandlerImpl(handler!!) else deviceStateStreamHandler
 
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $deviceStateStreamHandler")
+        Log.d(
+            YuchengBlePlugin.PLUGIN_TAG,
+            "Device state stream handler = $deviceStateStreamHandler"
+        )
 
         gson = GsonBuilder().create()
 
@@ -44,35 +50,62 @@ class YuchengBlePlugin : FlutterPlugin {
             deviceStateStreamHandler!!
         )
 
-        api = YuchengApiImpl(
+        api = if (api == null) YuchengApiImpl(
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
-            onReconnect = { Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)}
-        )
-
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $deviceStateStreamHandler")
+            onReconnect = {
+                Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
+            }
+        ) else api
 
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, false)
         YCBTClient.registerBleStateChange { state ->
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler register ble state change = $deviceStateStreamHandler")
+            Log.d(
+                YuchengBlePlugin.PLUGIN_TAG,
+                "Device state stream handler register ble state change = $deviceStateStreamHandler"
+            )
             when (state) {
                 Constants.BLEState.Connected -> {
-                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.CONNECTED))
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.CONNECTED
+                        )
+                    )
                 }
+
                 Constants.BLEState.TimeOut -> {
-                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.TIME_OUT))
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.TIME_OUT
+                        )
+                    )
                 }
+
                 Constants.BLEState.Disconnect -> {
-                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.DISCONNECTED))
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.DISCONNECTED
+                        )
+                    )
                 }
+
                 Constants.BLEState.ReadWriteOK -> {
-                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.READ_WRITE_OK))
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.READ_WRITE_OK
+                        )
+                    )
                 }
+
                 else -> {
-                    deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.UNKNOWN))
+                    deviceStateStreamHandler?.onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.UNKNOWN
+                        )
+                    )
                 }
             }
         }
