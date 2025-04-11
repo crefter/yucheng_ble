@@ -57,7 +57,7 @@ class YuchengBlePlugin : FlutterPlugin {
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, false)
         YCBTClient.registerBleStateChange { state ->
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler = $deviceStateStreamHandler")
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler register ble state change = $deviceStateStreamHandler")
             when (state) {
                 Constants.BLEState.Connected -> {
                     deviceStateStreamHandler?.onState(YuchengDeviceStateDataEvent(YuchengProductState.CONNECTED))
