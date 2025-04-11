@@ -16,15 +16,17 @@ buildscript {
 
 rootProject.allprojects {
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/public/' }
-        maven { url 'https://maven.aliyun.com/repository/google/'}
-        maven { url 'https://maven.aliyun.com/repository/jcenter/'}
         google()
-        mavenCentral()
-        maven { url "https://jitpack.io" }
+        jcenter()
         flatDir {
             dirs project(':yucheng_ble').file('libs')
         }
+        maven { url "https://jitpack.io" }
+
+        maven { url 'https://maven.aliyun.com/repository/public/' }
+        maven { url 'https://maven.aliyun.com/repository/google/'}
+        maven { url 'https://maven.aliyun.com/repository/jcenter/'}
+        mavenLocal()
     }
 }
 
@@ -136,7 +138,13 @@ dependencies {
 
     implementation 'com.google.firebase:firebase-crashlytics-buildtools:2.8.1'
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0'
-    implementation 'com.alibaba:fastjson:1.2.83'
+    implementation('com.alibaba:fastjson:1.2.83') {
+        exclude group: 'javax.servlet', module: 'servlet-api'
+        exclude group: 'org.springframework', module: 'spring-web'
+        exclude group: 'javax.ws.rs', module: 'jsr311-api'
+        exclude group: 'org.joda', module: 'joda-convert'
+        exclude group: 'org.glassfish.jersey.core', module: 'jersey-common'
+    }
     implementation 'org.apache.commons:commons-text:1.9'
 
     implementation files('libs/rtk-bbpro-core-1.6.1.jar')
