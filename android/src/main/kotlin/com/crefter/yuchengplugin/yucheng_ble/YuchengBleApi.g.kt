@@ -4,7 +4,6 @@
 
 
 import android.util.Log
-import com.crefter.yuchengplugin.yucheng_ble.YuchengBlePlugin
 import io.flutter.plugin.common.BasicMessageChannel
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
@@ -604,12 +603,12 @@ private class YuchengBleApiPigeonStreamHandler<T>(
 
   override fun onListen(p0: Any?, sink: EventChannel.EventSink) {
     pigeonSink = PigeonEventSink<T>(sink)
-    Log.d(YuchengBlePlugin.PLUGIN_TAG, "Stream handler onListen; sink = $sink")
+    Log.d("AAAAAAAAAAAAA", "Stream handler onListen; sink = $sink")
     wrapper.onListen(p0, pigeonSink!!)
   }
 
   override fun onCancel(p0: Any?) {
-    Log.d(YuchengBlePlugin.PLUGIN_TAG, "Stream handler onCancel")
+    Log.d("AAAAAAAAAAAAA", "Stream handler onCancel")
     pigeonSink = null
     wrapper.onCancel(p0)
   }
