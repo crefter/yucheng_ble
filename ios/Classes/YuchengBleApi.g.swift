@@ -616,14 +616,12 @@ private class PigeonStreamHandler<ReturnType>: NSObject, FlutterStreamHandler {
     -> FlutterError?
   {
     pigeonSink = PigeonEventSink<ReturnType>(events)
-    print("Pigeon onListen")
     wrapper.onListen(withArguments: arguments, sink: pigeonSink!)
     return nil
   }
 
   func onCancel(withArguments arguments: Any?) -> FlutterError? {
     pigeonSink = nil
-    print("Pigeon onCancel")
     wrapper.onCancel(withArguments: arguments)
     return nil
   }

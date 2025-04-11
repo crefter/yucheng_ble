@@ -603,12 +603,10 @@ private class YuchengBleApiPigeonStreamHandler<T>(
 
   override fun onListen(p0: Any?, sink: EventChannel.EventSink) {
     pigeonSink = PigeonEventSink<T>(sink)
-    Log.d("AAAAAAAAAAAAA", "Stream handler onListen; sink = $sink")
     wrapper.onListen(p0, pigeonSink!!)
   }
 
   override fun onCancel(p0: Any?) {
-    Log.d("AAAAAAAAAAAAA", "Stream handler onCancel")
     pigeonSink = null
     wrapper.onCancel(p0)
   }
