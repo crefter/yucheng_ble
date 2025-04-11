@@ -107,6 +107,8 @@ dependencies {
     implementation 'no.nordicsemi.android:dfu:1.10.1'
     implementation "androidx.multidex:multidex:2.0.1"
 
+    implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.1.0'
+
     implementation files('libs/rtk-bbpro-core-1.6.1.jar')
     implementation files('libs/rtk-core-1.2.1.jar')
     implementation files('libs/rtk-dfu-3.3.8.jar')
