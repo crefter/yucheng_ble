@@ -11,6 +11,7 @@ import YuchengHostApi
 import YuchengProductState
 import YuchengSleepEvent
 import android.util.Log
+import com.crefter.yuchengplugin.yucheng_ble.YuchengBlePlugin.Companion.deviceStateStreamHandler
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.gatt.Reconnect
@@ -27,12 +28,63 @@ private const val SCAN_PERIOD: Int = 10
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
     private val onSleepData: (sleepData: YuchengSleepEvent) -> Unit,
+    private val onState: (state: YuchengDeviceStateEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
     private val onReconnect: () -> Unit,
 ) : YuchengHostApi {
 
     private var index: Long = 0
     private var selectedDevice: YuchengDevice? = null
+
+    init {
+        YCBTClient.registerBleStateChange { state ->
+            Log.d(
+                YuchengBlePlugin.PLUGIN_TAG,
+                "Device state stream handler sink register ble state change = $deviceStateStreamHandler"
+            )
+            when (state) {
+                Constants.BLEState.Connected -> {
+                    onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.CONNECTED
+                        )
+                    )
+                }
+
+                Constants.BLEState.TimeOut -> {
+                    onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.TIME_OUT
+                        )
+                    )
+                }
+
+                Constants.BLEState.Disconnect -> {
+                    onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.DISCONNECTED
+                        )
+                    )
+                }
+
+                Constants.BLEState.ReadWriteOK -> {
+                    onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.READ_WRITE_OK
+                        )
+                    )
+                }
+
+                else -> {
+                    onState(
+                        YuchengDeviceStateDataEvent(
+                            YuchengProductState.UNKNOWN
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startScanDevices(

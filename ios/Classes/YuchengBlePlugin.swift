@@ -11,39 +11,32 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
     private static let converter = YuchengSleepDataConverter()
     
     public static func register(with registrar: FlutterPluginRegistrar) {
-        print("Register 1")
-        devicesHandler = DeviceStreamHandlerImpl();
-        sleepDataHandler = SleepDataHandlerImpl();
-        deviceStateStreamHandler = DeviceStateStreamHandlerImpl();
-        
-        print("Register 0")
-        _ = YCProduct.shared;
-        
-        print("Register 2")
+
+        if (devicesHandler == nil) {
+            devicesHandler = DeviceStreamHandlerImpl();
+        }
+        if (sleepDataHandler == nil) {
+            sleepDataHandler = SleepDataHandlerImpl();
+        }
+        if (deviceStateStreamHandler == nil) {
+            deviceStateStreamHandler = DeviceStateStreamHandlerImpl();
+        }
         
         DevicesStreamHandler.register(with: registrar.messenger(), streamHandler: devicesHandler!)
         SleepDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepDataHandler!)
         DeviceStateStreamHandler.register(with: registrar.messenger(), streamHandler: deviceStateStreamHandler!)
         
-        print("Register 3")
-        
-        api = YuchengHostApiImpl(onDevice: { event in
-            devicesHandler?.onDeviceChanged(event)
-        }, onSleepData: { event in
-            sleepDataHandler?.onSleepDataChanged(event)
-        }, converter: converter)
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(deviceStateChange(_:)),
-            name: YCProduct.deviceStateNotification,
-            object: nil
-        )
-        
-        print("Register 4")
+        if (api == nil) {
+            api = YuchengHostApiImpl(onDevice: { event in
+                devicesHandler?.onDeviceChanged(event)
+            }, onSleepData: { event in
+                sleepDataHandler?.onSleepDataChanged(event)
+            }, converter: converter)
+        }
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)
-        print("Register 5")
+        
+        _ = YCProduct.shared;
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(deviceStateChange(_:)),

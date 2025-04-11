@@ -23,7 +23,8 @@ class YuchengBlePlugin : FlutterPlugin {
         if (handler == null) {
             handler = Handler(Looper.getMainLooper())
         }
-
+        // Инстанс плагина пересоздается, поэтому делаем хендлеры и апи статичными
+        // и также присваем однажды, иначе ивенты не прилетят в дарт
         if (devicesHandler == null) {
             devicesHandler = DevicesStreamHandlerImpl(handler!!)
         }
@@ -60,6 +61,7 @@ class YuchengBlePlugin : FlutterPlugin {
         api = if (api == null) YuchengApiImpl(
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
+            onState = { data -> deviceStateStreamHandler?.onState(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
             onReconnect = {
                 Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
@@ -69,53 +71,6 @@ class YuchengBlePlugin : FlutterPlugin {
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, false)
-        YCBTClient.registerBleStateChange { state ->
-            Log.d(
-                YuchengBlePlugin.PLUGIN_TAG,
-                "Device state stream handler sink register ble state change = $deviceStateStreamHandler"
-            )
-            when (state) {
-                Constants.BLEState.Connected -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.CONNECTED
-                        )
-                    )
-                }
-
-                Constants.BLEState.TimeOut -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.TIME_OUT
-                        )
-                    )
-                }
-
-                Constants.BLEState.Disconnect -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.DISCONNECTED
-                        )
-                    )
-                }
-
-                Constants.BLEState.ReadWriteOK -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.READ_WRITE_OK
-                        )
-                    )
-                }
-
-                else -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengProductState.UNKNOWN
-                        )
-                    )
-                }
-            }
-        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
