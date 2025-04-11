@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Need to connect to your device and read sleep data</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Need to connect to your device and read sleep data</string>
+    <key>NSAppleMusicUsageDescription</key>
+    <string>Need for apple music</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
@@ -36,8 +42,6 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>Need to connect to your device and read sleep data</string>
 	<key>UIStatusBarStyle</key>
 	<string></string>
 	<key>UISupportedInterfaceOrientations</key>

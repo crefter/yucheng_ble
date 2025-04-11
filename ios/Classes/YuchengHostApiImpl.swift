@@ -206,14 +206,6 @@ class YuchengHostApiImpl : YuchengHostApi {
        YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
            if state == .succeed, let datas = response as? [YCHealthDataSleep] {
                for info in datas {
-                   print(info.startTimeStamp,
-                         info.endTimeStamp,
-                         info.lightSleepCount,
-                         info.lightSleepMinutes,
-                         info.deepSleepCount,
-                         info.deepSleepMinutes,
-                         info.sleepDetailDatas
-                   )
                    let sleepData = self.converter.convert(sleepDataFromDevice: info)
                    self.onSleepData(sleepData)
                    self.sleepData.append(sleepData)

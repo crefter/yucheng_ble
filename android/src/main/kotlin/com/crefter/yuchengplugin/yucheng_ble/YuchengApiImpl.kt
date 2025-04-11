@@ -171,6 +171,7 @@ class YuchengApiImpl(
         val completer = CompletableDeferred<Boolean>()
         try {
             YCBTClient.reconnectBle { code ->
+                Log.e("RECONNECT BLE", "CODE = $code")
                 if (code == 0) {
                     val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK;
                     completer.complete(isConnected)
