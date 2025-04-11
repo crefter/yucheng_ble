@@ -16,6 +16,7 @@ class DevicesStreamHandlerImpl(private val uiThreadHandler: Handler) : DevicesSt
     override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengDeviceEvent>) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Devices stream handler onListen")
         eventSink = sink
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device stream handler sink = $sink")
     }
 
     override fun onCancel(p0: Any?) {
@@ -41,6 +42,7 @@ class SleepDataHandlerImpl(private val uiThreadHandler: Handler) : SleepDataStre
     override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengSleepEvent>) {
         Log.d( YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler onListen")
         eventSink = sink
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler sink = $sink")
     }
 
     override fun onCancel(p0: Any?) {
@@ -66,6 +68,7 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
     override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengDeviceStateEvent>) {
         Log.d( YuchengBlePlugin.PLUGIN_TAG, "Device state handler onListen")
         eventSink = sink
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler sink = $sink")
     }
 
     override fun onCancel(p0: Any?) {
