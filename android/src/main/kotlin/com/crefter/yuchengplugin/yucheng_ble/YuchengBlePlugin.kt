@@ -20,18 +20,28 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 class YuchengBlePlugin : FlutterPlugin {
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start attaching to engine")
-        handler = if (handler == null) Handler(Looper.getMainLooper()) else handler
+        if (handler == null) {
+            handler = Handler(Looper.getMainLooper())
+        }
 
-        devicesHandler = DevicesStreamHandlerImpl(handler!!)
-        sleepDataHandler = SleepDataHandlerImpl(handler!!)
-        deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
+        if (devicesHandler == null) {
+            devicesHandler = DevicesStreamHandlerImpl(handler!!)
+        }
+        if (sleepDataHandler == null) {
+            sleepDataHandler = SleepDataHandlerImpl(handler!!)
+        }
+        if (deviceStateStreamHandler == null) {
+            deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
+        }
 
         Log.d(
             YuchengBlePlugin.PLUGIN_TAG,
             "Device state stream handler sink = $deviceStateStreamHandler"
         )
 
-        gson = GsonBuilder().create()
+        if (gson == null) {
+            gson = GsonBuilder().create()
+        }
 
         val hashCode = this.hashCode()
 
