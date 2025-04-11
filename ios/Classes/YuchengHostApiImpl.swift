@@ -66,6 +66,7 @@ class YuchengHostApiImpl : YuchengHostApi {
        else {
            onState(YuchengDeviceStateDataEvent(state: YuchengProductState.unknown))
        }
+       print("STATE: " + state.toString)
    }
    
    func startScanDevices(scanTimeInSeconds: Double?, completion: @escaping (Result<[YuchengDevice], any Error>) -> Void) {
@@ -87,6 +88,7 @@ class YuchengHostApiImpl : YuchengHostApi {
                        self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isCurrentConnected: isCurrentDevice, deviceName: device.name ?? device.deviceModel))
                        self.index += 1
                        ycDevices.append(ycDevice)
+                       print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
                    }
                    self.onDevice(YuchengDeviceCompleteEvent(completed: true))
                    completion(.success(ycDevices))

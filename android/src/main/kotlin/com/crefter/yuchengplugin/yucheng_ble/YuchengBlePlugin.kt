@@ -25,6 +25,7 @@ class YuchengBlePlugin : FlutterPlugin {
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         handler = Handler(Looper.getMainLooper())
+
         devicesHandler = DevicesStreamHandlerImpl(handler!!)
         sleepDataHandler = SleepDataHandlerImpl(handler!!)
         deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
@@ -54,6 +55,9 @@ class YuchengBlePlugin : FlutterPlugin {
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         YuchengHostApi.setUp(binding.binaryMessenger, null)
         YCBTClient.stopScanBle()
+        devicesHandler?.detach()
+        sleepDataHandler?.detach()
+        deviceStateStreamHandler?.detach()
     }
 
     companion object {

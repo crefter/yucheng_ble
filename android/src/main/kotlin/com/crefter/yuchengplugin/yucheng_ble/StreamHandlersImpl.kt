@@ -27,6 +27,12 @@ class DevicesStreamHandlerImpl(private val uiThreadHandler: Handler) : DevicesSt
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Devices stream handler onDevice")
         uiThreadHandler.post { eventSink?.success(device) }
     }
+
+    fun detach() {
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Devices stream handler detach")
+        eventSink?.endOfStream()
+        eventSink = null
+    }
 }
 
 class SleepDataHandlerImpl(private val uiThreadHandler: Handler) : SleepDataStreamHandler() {
@@ -46,6 +52,12 @@ class SleepDataHandlerImpl(private val uiThreadHandler: Handler) : SleepDataStre
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler onSleepData")
         uiThreadHandler.post { eventSink?.success(sleepData) }
     }
+
+    fun detach() {
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep data handler detach")
+        eventSink?.endOfStream()
+        eventSink = null
+    }
 }
 
 class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : DeviceStateStreamHandler() {
@@ -64,5 +76,11 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
     fun onState(state: YuchengDeviceStateEvent) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")
         uiThreadHandler.post { eventSink?.success(state) }
+    }
+
+    fun detach() {
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler detach")
+        eventSink?.endOfStream()
+        eventSink = null
     }
 }

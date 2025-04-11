@@ -19,6 +19,7 @@ class DeviceStateStreamHandlerImpl : DeviceStateStreamHandler {
     }
     
     func onDeviceStateChanged(_ event: YuchengDeviceStateEvent) {
+        print("onDeviceStateChanged = new event")
         eventSink?.success(event);
     }
     
@@ -40,6 +41,7 @@ class DeviceStreamHandlerImpl : DevicesStreamHandler {
     }
     
     func onDeviceChanged(_ event: YuchengDeviceEvent) {
+        print("onDeviceChanged = new event")
         eventSink?.success(event);
     }
     
@@ -62,6 +64,7 @@ class SleepDataHandlerImpl : SleepDataStreamHandler {
     }
     
     func onSleepDataChanged(_ event: YuchengSleepEvent) {
+        print("onSleepDataChanged = new event")
         eventSink?.success(event);
     }
     
