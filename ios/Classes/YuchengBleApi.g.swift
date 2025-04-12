@@ -136,7 +136,7 @@ enum YuchengSleepType: Int {
   case unknown = 4
 }
 
-enum YuchengProductState: Int {
+enum YuchengDeviceState: Int {
   case unknown = 0
   case connected = 1
   case connectedFailed = 2
@@ -150,6 +150,31 @@ enum YuchengProductState: Int {
 /// This protocol should not be extended by any user class outside of the generated file.
 protocol YuchengSleepEvent {
 
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengSleepTimeOutEvent: YuchengSleepEvent {
+  var isTimeout: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengSleepTimeOutEvent? {
+    let isTimeout = pigeonVar_list[0] as! Bool
+
+    return YuchengSleepTimeOutEvent(
+      isTimeout: isTimeout
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      isTimeout
+    ]
+  }
+  static func == (lhs: YuchengSleepTimeOutEvent, rhs: YuchengSleepTimeOutEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
@@ -284,13 +309,38 @@ protocol YuchengDeviceStateEvent {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct YuchengDeviceStateTimeOutEvent: YuchengDeviceStateEvent {
+  var isTimeout: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceStateTimeOutEvent? {
+    let isTimeout = pigeonVar_list[0] as! Bool
+
+    return YuchengDeviceStateTimeOutEvent(
+      isTimeout: isTimeout
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      isTimeout
+    ]
+  }
+  static func == (lhs: YuchengDeviceStateTimeOutEvent, rhs: YuchengDeviceStateTimeOutEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct YuchengDeviceStateDataEvent: YuchengDeviceStateEvent {
-  var state: YuchengProductState
+  var state: YuchengDeviceState
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceStateDataEvent? {
-    let state = pigeonVar_list[0] as! YuchengProductState
+    let state = pigeonVar_list[0] as! YuchengDeviceState
 
     return YuchengDeviceStateDataEvent(
       state: state
@@ -310,13 +360,13 @@ struct YuchengDeviceStateDataEvent: YuchengDeviceStateEvent {
 
 /// Generated class from Pigeon that represents data sent in messages.
 struct YuchengDeviceStateErrorEvent: YuchengDeviceStateEvent {
-  var state: YuchengProductState
+  var state: YuchengDeviceState
   var error: String
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceStateErrorEvent? {
-    let state = pigeonVar_list[0] as! YuchengProductState
+    let state = pigeonVar_list[0] as! YuchengDeviceState
     let error = pigeonVar_list[1] as! String
 
     return YuchengDeviceStateErrorEvent(
@@ -382,6 +432,31 @@ struct YuchengDevice: Hashable {
 /// This protocol should not be extended by any user class outside of the generated file.
 protocol YuchengDeviceEvent {
 
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengDeviceTimeOutEvent: YuchengDeviceEvent {
+  var isTimeout: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceTimeOutEvent? {
+    let isTimeout = pigeonVar_list[0] as! Bool
+
+    return YuchengDeviceTimeOutEvent(
+      isTimeout: isTimeout
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      isTimeout
+    ]
+  }
+  static func == (lhs: YuchengDeviceTimeOutEvent, rhs: YuchengDeviceTimeOutEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
@@ -465,24 +540,30 @@ private class YuchengBleApiPigeonCodecReader: FlutterStandardReader {
     case 130:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return YuchengProductState(rawValue: enumResultAsInt)
+        return YuchengDeviceState(rawValue: enumResultAsInt)
       }
       return nil
     case 131:
-      return YuchengSleepDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 132:
-      return YuchengSleepDataDetail.fromList(self.readValue() as! [Any?])
+      return YuchengSleepDataEvent.fromList(self.readValue() as! [Any?])
     case 133:
-      return YuchengSleepErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepDataDetail.fromList(self.readValue() as! [Any?])
     case 134:
-      return YuchengDeviceStateDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepErrorEvent.fromList(self.readValue() as! [Any?])
     case 135:
-      return YuchengDeviceStateErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 136:
-      return YuchengDevice.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateDataEvent.fromList(self.readValue() as! [Any?])
     case 137:
-      return YuchengDeviceDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateErrorEvent.fromList(self.readValue() as! [Any?])
     case 138:
+      return YuchengDevice.fromList(self.readValue() as! [Any?])
+    case 139:
+      return YuchengDeviceTimeOutEvent.fromList(self.readValue() as! [Any?])
+    case 140:
+      return YuchengDeviceDataEvent.fromList(self.readValue() as! [Any?])
+    case 141:
       return YuchengDeviceCompleteEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -495,32 +576,41 @@ private class YuchengBleApiPigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? YuchengSleepType {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? YuchengProductState {
+    } else if let value = value as? YuchengDeviceState {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? YuchengSleepDataEvent {
+    } else if let value = value as? YuchengSleepTimeOutEvent {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepDataDetail {
+    } else if let value = value as? YuchengSleepDataEvent {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepErrorEvent {
+    } else if let value = value as? YuchengSleepDataDetail {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateDataEvent {
+    } else if let value = value as? YuchengSleepErrorEvent {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateErrorEvent {
+    } else if let value = value as? YuchengDeviceStateTimeOutEvent {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDevice {
+    } else if let value = value as? YuchengDeviceStateDataEvent {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceDataEvent {
+    } else if let value = value as? YuchengDeviceStateErrorEvent {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceCompleteEvent {
+    } else if let value = value as? YuchengDevice {
       super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengDeviceTimeOutEvent {
+      super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengDeviceDataEvent {
+      super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengDeviceCompleteEvent {
+      super.writeByte(141)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

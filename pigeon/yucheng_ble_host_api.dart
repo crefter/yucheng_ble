@@ -26,6 +26,14 @@ sealed class YuchengSleepEvent {
   const YuchengSleepEvent();
 }
 
+class YuchengSleepTimeOutEvent extends YuchengSleepEvent {
+  final bool isTimeout;
+
+  const YuchengSleepTimeOutEvent({
+    required this.isTimeout,
+  });
+}
+
 class YuchengSleepDataEvent extends YuchengSleepEvent {
   /// Начало сна в мс
   final int startTimeStamp;
@@ -85,7 +93,7 @@ class YuchengSleepErrorEvent extends YuchengSleepEvent {
 
 // PRODUCT
 
-enum YuchengProductState {
+enum YuchengDeviceState {
   unknown,
   connected,
   connectedFailed,
@@ -99,8 +107,16 @@ sealed class YuchengDeviceStateEvent {
   const YuchengDeviceStateEvent();
 }
 
+class YuchengDeviceStateTimeOutEvent extends YuchengDeviceStateEvent {
+  final bool isTimeout;
+
+  const YuchengDeviceStateTimeOutEvent({
+    required this.isTimeout,
+  });
+}
+
 class YuchengDeviceStateDataEvent extends YuchengDeviceStateEvent {
-  final YuchengProductState state;
+  final YuchengDeviceState state;
 
   const YuchengDeviceStateDataEvent({
     required this.state,
@@ -108,7 +124,7 @@ class YuchengDeviceStateDataEvent extends YuchengDeviceStateEvent {
 }
 
 class YuchengDeviceStateErrorEvent extends YuchengDeviceStateEvent {
-  final YuchengProductState state;
+  final YuchengDeviceState state;
   final String error;
 
   const YuchengDeviceStateErrorEvent({
@@ -140,6 +156,14 @@ class YuchengDevice {
 
 sealed class YuchengDeviceEvent {
   const YuchengDeviceEvent();
+}
+
+class YuchengDeviceTimeOutEvent extends YuchengDeviceEvent {
+  final bool isTimeout;
+
+  const YuchengDeviceTimeOutEvent({
+    required this.isTimeout,
+  });
 }
 
 class YuchengDeviceDataEvent extends YuchengDeviceEvent {

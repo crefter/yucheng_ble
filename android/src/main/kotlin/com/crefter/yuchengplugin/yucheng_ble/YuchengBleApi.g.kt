@@ -89,7 +89,7 @@ enum class YuchengSleepType(val raw: Int) {
   }
 }
 
-enum class YuchengProductState(val raw: Int) {
+enum class YuchengDeviceState(val raw: Int) {
   UNKNOWN(0),
   CONNECTED(1),
   CONNECTED_FAILED(2),
@@ -99,7 +99,7 @@ enum class YuchengProductState(val raw: Int) {
   TIME_OUT(6);
 
   companion object {
-    fun ofRaw(raw: Int): YuchengProductState? {
+    fun ofRaw(raw: Int): YuchengDeviceState? {
       return values().firstOrNull { it.raw == raw }
     }
   }
@@ -110,6 +110,34 @@ enum class YuchengProductState(val raw: Int) {
  * This class should not be extended by any user class outside of the generated file.
  */
 sealed class YuchengSleepEvent 
+/** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengSleepTimeOutEvent (
+  val isTimeout: Boolean
+) : YuchengSleepEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengSleepTimeOutEvent {
+      val isTimeout = pigeonVar_list[0] as Boolean
+      return YuchengSleepTimeOutEvent(isTimeout)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      isTimeout,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengSleepTimeOutEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return deepEqualsYuchengBleApi(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class YuchengSleepDataEvent (
   /** Начало сна в мс */
@@ -239,13 +267,41 @@ data class YuchengSleepErrorEvent (
  */
 sealed class YuchengDeviceStateEvent 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengDeviceStateTimeOutEvent (
+  val isTimeout: Boolean
+) : YuchengDeviceStateEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceStateTimeOutEvent {
+      val isTimeout = pigeonVar_list[0] as Boolean
+      return YuchengDeviceStateTimeOutEvent(isTimeout)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      isTimeout,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengDeviceStateTimeOutEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return deepEqualsYuchengBleApi(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class YuchengDeviceStateDataEvent (
-  val state: YuchengProductState
+  val state: YuchengDeviceState
 ) : YuchengDeviceStateEvent()
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceStateDataEvent {
-      val state = pigeonVar_list[0] as YuchengProductState
+      val state = pigeonVar_list[0] as YuchengDeviceState
       return YuchengDeviceStateDataEvent(state)
     }
   }
@@ -268,13 +324,13 @@ data class YuchengDeviceStateDataEvent (
 
 /** Generated class from Pigeon that represents data sent in messages. */
 data class YuchengDeviceStateErrorEvent (
-  val state: YuchengProductState,
+  val state: YuchengDeviceState,
   val error: String
 ) : YuchengDeviceStateEvent()
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceStateErrorEvent {
-      val state = pigeonVar_list[0] as YuchengProductState
+      val state = pigeonVar_list[0] as YuchengDeviceState
       val error = pigeonVar_list[1] as String
       return YuchengDeviceStateErrorEvent(state, error)
     }
@@ -347,6 +403,34 @@ data class YuchengDevice (
  * This class should not be extended by any user class outside of the generated file.
  */
 sealed class YuchengDeviceEvent 
+/** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengDeviceTimeOutEvent (
+  val isTimeout: Boolean
+) : YuchengDeviceEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceTimeOutEvent {
+      val isTimeout = pigeonVar_list[0] as Boolean
+      return YuchengDeviceTimeOutEvent(isTimeout)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      isTimeout,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengDeviceTimeOutEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return deepEqualsYuchengBleApi(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class YuchengDeviceDataEvent (
   val index: Long,
@@ -432,45 +516,60 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
       }
       130.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          YuchengProductState.ofRaw(it.toInt())
+          YuchengDeviceState.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepDataEvent.fromList(it)
+          YuchengSleepTimeOutEvent.fromList(it)
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepDataDetail.fromList(it)
+          YuchengSleepDataEvent.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepErrorEvent.fromList(it)
+          YuchengSleepDataDetail.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceStateDataEvent.fromList(it)
+          YuchengSleepErrorEvent.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceStateErrorEvent.fromList(it)
+          YuchengDeviceStateTimeOutEvent.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDevice.fromList(it)
+          YuchengDeviceStateDataEvent.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceDataEvent.fromList(it)
+          YuchengDeviceStateErrorEvent.fromList(it)
         }
       }
       138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengDevice.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengDeviceTimeOutEvent.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengDeviceDataEvent.fromList(it)
+        }
+      }
+      141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           YuchengDeviceCompleteEvent.fromList(it)
         }
@@ -484,40 +583,52 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
         stream.write(129)
         writeValue(stream, value.raw)
       }
-      is YuchengProductState -> {
+      is YuchengDeviceState -> {
         stream.write(130)
         writeValue(stream, value.raw)
       }
-      is YuchengSleepDataEvent -> {
+      is YuchengSleepTimeOutEvent -> {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepDataDetail -> {
+      is YuchengSleepDataEvent -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepErrorEvent -> {
+      is YuchengSleepDataDetail -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceStateDataEvent -> {
+      is YuchengSleepErrorEvent -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceStateErrorEvent -> {
+      is YuchengDeviceStateTimeOutEvent -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is YuchengDevice -> {
+      is YuchengDeviceStateDataEvent -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceDataEvent -> {
+      is YuchengDeviceStateErrorEvent -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceCompleteEvent -> {
+      is YuchengDevice -> {
         stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is YuchengDeviceTimeOutEvent -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is YuchengDeviceDataEvent -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is YuchengDeviceCompleteEvent -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

@@ -77,7 +77,10 @@ class _MainScreenState extends State<MainScreen> {
 
     devicesSub = _ble.devicesStream().listen(
       (event) {
-        if (event is YuchengDeviceCompleteEvent) {
+        if (event is YuchengDeviceTimeOutEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Таймаут соединения');
+        } else if (event is YuchengDeviceCompleteEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Конец сканирования');
           setState(() {
@@ -97,7 +100,10 @@ class _MainScreenState extends State<MainScreen> {
 
     sleepDataSub = _ble.sleepDataStream().listen(
       (event) {
-        if (event is YuchengSleepDataEvent) {
+        if (event is YuchengSleepTimeOutEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Таймаут соединения');
+        } else if (event is YuchengSleepDataEvent) {
           print(event.toJson());
         } else if (event is YuchengSleepErrorEvent) {
           if (!context.mounted) return;
@@ -114,8 +120,14 @@ class _MainScreenState extends State<MainScreen> {
 
     deviceStateSub = _ble.deviceStateStream().listen(
       (event) {
-        if (event is YuchengDeviceStateDataEvent) {
-          if (event.state == YuchengProductState.readWriteOK) {
+        if (event is YuchengDeviceStateTimeOutEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Таймаут соединения');
+          setState(() {
+            isDeviceConnected = false;
+          });
+        } else if (event is YuchengDeviceStateDataEvent) {
+          if (event.state == YuchengDeviceState.readWriteOK) {
             isDeviceConnected = true;
           }
           setState(() {
@@ -266,6 +278,7 @@ class _MainScreenState extends State<MainScreen> {
                   YuchengDeviceStateDataEvent() => event.state.name,
                   YuchengDeviceStateErrorEvent() =>
                     '${event.state.name} - ${event.error}',
+                  YuchengDeviceStateTimeOutEvent() => 'Time out!',
                 };
 
                 return DecoratedBox(

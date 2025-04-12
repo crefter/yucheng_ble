@@ -62,6 +62,7 @@ class YuchengBlePlugin : FlutterPlugin {
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
+            onState = { data -> deviceStateStreamHandler?.onState(data) },
             onReconnect = {
                 Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
             }
@@ -75,7 +76,7 @@ class YuchengBlePlugin : FlutterPlugin {
                 Constants.BLEState.Connected -> {
                     deviceStateStreamHandler?.onState(
                         YuchengDeviceStateDataEvent(
-                            YuchengProductState.CONNECTED
+                            YuchengDeviceState.CONNECTED
                         )
                     )
                 }
@@ -83,7 +84,7 @@ class YuchengBlePlugin : FlutterPlugin {
                 Constants.BLEState.TimeOut -> {
                     deviceStateStreamHandler?.onState(
                         YuchengDeviceStateDataEvent(
-                            YuchengProductState.TIME_OUT
+                            YuchengDeviceState.TIME_OUT
                         )
                     )
                 }
@@ -91,7 +92,7 @@ class YuchengBlePlugin : FlutterPlugin {
                 Constants.BLEState.Disconnect -> {
                     deviceStateStreamHandler?.onState(
                         YuchengDeviceStateDataEvent(
-                            YuchengProductState.DISCONNECTED
+                            YuchengDeviceState.DISCONNECTED
                         )
                     )
                 }
@@ -99,14 +100,15 @@ class YuchengBlePlugin : FlutterPlugin {
                 Constants.BLEState.ReadWriteOK -> {
                     deviceStateStreamHandler?.onState(
                         YuchengDeviceStateDataEvent(
-                            YuchengProductState.READ_WRITE_OK
+                            YuchengDeviceState.READ_WRITE_OK
                         )
                     )
                 }
+
                 else -> {
                     deviceStateStreamHandler?.onState(
                         YuchengDeviceStateDataEvent(
-                            YuchengProductState.UNKNOWN
+                            YuchengDeviceState.UNKNOWN
                         )
                     )
                 }

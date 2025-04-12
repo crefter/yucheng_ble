@@ -5,11 +5,12 @@ import YuchengDevice
 import YuchengDeviceCompleteEvent
 import YuchengDeviceDataEvent
 import YuchengDeviceEvent
-import YuchengDeviceStateDataEvent
 import YuchengDeviceStateEvent
+import YuchengDeviceStateTimeOutEvent
+import YuchengDeviceTimeOutEvent
 import YuchengHostApi
-import YuchengProductState
 import YuchengSleepEvent
+import YuchengSleepTimeOutEvent
 import android.util.Log
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
@@ -21,11 +22,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
-private const val SCAN_PERIOD: Int = 10
+private const val SCAN_PERIOD: Int = 14
+private const val TIME_TO_TIMEOUT: Long = 15
 
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
     private val onSleepData: (sleepData: YuchengSleepEvent) -> Unit,
+    private val onState: (state: YuchengDeviceStateEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
     private val onReconnect: () -> Unit,
 ) : YuchengHostApi {
@@ -83,8 +86,25 @@ class YuchengApiImpl(
         }
 
         GlobalScope.launch {
-            delay(1000 * 15)
-            if (!completer.isCompleted) completer.complete(devices)
+            delay(1000 * TIME_TO_TIMEOUT)
+            if (!completer.isCompleted) {
+                if (devices.isEmpty()) {
+                    onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
+                } else {
+                    for (device in devices) {
+                        onDevice(
+                            YuchengDeviceDataEvent(
+                                device.index,
+                                device.uuid,
+                                device.isCurrentConnected,
+                                device.deviceName,
+                            ),
+                        )
+                    }
+                    onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
+                }
+                completer.complete(devices)
+            }
         }
     }
 
@@ -135,8 +155,11 @@ class YuchengApiImpl(
             callback(Result.success(completer.await()))
         }
         GlobalScope.launch {
-            delay(1000 * 15)
-            if (!completer.isCompleted) completer.complete(false)
+            delay(1000 * (TIME_TO_TIMEOUT + 10))
+            if (!completer.isCompleted) {
+                onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
+                completer.complete(false)
+            }
         }
     }
 
@@ -148,8 +171,8 @@ class YuchengApiImpl(
             YCBTClient.reconnectBle { code ->
                 Log.e("RECONNECT BLE", "CODE = $code")
                 if (code == 0) {
-                    val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK;
-                    completer.complete(isConnected)
+                    val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+                    if (!completer.isCompleted) completer.complete(isConnected)
                 }
             }
         } catch (e: Exception) {
@@ -163,8 +186,11 @@ class YuchengApiImpl(
             }
         }
         GlobalScope.launch {
-            delay(1000 * 15)
-            if (!completer.isCompleted) completer.complete(false)
+            delay(1000 * TIME_TO_TIMEOUT)
+            if (!completer.isCompleted) {
+                onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
+                completer.complete(false)
+            }
         }
     }
 
@@ -226,8 +252,15 @@ class YuchengApiImpl(
         }
 
         GlobalScope.launch {
-            delay(1000 * 10)
+            delay(1000 * TIME_TO_TIMEOUT)
             if (sleepDataCompleter.isCompleted == false) {
+                if (sleepDataList.isEmpty()) {
+                    onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
+                } else {
+                    for (sleep in sleepDataList) {
+                        onSleepData(sleep)
+                    }
+                }
                 sleepDataCompleter.complete(sleepDataList)
             }
         }
@@ -245,7 +278,6 @@ class YuchengApiImpl(
     companion object {
         private const val YUCHENG_API = "YUCH_API"
         private const val GET_SLEEP_DATA = "$YUCHENG_API GET_SLEEP_DATA"
-        private const val CONNECT = "$YUCHENG_API CONNECT"
         private const val DISCONNECT = "$YUCHENG_API DISCONNECT"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"

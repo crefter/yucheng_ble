@@ -5,6 +5,8 @@
 # Для Joda-Time
 -keep class org.joda.time.** { *; }
 
+-keep class org.eclipse.paho.client.mqttv3.** { *; }
+
 # Для JavaMoney
 -keep class javax.money.** { *; }
 -keep class org.javamoney.** { *; }

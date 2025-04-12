@@ -26,13 +26,15 @@ class YuchengHostApiImpl : YuchengHostApi {
    private var currentDevice: CBPeripheral? = nil;
    private var sleepData: [YuchengSleepDataEvent] = [];
    private var index: Int = 0;
+    private let TIME_TO_TIMEOUT = 15.0;
+    private let TIME_TO_SCAN = 14.0;
    
     init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, onState: @escaping (_: YuchengDeviceStateEvent) -> Void, converter: YuchengSleepDataConverter) {
        self.onDevice = onDevice
        self.onSleepData = onSleepData
        self.converter = converter
        self.onState = onState
-       DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: {
+       DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: {
            var currentDevice: CBPeripheral? = YCProduct.shared.currentPeripheral;
            if (currentDevice != nil) {
                onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
@@ -45,7 +47,7 @@ class YuchengHostApiImpl : YuchengHostApi {
        var lastConnectedDevice = YCProduct.shared.currentPeripheral;
        var ycDevices: [YuchengDevice] = [];
        do {
-           YCProduct.scanningDevice(delayTime: scanTimeInSeconds ?? 10.0) { devices, error in
+           YCProduct.scanningDevice(delayTime: scanTimeInSeconds ?? TIME_TO_SCAN) { devices, error in
                if (error != nil) {
                    self.onDevice(YuchengDeviceCompleteEvent(completed: false))
                    isCompleted = true;
@@ -70,11 +72,19 @@ class YuchengHostApiImpl : YuchengHostApi {
            self.onDevice(YuchengDeviceCompleteEvent(completed: false))
            completion(.failure(e))
        }
-       DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
+       DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
            if (isCompleted) {
                return;
            }
-           self.onDevice(YuchengDeviceCompleteEvent(completed: true))
+           if (ycDevices.isEmpty) {
+               self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
+           } else {
+               for ycDevice in ycDevices {
+                   self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: ycDevice.uuid, isCurrentConnected: ycDevice.isCurrentConnected, deviceName: ycDevice.deviceName))
+                   self.index += 1
+               }
+               self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
+           }
            completion(.success(ycDevices))
        }
    }
@@ -128,10 +138,11 @@ class YuchengHostApiImpl : YuchengHostApi {
                isCompleted = true
            }
        }
-       DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+       DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
            if (isCompleted) {
                return;
            }
+           self.onState(YuchengDeviceStateTimeOutEvent(isTimeout: true))
            completion(.success(false))
        }
    }
@@ -199,9 +210,16 @@ class YuchengHostApiImpl : YuchengHostApi {
            querySleepData(completion, {
                isCompleted = true
            })
-           DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+           DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
                if (isCompleted) {
                    return
+               }
+               if (self.sleepData.isEmpty) {
+                   self.onSleepData(YuchengSleepTimeOutEvent(isTimeout: true))
+               } else {
+                   for sleepData in self.sleepData {
+                       self.onSleepData(sleepData)
+                   }
                }
                completion(.success(self.sleepData))
            }

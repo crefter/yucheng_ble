@@ -37,7 +37,7 @@ enum YuchengSleepType {
   unknown,
 }
 
-enum YuchengProductState {
+enum YuchengDeviceState {
   unknown,
   connected,
   connectedFailed,
@@ -48,6 +48,47 @@ enum YuchengProductState {
 }
 
 sealed class YuchengSleepEvent {
+}
+
+class YuchengSleepTimeOutEvent extends YuchengSleepEvent {
+  YuchengSleepTimeOutEvent({
+    required this.isTimeout,
+  });
+
+  bool isTimeout;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      isTimeout,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengSleepTimeOutEvent decode(Object result) {
+    result as List<Object?>;
+    return YuchengSleepTimeOutEvent(
+      isTimeout: result[0]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengSleepTimeOutEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
 }
 
 class YuchengSleepDataEvent extends YuchengSleepEvent {
@@ -237,12 +278,53 @@ class YuchengSleepErrorEvent extends YuchengSleepEvent {
 sealed class YuchengDeviceStateEvent {
 }
 
+class YuchengDeviceStateTimeOutEvent extends YuchengDeviceStateEvent {
+  YuchengDeviceStateTimeOutEvent({
+    required this.isTimeout,
+  });
+
+  bool isTimeout;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      isTimeout,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengDeviceStateTimeOutEvent decode(Object result) {
+    result as List<Object?>;
+    return YuchengDeviceStateTimeOutEvent(
+      isTimeout: result[0]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengDeviceStateTimeOutEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 class YuchengDeviceStateDataEvent extends YuchengDeviceStateEvent {
   YuchengDeviceStateDataEvent({
     required this.state,
   });
 
-  YuchengProductState state;
+  YuchengDeviceState state;
 
   List<Object?> _toList() {
     return <Object?>[
@@ -256,7 +338,7 @@ class YuchengDeviceStateDataEvent extends YuchengDeviceStateEvent {
   static YuchengDeviceStateDataEvent decode(Object result) {
     result as List<Object?>;
     return YuchengDeviceStateDataEvent(
-      state: result[0]! as YuchengProductState,
+      state: result[0]! as YuchengDeviceState,
     );
   }
 
@@ -284,7 +366,7 @@ class YuchengDeviceStateErrorEvent extends YuchengDeviceStateEvent {
     required this.error,
   });
 
-  YuchengProductState state;
+  YuchengDeviceState state;
 
   String error;
 
@@ -301,7 +383,7 @@ class YuchengDeviceStateErrorEvent extends YuchengDeviceStateEvent {
   static YuchengDeviceStateErrorEvent decode(Object result) {
     result as List<Object?>;
     return YuchengDeviceStateErrorEvent(
-      state: result[0]! as YuchengProductState,
+      state: result[0]! as YuchengDeviceState,
       error: result[1]! as String,
     );
   }
@@ -385,6 +467,47 @@ class YuchengDevice {
 }
 
 sealed class YuchengDeviceEvent {
+}
+
+class YuchengDeviceTimeOutEvent extends YuchengDeviceEvent {
+  YuchengDeviceTimeOutEvent({
+    required this.isTimeout,
+  });
+
+  bool isTimeout;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      isTimeout,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengDeviceTimeOutEvent decode(Object result) {
+    result as List<Object?>;
+    return YuchengDeviceTimeOutEvent(
+      isTimeout: result[0]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengDeviceTimeOutEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
 }
 
 class YuchengDeviceDataEvent extends YuchengDeviceEvent {
@@ -502,32 +625,41 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is YuchengSleepType) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is YuchengProductState) {
+    }    else if (value is YuchengDeviceState) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is YuchengSleepDataEvent) {
+    }    else if (value is YuchengSleepTimeOutEvent) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataDetail) {
+    }    else if (value is YuchengSleepDataEvent) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepErrorEvent) {
+    }    else if (value is YuchengSleepDataDetail) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateDataEvent) {
+    }    else if (value is YuchengSleepErrorEvent) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateErrorEvent) {
+    }    else if (value is YuchengDeviceStateTimeOutEvent) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDevice) {
+    }    else if (value is YuchengDeviceStateDataEvent) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceDataEvent) {
+    }    else if (value is YuchengDeviceStateErrorEvent) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceCompleteEvent) {
+    }    else if (value is YuchengDevice) {
       buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengDeviceTimeOutEvent) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengDeviceDataEvent) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengDeviceCompleteEvent) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -542,22 +674,28 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : YuchengSleepType.values[value];
       case 130: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : YuchengProductState.values[value];
+        return value == null ? null : YuchengDeviceState.values[value];
       case 131: 
-        return YuchengSleepDataEvent.decode(readValue(buffer)!);
+        return YuchengSleepTimeOutEvent.decode(readValue(buffer)!);
       case 132: 
-        return YuchengSleepDataDetail.decode(readValue(buffer)!);
+        return YuchengSleepDataEvent.decode(readValue(buffer)!);
       case 133: 
-        return YuchengSleepErrorEvent.decode(readValue(buffer)!);
+        return YuchengSleepDataDetail.decode(readValue(buffer)!);
       case 134: 
-        return YuchengDeviceStateDataEvent.decode(readValue(buffer)!);
+        return YuchengSleepErrorEvent.decode(readValue(buffer)!);
       case 135: 
-        return YuchengDeviceStateErrorEvent.decode(readValue(buffer)!);
+        return YuchengDeviceStateTimeOutEvent.decode(readValue(buffer)!);
       case 136: 
-        return YuchengDevice.decode(readValue(buffer)!);
+        return YuchengDeviceStateDataEvent.decode(readValue(buffer)!);
       case 137: 
-        return YuchengDeviceDataEvent.decode(readValue(buffer)!);
+        return YuchengDeviceStateErrorEvent.decode(readValue(buffer)!);
       case 138: 
+        return YuchengDevice.decode(readValue(buffer)!);
+      case 139: 
+        return YuchengDeviceTimeOutEvent.decode(readValue(buffer)!);
+      case 140: 
+        return YuchengDeviceDataEvent.decode(readValue(buffer)!);
+      case 141: 
         return YuchengDeviceCompleteEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
