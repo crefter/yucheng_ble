@@ -5,6 +5,7 @@
 # Для Joda-Time
 -keep class org.joda.time.** { *; }
 
+-keep class com.jieli.jl_rcsp.impl.RcspAuth { *; }
 -keep class org.eclipse.paho.client.mqttv3.** { *; }
 
 # Для JavaMoney
