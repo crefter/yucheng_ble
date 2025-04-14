@@ -15,15 +15,53 @@ extension RingSleepDataDetailX on YuchengSleepDataDetail {
 extension RingSleepDataX on YuchengSleepDataEvent {
   String toJson() {
     return '{"start": "$startDate", "end": "$endDate",'
-        ' "deepCount": $deepCount, "lightCount": $lightCount, "awakeCount": $awakeCount,'
-        '"deepInSeconds": $deepInSeconds, "lightInSeconds": $lightInSeconds, "awakeInSeconds": $awakeInSeconds, "remInSeconds": $remInSeconds,'
+        ' "deepCount": $deepCount, "lightCount": $lightCount, "awakeCount": $awakeCount, '
+        '"deepInSeconds": $deepInSeconds, "lightInSeconds": $lightInSeconds, "awakeInSeconds": $awakeInSeconds, "remInSeconds": $remInSeconds, '
         '"details":'
         '${details.map((e) => e.toJson()).toList()}}';
   }
 }
 
+extension SleepTypeX on YuchengSleepType {
+  ({int r, int g, int b}) toColor() => switch (this) {
+        YuchengSleepType.rem => (
+            r: 123,
+            g: 40,
+            b: 45,
+          ),
+        YuchengSleepType.deep => (
+            r: 65,
+            g: 103,
+            b: 75,
+          ),
+        YuchengSleepType.awake => (
+            r: 89,
+            g: 12,
+            b: 174,
+          ),
+        YuchengSleepType.light => (
+            r: 20,
+            g: 190,
+            b: 30,
+          ),
+        YuchengSleepType.unknown => (
+            r: 100,
+            g: 100,
+            b: 100,
+          ),
+      };
+
+  String get name => switch (this) {
+        YuchengSleepType.rem => 'REM',
+        YuchengSleepType.deep => 'Глубокий',
+        YuchengSleepType.awake => 'Awake',
+        YuchengSleepType.light => 'Легкий',
+        YuchengSleepType.unknown => 'Неизвестный',
+      };
+}
+
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -32,29 +70,35 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: MainScreen(),
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const YuchengSdkScreen(),
     );
   }
 }
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+class YuchengSdkScreen extends StatefulWidget {
+  const YuchengSdkScreen({super.key});
 
   @override
-  State<MainScreen> createState() => _MainScreenState();
+  State<YuchengSdkScreen> createState() => _YuchengSdkScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   final _ble = YuchengBle();
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
   late final StreamSubscription<YuchengDeviceStateEvent> deviceStateSub;
+  late final StreamSubscription<BluetoothAdapterState> bluetoothStateSub;
   final List<YuchengDevice> devices = [];
   final List<YuchengSleepDataEvent> sleepData = [];
   final List<YuchengDeviceStateEvent> deviceState = [];
   bool isDeviceScanning = false;
   YuchengDevice? selectedDevice;
   bool isDeviceConnected = false;
+  bool isReconnected = false;
 
   Future<bool> requestPermissions() async {
     final granted = (await [
@@ -137,6 +181,9 @@ class _MainScreenState extends State<MainScreen> {
         } else if (event is YuchengDeviceStateErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
+          setState(() {
+            isDeviceConnected = false;
+          });
         }
       },
       onError: (e) {
@@ -146,16 +193,30 @@ class _MainScreenState extends State<MainScreen> {
         print("PRODUCT STATE IS DONE");
       },
     );
-  }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!Platform.isIOS) {
-      _ble.reconnect().then((val) {
-        print("RECONNECTED!!!!! - $val");
-      });
-    }
+    bluetoothStateSub = FlutterBluePlus.adapterState.listen(
+      (event) async {
+        // Тут должна быть проверка на девайс, чтобы этот листенер работал только для реконнекта
+        if (event == BluetoothAdapterState.on) {
+          final isSupported = await _isBluetoothSupported();
+          if (!isSupported) return;
+
+          final isGranted = await requestPermissions();
+          if (!isGranted) {
+            if (!context.mounted) return;
+            setState(() {
+              isDeviceScanning = false;
+            });
+            _showSnackBar(context, 'Необходимо выдать разрешения!');
+            return;
+          }
+          await tryReconnect();
+        } else if (event == BluetoothAdapterState.off) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Включи блутуз для работы с девайсом');
+        }
+      },
+    );
   }
 
   @override
@@ -163,7 +224,156 @@ class _MainScreenState extends State<MainScreen> {
     devicesSub.cancel();
     sleepDataSub.cancel();
     deviceStateSub.cancel();
+    bluetoothStateSub.cancel();
     super.dispose();
+  }
+
+  Future<bool> _isBluetoothSupported() async {
+    final isSupported = await FlutterBluePlus.isSupported;
+    if (!isSupported) {
+      if (!context.mounted) return isSupported;
+      _showSnackBar(context, 'Нет поддержки блютуз');
+    }
+    return isSupported;
+  }
+
+  Future<bool> _isBluetoothOn() async {
+    final bluetoothIsOnCompleter = Completer<bool>();
+    Timer? bluetoothTimer;
+    final sub = FlutterBluePlus.adapterState.listen(
+      (event) {
+        if (event == BluetoothAdapterState.on &&
+            !bluetoothIsOnCompleter.isCompleted) {
+          bluetoothTimer?.cancel();
+          bluetoothIsOnCompleter.complete(true);
+          return;
+        }
+        if (bluetoothIsOnCompleter.isCompleted) return;
+        bluetoothTimer ??= Timer.periodic(
+          const Duration(seconds: 1),
+          (timer) {
+            if (timer.tick >= 5) {
+              timer.cancel();
+              bluetoothIsOnCompleter.complete(false);
+              return;
+            }
+          },
+        );
+      },
+    );
+    final isBluetoothOn = await bluetoothIsOnCompleter.future;
+    await sub.cancel();
+    return isBluetoothOn;
+  }
+
+  Future<void> tryReconnect() async {
+    final isBluetoothSupported = await _isBluetoothSupported();
+    if (!isBluetoothSupported) return;
+
+    final isGranted = await requestPermissions();
+    if (!isGranted) {
+      if (!context.mounted) return;
+      setState(() {
+        isDeviceScanning = false;
+      });
+      _showSnackBar(context, 'Необходимо выдать разрешения!');
+      return;
+    }
+
+    if (!Platform.isIOS) {
+      final isBleReconnected = await _ble.reconnect();
+      if (isReconnected || isDeviceConnected) return;
+      setState(() {
+        isReconnected = isBleReconnected;
+        isDeviceConnected = isBleReconnected;
+      });
+      print('RECONNECTED!!!!! - $isBleReconnected');
+    } else {
+      final isBleReconnect = await _ble.isDeviceConnected(null);
+      if (isReconnected || isDeviceConnected) return;
+      setState(() {
+        isReconnected = isBleReconnect;
+        isDeviceConnected = isBleReconnect;
+      });
+      print('RECONNECTED!!!!! - $isBleReconnect');
+    }
+  }
+
+  Future<void> scanDevices() async {
+    final isSupported = await _isBluetoothSupported();
+    if (!isSupported) return;
+
+    final isGranted = await requestPermissions();
+    if (!isGranted) {
+      if (!context.mounted) return;
+      setState(() {
+        isDeviceScanning = false;
+      });
+      _showSnackBar(context, 'Необходимо выдать разрешения!');
+      return;
+    }
+
+    if (await _isBluetoothOn()) {
+      setState(() {
+        isDeviceScanning = true;
+      });
+      final devices = await _ble.startScanDevices(null);
+      this.devices.clear();
+      setState(() {
+        this.devices.addAll(devices);
+      });
+    } else {
+      if (!context.mounted) return;
+      setState(() {
+        isDeviceScanning = false;
+      });
+      await FlutterBluePlus.turnOn();
+      final bleState = await FlutterBluePlus.adapterState.last;
+      final isOn = bleState == BluetoothAdapterState.on;
+      if (!context.mounted) return;
+      if (Platform.isIOS) {
+        _showSnackBar(
+            context, 'Включи блютуз вручную и попробуй сканировать еще раз');
+      } else if (Platform.isAndroid && !isOn) {
+        _showSnackBar(context, 'Включи блютуз и попробуй сканировать еще раз');
+      }
+    }
+  }
+
+  Future<void> tryConnectToDevice() async {
+    try {
+      final isDeviceConnected = await _ble.connect(selectedDevice!);
+      if (!context.mounted) return;
+      this.isDeviceConnected = isDeviceConnected;
+      if (isDeviceConnected) {
+        _showSnackBar(context, 'Подключился!');
+      } else {
+        _showSnackBar(
+            context, 'Не удалось подключиться почему-то, попробуй еще раз');
+      }
+      setState(() {});
+    } catch (e) {
+      if (!context.mounted) return;
+      _showSnackBar(
+        context,
+        'Не удалось подключиться( ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> tryGetSleepData() async {
+    try {
+      final data = await _ble.getSleepData();
+      final sleepDataFromDevice = data.whereType<YuchengSleepDataEvent>();
+      setState(() {
+        sleepData.clear();
+        sleepData.addAll(sleepDataFromDevice);
+      });
+      print(data);
+    } catch (e) {
+      if (!context.mounted) return;
+      _showSnackBar(context, 'Ошибка: ${e}');
+    }
   }
 
   @override
@@ -175,42 +385,25 @@ class _MainScreenState extends State<MainScreen> {
         ),
         body: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Text(
                 'Hello, dear!',
                 textAlign: TextAlign.center,
               ),
             ),
+            if (isReconnected || isDeviceConnected)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    final device = await _ble.getCurrentConnectedDevice();
+                    print(device);
+                  },
+                  child: Text("Получить данные о текущем девайсе"),
+                ),
+              ),
             SliverToBoxAdapter(
               child: TextButton(
-                onPressed: () async {
-                  devices.clear();
-                  if (await FlutterBluePlus.adapterState.first ==
-                      BluetoothAdapterState.on) {
-                    final isGranted = await requestPermissions();
-                    if (!isGranted) {
-                      if (!context.mounted) return;
-                      setState(() {
-                        isDeviceScanning = false;
-                      });
-                      _showSnackBar(context, 'Не выдал разрешения(');
-                    }
-                    setState(() {
-                      isDeviceScanning = true;
-                    });
-                    final devices = await _ble.startScanDevices(null);
-                    setState(() {
-                      this.devices.addAll(devices);
-                    });
-                  } else {
-                    if (!context.mounted) return;
-                    setState(() {
-                      isDeviceScanning = false;
-                    });
-                    await FlutterBluePlus.turnOn();
-                    _showSnackBar(context, 'Включи блютуз)');
-                  }
-                },
+                onPressed: scanDevices,
                 child: Text(
                   isDeviceScanning
                       ? 'Идет сканирование'
@@ -238,36 +431,44 @@ class _MainScreenState extends State<MainScreen> {
                         );
                       });
                     },
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.red.shade200,
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(10),
-                        child: Row(
-                          children: [
-                            Text('Index: $index'),
-                            const Gap(width: 12),
-                            Column(
-                              children: [
-                                Text('Device name: $deviceName'),
-                                const SizedBox(
-                                  height: 8,
-                                ),
-                                Text('Mac address: $mac'),
-                              ],
-                            ),
-                          ],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: _DecoratedItem(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Row(
+                            children: [
+                              Text('Index: $index'),
+                              const SizedBox(height: 10),
+                              Column(
+                                children: [
+                                  Text('Device name: $deviceName'),
+                                  const SizedBox(
+                                    height: 8,
+                                  ),
+                                  Text('Mac address: $mac'),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 );
               },
-              separatorBuilder: (BuildContext context, int index) {
-                return SizedBox(height: 8);
+              separatorBuilder: (context, index) {
+                return const SizedBox(height: 8);
               },
+            ),
+            const SliverPadding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              sliver: SliverToBoxAdapter(
+                child: Text(
+                  'Состояния девайса: ',
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
             SliverList.separated(
               itemCount: deviceState.length,
@@ -278,117 +479,122 @@ class _MainScreenState extends State<MainScreen> {
                   YuchengDeviceStateDataEvent() => event.state.name,
                   YuchengDeviceStateErrorEvent() =>
                     '${event.state.name} - ${event.error}',
-                  YuchengDeviceStateTimeOutEvent() => 'Time out!',
+                  YuchengDeviceStateTimeOutEvent() => 'Time out to listen!',
                 };
 
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.amberAccent.shade400,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(text),
-                      ),
-                    ],
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _DecoratedItem(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(text),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
               separatorBuilder: (context, index) {
-                return Gap(height: 10);
+                return const SizedBox(height: 10);
               },
             ),
+            if (!isReconnected && selectedDevice != null)
+              SliverToBoxAdapter(
+                child: Builder(
+                  builder: (context) {
+                    return Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        Text(
+                          'Ты выбрал девайс: ${selectedDevice?.deviceName} : ${selectedDevice?.uuid}',
+                        ),
+                        const SizedBox(height: 10),
+                        if (!isDeviceConnected)
+                          ElevatedButton(
+                            onPressed: tryConnectToDevice,
+                            child: const Text(
+                                'Попробовать подключиться к девайсу'),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             SliverToBoxAdapter(
               child: Builder(
                 builder: (context) {
-                  if (selectedDevice == null) return const SizedBox();
+                  if (!(isDeviceConnected || isReconnected)) {
+                    return const SizedBox();
+                  }
 
                   return Column(
                     children: [
-                      const Gap(height: 10),
-                      Text(
-                        'Ты выбрал девайс: ${selectedDevice?.deviceName} : ${selectedDevice?.uuid}',
-                      ),
-                      const Gap(height: 10),
+                      const SizedBox(height: 10),
                       ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            final isDeviceConnected =
-                                await _ble.connect(selectedDevice!);
-                            if (!context.mounted) return;
-                            this.isDeviceConnected = isDeviceConnected;
-                            if (isDeviceConnected) {
-                              _showSnackBar(context, 'Подключился!');
-                            }
-                            setState(() {});
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            _showSnackBar(
-                              context,
-                              'Не удалось подключиться( ${e.toString()}',
-                            );
-                          }
-                        },
-                        child: Text('Попробовать подключиться к девайсу'),
+                        onPressed: tryGetSleepData,
+                        child: const Text('Получить данные о сне'),
                       ),
                     ],
                   );
                 },
               ),
             ),
-            SliverToBoxAdapter(
-              child: Builder(
-                builder: (context) {
-                  if (!isDeviceConnected) return const SizedBox();
-
-                  return Column(
-                    children: [
-                      const Gap(height: 10),
-                      ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            final data = await _ble.getSleepData();
-                            final sleepDataFromDevice =
-                                data.whereType<YuchengSleepDataEvent>();
-                            setState(() {
-                              sleepData.addAll(sleepDataFromDevice);
-                            });
-                            sleepDataFromDevice.forEach((event) {
-                              var awakeCount = event.details
-                                  .where(
-                                      (e) => e.type == YuchengSleepType.awake)
-                                  .length;
-                              print("AWAKE COUNT IN DETAILS IS = $awakeCount");
-                            });
-                            print(data);
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            _showSnackBar(context, 'Ошибка: ${e.toString()}');
-                          }
-                        },
-                        child: Text('Получить данные о сне'),
-                      ),
-                    ],
-                  );
-                },
+            if (sleepData.isNotEmpty)
+              const SliverPadding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    'Данные о сне:',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
-            ),
             SliverPadding(
               padding: const EdgeInsets.only(bottom: 12),
               sliver: SliverList.separated(
                 itemCount: sleepData.length,
                 itemBuilder: (context, index) {
                   final item = sleepData[index];
-                  final json = item.toJson();
                   return DecoratedBox(
-                    decoration: BoxDecoration(color: Colors.green.shade500),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(json),
-                        ),
-                      ],
+                    decoration: const BoxDecoration(color: Colors.black12),
+                    child: ExpansionTile(
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Начало сна: ${item.startDate}\nКонец сна: ${item.endDate}',
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            'Легкий: ${item.lightInSeconds ~/ 60} мин.',
+                          ),
+                          Text(
+                            'REM: ${item.remInSeconds ~/ 60} мин.',
+                          ),
+                          Text(
+                            'Глубокий: ${item.deepInSeconds ~/ 60} мин.',
+                          ),
+                          Text(
+                            'Awake: ${item.awakeInSeconds ~/ 60} мин.',
+                          ),
+                        ],
+                      ),
+                      children: item.details
+                          .map((e) => Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: _DetailItem(detail: e),
+                              ))
+                          .toList(),
                     ),
                   );
                 },
@@ -415,21 +621,57 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-class Gap extends StatelessWidget {
-  const Gap({
-    super.key,
-    this.height,
-    this.width,
-  });
+class _DetailItem extends StatelessWidget {
+  final YuchengSleepDataDetail detail;
 
-  final double? height;
-  final double? width;
+  const _DetailItem({
+    required this.detail,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final type = detail.type;
+    final end = detail.endDate;
+    final start = detail.startDate;
+    final duration = detail.duration ~/ 60;
+
+    final color = type.toColor();
+
     return SizedBox(
-      height: height,
-      width: width,
+      height: 40,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+            color: Color.fromARGB(255, color.r, color.g, color.b)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Expanded(
+              child: Text(
+                'Тип: ${type.name}, Длительность: $duration мин., Начало: $start, Конец: $end',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DecoratedItem extends StatelessWidget {
+  const _DecoratedItem({
+    required this.child,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black12,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: child,
     );
   }
 }

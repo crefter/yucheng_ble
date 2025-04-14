@@ -1,5 +1,8 @@
+-keep class com.lib.flutter_blue_plus.* { *; }
 -keep class com.crefter.yuchengplugin.yucheng_ble.** { *; }
 -keep class com.crefter.yuchengplugin.yucheng_ble.** { *; }
+-keep class com.jieli.jl_rcsp.impl.RcspAuth { *; }
+-keep class org.eclipse.paho.client.mqttv3.** { *; }
 # Для AWT (если нужно)
 -keep class java.awt.** { *; }
 
@@ -9,6 +12,10 @@
 # Для JavaMoney
 -keep class javax.money.** { *; }
 -keep class org.javamoney.** { *; }
+
+
+-keep class org.xmlpull.** { *; }
+-keepclassmembers class org.xmlpull.** { *; }
 
 # Для JAX-RS (если используется)
 -keep class javax.ws.rs.** { *; }
@@ -20,6 +27,10 @@
 -keep class com.alibaba.fastjson.** { *; }
 -keep class com.alibaba.fastjson.serializer.** { *; }
 
+-dontwarn org.xmlpull.v1.**
+-dontwarn org.kxml2.io.**
+-dontwarn android.content.res.**
+-dontwarn org.slf4j.impl.StaticLoggerBinder
 -dontwarn java.awt.Color
 -dontwarn java.awt.Font
 -dontwarn java.awt.Point

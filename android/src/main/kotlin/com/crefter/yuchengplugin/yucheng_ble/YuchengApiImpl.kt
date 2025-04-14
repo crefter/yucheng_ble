@@ -268,7 +268,15 @@ class YuchengApiImpl(
 
     override fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit) {
         try {
-            callback(Result.success(selectedDevice))
+            if (selectedDevice != null) {
+                callback(Result.success(selectedDevice))
+                return
+            }
+            val macAddress = YCBTClient.getBindDeviceMac()
+            val ycDevice =
+                YuchengDevice(index++, "", macAddress, false)
+            selectedDevice = ycDevice
+            callback(Result.success(ycDevice))
         } catch (e: Exception) {
             callback(Result.failure(e))
         }
