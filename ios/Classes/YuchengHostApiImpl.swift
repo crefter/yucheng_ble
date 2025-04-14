@@ -122,6 +122,7 @@ class YuchengHostApiImpl : YuchengHostApi {
        
        if (currentDevice == nil) {
            completion(.failure(NoDeviceError.noDevice("Current device is nil")))
+           return
        }
        
        var isCompleted = false;
