@@ -224,7 +224,7 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private suspend fun getSleepData(): List<YuchengSleepData> {
+    private suspend fun getSleepData(skipHandler: Boolean = false): List<YuchengSleepData> {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get sleep data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
             return listOf()
@@ -237,16 +237,18 @@ class YuchengApiImpl(
             ) { code, ratio, data ->
                 if (data != null) {
                     val sleepData = data["data"] as List<*>? ?: return@healthHistoryData
-                    val sleepEvents = sleepData.map {
+                    val mappedSleep = sleepData.map {
                         val yuchengSleepData = sleepDataConverter.convert(it)
                         return@map yuchengSleepData
                     }
-                    sleepDataList.addAll(sleepEvents)
-                    for (sleep in sleepDataList) {
-                        val ycDataEvent = YuchengSleepDataEvent(sleep)
-                        onSleepData(ycDataEvent)
+                    sleepDataList.addAll(mappedSleep)
+                    if (!skipHandler) {
+                        for (sleep in sleepDataList) {
+                            val ycDataEvent = YuchengSleepDataEvent(sleep)
+                            onSleepData(ycDataEvent)
+                        }
                     }
-                    Log.d("SLEEP DATA CONVERTED", sleepEvents.toString())
+                    Log.d("SLEEP DATA CONVERTED", mappedSleep.toString())
                 } else {
                     Log.e("NO SLEEP DATA", "NO SLEEP DATA")
                 }
@@ -264,9 +266,11 @@ class YuchengApiImpl(
         GlobalScope.launch {
             delay(1000 * TIME_TO_TIMEOUT)
             if (!sleepDataCompleter.isCompleted) {
-                for (sleep in sleepDataList) {
-                    val ycDataEvent = YuchengSleepDataEvent(sleep)
-                    onSleepData(ycDataEvent)
+                if (!skipHandler) {
+                    for (sleep in sleepDataList) {
+                        val ycDataEvent = YuchengSleepDataEvent(sleep)
+                        onSleepData(ycDataEvent)
+                    }
                 }
                 sleepDataCompleter.complete(sleepDataList)
                 onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
@@ -312,7 +316,7 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private suspend fun getHealthData(): List<YuchengHealthData> {
+    private suspend fun getHealthData(skipHandler: Boolean = false): List<YuchengHealthData> {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get health data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
             return listOf()
@@ -330,9 +334,11 @@ class YuchengApiImpl(
                         return@map yuchengHealthData
                     }
                     healthDataList.addAll(healthDatas)
-                    for (health in healthDataList) {
-                        val ycDataEvent = YuchengHealthDataEvent(health)
-                        onHealthData(ycDataEvent)
+                    if (!skipHandler) {
+                        for (health in healthDataList) {
+                            val ycDataEvent = YuchengHealthDataEvent(health)
+                            onHealthData(ycDataEvent)
+                        }
                     }
                     Log.d("HEALTH DATA CONVERTED", healthDatas.toString())
                 } else {
@@ -352,9 +358,11 @@ class YuchengApiImpl(
         GlobalScope.launch {
             delay(1000 * TIME_TO_TIMEOUT)
             if (!healthDataCompleter.isCompleted) {
-                for (health in healthDataList) {
-                    val ycDataEvent = YuchengHealthDataEvent(health)
-                    onHealthData(ycDataEvent)
+                if (!skipHandler) {
+                    for (health in healthDataList) {
+                        val ycDataEvent = YuchengHealthDataEvent(health)
+                        onHealthData(ycDataEvent)
+                    }
                 }
                 healthDataCompleter.complete(healthDataList)
                 onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
@@ -393,8 +401,8 @@ class YuchengApiImpl(
         val sleepHealthDataCompleter = CompletableDeferred<YuchengSleepHealthData>()
         GlobalScope.launch {
             try {
-                val sleepData = getSleepData()
-                val healthData = getHealthData()
+                val sleepData = getSleepData(skipHandler = true)
+                val healthData = getHealthData(skipHandler = true)
                 val sleepHealthData = YuchengSleepHealthData(sleepData, healthData)
                 Log.d(GET_SLEEP_HEALTH_DATA, "Sleep Health data = $sleepHealthData")
                 if (!sleepHealthDataCompleter.isCompleted) {

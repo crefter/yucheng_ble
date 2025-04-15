@@ -181,7 +181,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           if (!context.mounted) return;
           _showSnackBar(context, 'Таймаут соединения');
         } else if (event is YuchengSleepDataEvent) {
-          print(event.sleepData.toJson());
+          final json = event.sleepData.toJson();
+          print(json);
         } else if (event is YuchengSleepErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
@@ -201,7 +202,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           if (!context.mounted) return;
           _showSnackBar(context, 'Таймаут соединения');
         } else if (event is YuchengHealthDataEvent) {
-          print(event.healthData.toJson());
+          final json = event.healthData.toJson();
+          print(json);
         } else if (event is YuchengHealthErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
@@ -215,7 +217,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           if (!context.mounted) return;
           _showSnackBar(context, 'Таймаут соединения');
         } else if (event is YuchengSleepHealthDataEvent) {
-          print(event.data.toJson());
+          final json = event.data.toJson();
+          print(json);
         } else if (event is YuchengSleepHealthErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
