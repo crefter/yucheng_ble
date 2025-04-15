@@ -7,11 +7,15 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
     private static var api: YuchengHostApi? = nil
     private static var devicesHandler: DeviceStreamHandlerImpl? = nil
     private static var sleepDataHandler: SleepDataHandlerImpl? = nil
+    private static var healthDataHandler: HealthDataHandlerImpl? = nil
+    private static var sleepHealthDataHandler: SleepHealthDataHandlerImpl? = nil
     private static var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = nil
-    private static let converter = YuchengSleepDataConverter()
+    
+    private static let sleepConverter = YuchengSleepDataConverter()
+    private static let healthConverter = YuchengHealthDataConverter()
     
     public static func register(with registrar: FlutterPluginRegistrar) {
-
+        
         if (devicesHandler == nil) {
             devicesHandler = DeviceStreamHandlerImpl();
         }
@@ -21,17 +25,32 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         if (deviceStateStreamHandler == nil) {
             deviceStateStreamHandler = DeviceStateStreamHandlerImpl();
         }
+        if (sleepHealthDataHandler == nil) {
+            sleepHealthDataHandler = SleepHealthDataHandlerImpl();
+        }
+        if (healthDataHandler == nil) {
+            healthDataHandler = HealthDataHandlerImpl()
+        }
         
         DevicesStreamHandler.register(with: registrar.messenger(), streamHandler: devicesHandler!)
         SleepDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepDataHandler!)
         DeviceStateStreamHandler.register(with: registrar.messenger(), streamHandler: deviceStateStreamHandler!)
+        SleepHealthDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepHealthDataHandler!)
+        HealthDataStreamHandler.register(with: registrar.messenger(), streamHandler: healthDataHandler!)
         
         if (api == nil) {
-            api = YuchengHostApiImpl(onDevice: { event in
-                devicesHandler?.onDeviceChanged(event)
-            }, onSleepData: { event in
-                sleepDataHandler?.onSleepDataChanged(event)
-            }, onState: {event in deviceStateStreamHandler?.onDeviceStateChanged(event)}, converter: converter)
+            api = YuchengHostApiImpl(
+                onDevice: { event in
+                    devicesHandler?.onDeviceChanged(event)
+                },
+                onSleepData: { event in
+                    sleepDataHandler?.onSleepDataChanged(event)
+                },
+                onState: {event in deviceStateStreamHandler?.onDeviceStateChanged(event)},
+                onHealth: {event in healthDataHandler?.onHealth(event)},
+                onSleepHealth: {event in sleepHealthDataHandler?.onSleepDataChanged(event)},
+                sleepConverter: sleepConverter,
+                healthConverter: healthConverter)
         }
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)
@@ -74,5 +93,7 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         YuchengBlePlugin.devicesHandler?.detach()
         YuchengBlePlugin.sleepDataHandler?.detach()
         YuchengBlePlugin.deviceStateStreamHandler?.detach()
+        YuchengBlePlugin.healthDataHandler?.detach()
+        YuchengBlePlugin.sleepHealthDataHandler?.detach()
     }
 }

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -36,10 +35,19 @@ extension HealthDataX on YuchengHealthData {
 
 extension SleepHealthDataX on YuchengSleepHealthData {
   String toJson() {
-    final healthJson = jsonEncode(this.healthData);
-    final sleepJson = jsonEncode(this.sleepData);
+    final healthsJson = StringBuffer();
+    for (final health in this.healthData) {
+      healthsJson.write(health.toJson());
+    }
+    final healthJson = '[${healthsJson.toString()}]';
+    final sleepsJson = StringBuffer();
+    for (final sleep in this.sleepData) {
+      sleepsJson.write(sleep.toJson());
+    }
+    final sleepJson = '[${sleepsJson.toString()}]';
     return '{'
-        '"health":$healthJson, "sleep": $sleepJson}';
+        '"health":$healthJson, "sleep": $sleepJson'
+        '}';
   }
 }
 

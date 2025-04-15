@@ -15,7 +15,7 @@ Plugin for yucheng
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.platform = :ios, '12.0'
+  s.platform = :ios, '13.0'
   s.preserve_paths = 'YCProductSDK.framework', 'ZipZap.framework', 'RTKOTASDK.framework', 'RTKLEFoundation.framework', 'JLDialUnit.framework', 'JL_OTALib.framework', 'JL_HashPair.framework', 'JL_BLEKit.framework', 'JL_AdvParse.framework', 'DFUnits.framework'
   s.xcconfig = { 'OTHER_LDFLAGS' => '-framework YCProductSDK -framework ZipZap -framework RTKOTASDK -framework RTKLEFoundation -framework JLDialUnit -framework JL_OTALib -framework JL_HashPair -framework JL_BLEKit -framework JL_AdvParse -framework DFUnits' }
   s.vendored_frameworks = 'YCProductSDK.framework', 'ZipZap.framework', 'RTKOTASDK.framework', 'RTKLEFoundation.framework', 'JLDialUnit.framework', 'JL_OTALib.framework', 'JL_HashPair.framework', 'JL_BLEKit.framework', 'JL_AdvParse.framework', 'DFUnits.framework'

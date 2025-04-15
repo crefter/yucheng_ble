@@ -8,6 +8,41 @@ import YCProductSDK
 import CoreBluetooth
 import Flutter
 
+import Combine
+
+final class Completer<T> : @unchecked Sendable {
+    private let queue = DispatchQueue(label: "com.crefter.yuchengble.yucheng_ble", attributes: .concurrent)
+    private var continuation: CheckedContinuation<T, Error>?
+    private var isResumed = false
+    
+    func complete(_ result: Result<T, Error>) {
+        queue.async(flags: .barrier) { [weak self] in
+            guard let self = self, !self.isResumed else { return }
+            switch result {
+            case .success(let value):
+                self.continuation?.resume(returning: value)
+            case .failure(let error):
+                self.continuation?.resume(throwing: error)
+            }
+            self.continuation = nil
+            self.isResumed = true
+        }
+    }
+    
+    func awaitResult() async throws -> T {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async(flags: .barrier) { [weak self] in
+                self?.continuation = continuation
+            }
+        }
+    }
+    
+    func isCompleted() -> Bool {
+        return queue.sync { isResumed }
+    }
+}
+
+
 enum UnimplementedError : Error {
     case notImplemented(String)
 }
@@ -17,215 +52,331 @@ enum NoDeviceError : Error {
 }
 
 
-class YuchengHostApiImpl : YuchengHostApi {
-   private let onDevice: (_: YuchengDeviceEvent) -> Void;
-   private let onSleepData: (_: YuchengSleepEvent) -> Void;
-   private let onState: (_: YuchengDeviceStateEvent) -> Void;
-   private let converter: YuchengSleepDataConverter;
-   private var scannedDevices: [CBPeripheral] = [];
-   private var currentDevice: CBPeripheral? = nil;
-   private var sleepData: [YuchengSleepDataEvent] = [];
-   private var index: Int = 0;
+final class YuchengHostApiImpl : YuchengHostApi, Sendable {
+    typealias DeviceHandler = @Sendable (any YuchengDeviceEvent) -> Void
+    typealias StateHandler = @Sendable (any YuchengDeviceStateEvent) -> Void
+    typealias SleepHandler = @Sendable (any YuchengSleepEvent) -> Void
+    typealias HealthHandler = @Sendable (any YuchengHealthEvent) -> Void
+    typealias SleepHealthHandler = @Sendable (any YuchengSleepHealthEvent) -> Void
+    private let onDevice: DeviceHandler;
+    private let onSleepData: SleepHandler;
+    private let onState: StateHandler;
+    private let onHealth: HealthHandler;
+    private let onSleepHealth: SleepHealthHandler;
+    private let sleepConverter: YuchengSleepDataConverter;
+    private let healdConverter: YuchengHealthDataConverter;
+    private var scannedDevices: [CBPeripheral] = [];
+    private var currentDevice: CBPeripheral? = nil;
+    private var index: Int = 0;
     private let TIME_TO_TIMEOUT = 15.0;
     private let TIME_TO_SCAN = 14.0;
-   
-    init(onDevice: @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @escaping (_: YuchengSleepEvent) -> Void, onState: @escaping (_: YuchengDeviceStateEvent) -> Void, converter: YuchengSleepDataConverter) {
-       self.onDevice = onDevice
-       self.onSleepData = onSleepData
-       self.converter = converter
-       self.onState = onState
-       DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: {
-           var currentDevice: CBPeripheral? = YCProduct.shared.currentPeripheral;
-           if (currentDevice != nil) {
-               onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
-           }
-       })
-   }
-   
-   func startScanDevices(scanTimeInSeconds: Double?, completion: @escaping (Result<[YuchengDevice], any Error>) -> Void) {
-       var isCompleted = false
-       var lastConnectedDevice = YCProduct.shared.currentPeripheral;
-       var ycDevices: [YuchengDevice] = [];
-       do {
-           YCProduct.scanningDevice(delayTime: scanTimeInSeconds ?? TIME_TO_SCAN) { devices, error in
-               if (error != nil) {
-                   self.onDevice(YuchengDeviceCompleteEvent(completed: false))
-                   isCompleted = true;
-                   completion(.success(ycDevices))
-               } else {
-                   self.scannedDevices = devices;
-                   for device in devices {
-                       var isCurrentDevice = lastConnectedDevice?.macAddress == device.macAddress;
-                       self.currentDevice = isCurrentDevice ? device : nil;
-                       let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isCurrentConnected: isCurrentDevice)
-                       self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isCurrentConnected: isCurrentDevice, deviceName: device.name ?? device.deviceModel))
-                       self.index += 1
-                       ycDevices.append(ycDevice)
-                       print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
-                   }
-                   self.onDevice(YuchengDeviceCompleteEvent(completed: true))
-                   completion(.success(ycDevices))
-                   isCompleted = true
-               }
-           }
-       } catch (let e) {
-           self.onDevice(YuchengDeviceCompleteEvent(completed: false))
-           completion(.failure(e))
-       }
-       DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
-           if (isCompleted) {
-               return;
-           }
-           if (ycDevices.isEmpty) {
-               self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
-           } else {
-               for ycDevice in ycDevices {
-                   self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: ycDevice.uuid, isCurrentConnected: ycDevice.isCurrentConnected, deviceName: ycDevice.deviceName))
-                   self.index += 1
-               }
-               self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
-           }
-           completion(.success(ycDevices))
-       }
-   }
-   
-   func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, any Error>) -> Void)
-   {
-       do {
-           var lastConnectedDevice = YCProduct.shared.currentPeripheral;
-           if (device == nil) {
-               completion(.success(lastConnectedDevice != nil))
-           }
-           
-           var isConnected = (lastConnectedDevice?.macAddress == device?.uuid);
-           completion(.success(isConnected))
-       } catch (let e) {
-           completion(.failure(e))
-       }
-   }
-   
-   func connect(device: YuchengDevice, completion: @escaping (Result<Bool, any Error>) -> Void) {
-       if (currentDevice != nil) {
-           if (device.deviceName == currentDevice?.name || device.uuid == currentDevice?.macAddress) {
-               completion(.success(true))
-               return;
-           }
-       }
-       
-       currentDevice = scannedDevices.first(where: { scannedDevice in
-           scannedDevice.name == device.deviceName || scannedDevice.macAddress == device.uuid
-       })
-       
-       if (currentDevice == nil) {
-           currentDevice = YCProduct.shared.currentPeripheral;
-       }
-       
-       if (currentDevice == nil) {
-           completion(.failure(NoDeviceError.noDevice("Current device is nil")))
-           return
-       }
-       
-       var isCompleted = false;
-       YCProduct.connectDevice(currentDevice!) { state, error in
-           if let error = error {
-               isCompleted = true
-               completion(.failure(error));
-           } else {
-               if state == .connected {
-                   completion(.success(true));
-               } else {
-                   completion(.success(false))
-               }
-               isCompleted = true
-           }
-       }
-       DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
-           if (isCompleted) {
-               return;
-           }
-           self.onState(YuchengDeviceStateTimeOutEvent(isTimeout: true))
-           completion(.success(false))
-       }
-   }
-   
-   func reconnect(completion: @escaping (Result<Bool, any Error>) -> Void) {
-       completion(.failure(UnimplementedError.notImplemented("Manual reconnect not support. SDK do it himself")))
-   }
-   
-   func disconnect(completion: @escaping (Result<Void, any Error>) -> Void) {
-       var isCompleted = false
-       YCProduct.disconnectDevice(currentDevice ?? YCProduct.shared.currentPeripheral) { state, error in
-           if let error = error {
-               completion(.failure(error));
-               isCompleted = true
-           } else {
-               completion(.success(()))
-               isCompleted = true
-           }
-       }
-       DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-           if (isCompleted) {
-               return;
-           }
-           completion(.success(()))
-       }
-   }
-   
-   func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, any Error>) -> Void) {
-       do {
-           currentDevice = YCProduct.shared.currentPeripheral
-           var device = currentDevice
-           if device == nil {
-               completion(.success(nil))
-               return
-           }
-           completion(.success(YuchengDevice(index: 0, deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isCurrentConnected: true)))
-       } catch (let e) {
-           completion(.failure(e))
-       }
-   }
-   
-   private func querySleepData(_ completion: @escaping (Result<[(any YuchengSleepEvent)?], any Error>) -> Void, _ complete: @escaping () -> Void) {
-       YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
-           if state == .succeed, let datas = response as? [YCHealthDataSleep] {
-               for info in datas {
-                   let sleepData = self.converter.convert(sleepDataFromDevice: info)
-                   self.onSleepData(sleepData)
-                   self.sleepData.append(sleepData)
-               }
-               completion(.success(self.sleepData))
-               self.sleepData = []
-               complete()
-           } else {
-               completion(.success([]))
-               print("No data")
-               complete()
-               self.sleepData = []
-           }
-       }
-   }
-   
-   func getSleepData(completion: @escaping (Result<[(any YuchengSleepEvent)?], any Error>) -> Void) {
-       do {
-           var isCompleted = false
-           querySleepData(completion, {
-               isCompleted = true
-           })
-           DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
-               if (isCompleted) {
-                   return
-               }
-               if (self.sleepData.isEmpty) {
-                   self.onSleepData(YuchengSleepTimeOutEvent(isTimeout: true))
-               } else {
-                   for sleepData in self.sleepData {
-                       self.onSleepData(sleepData)
-                   }
-               }
-               completion(.success(self.sleepData))
-           }
-       } catch (let e) {
-           completion(.failure(e))
-       }
-   }
+    
+    init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter) {
+        self.onDevice = onDevice
+        self.onSleepData = onSleepData
+        self.sleepConverter = sleepConverter
+        self.healdConverter = healthConverter
+        self.onState = onState
+        self.onHealth = onHealth
+        self.onSleepHealth = onSleepHealth
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: {
+            let currentDevice = YCProduct.shared.currentPeripheral;
+            if (currentDevice != nil) {
+                onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
+            }
+        })
+    }
+    
+    func startScanDevices(scanTimeInSeconds: Double?, completion: @escaping (Result<[YuchengDevice], any Error>) -> Void) {
+        var isCompleted = false
+        let lastConnectedDevice = YCProduct.shared.currentPeripheral;
+        var ycDevices: [YuchengDevice] = [];
+        do {
+            YCProduct.scanningDevice(delayTime: scanTimeInSeconds ?? TIME_TO_SCAN) { devices, error in
+                if (error != nil) {
+                    self.onDevice(YuchengDeviceCompleteEvent(completed: false))
+                    isCompleted = true;
+                    completion(.success(ycDevices))
+                } else {
+                    self.scannedDevices = devices;
+                    for device in devices {
+                        print("UUID DEVICE = " + device.identifier.uuidString)
+                        let isCurrentDevice = lastConnectedDevice?.macAddress == device.macAddress;
+                        self.currentDevice = isCurrentDevice ? device : nil;
+                        let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isCurrentConnected: isCurrentDevice)
+                        self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isCurrentConnected: isCurrentDevice, deviceName: device.name ?? device.deviceModel))
+                        self.index += 1
+                        ycDevices.append(ycDevice)
+                        print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
+                    }
+                    self.onDevice(YuchengDeviceCompleteEvent(completed: true))
+                    completion(.success(ycDevices))
+                    isCompleted = true
+                }
+            }
+        } catch (let e) {
+            self.onDevice(YuchengDeviceCompleteEvent(completed: false))
+            completion(.failure(e))
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+            if (isCompleted) {
+                return;
+            }
+            if (ycDevices.isEmpty) {
+                self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
+            } else {
+                for ycDevice in ycDevices {
+                    self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: ycDevice.uuid, isCurrentConnected: ycDevice.isCurrentConnected, deviceName: ycDevice.deviceName))
+                    self.index += 1
+                }
+                self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
+            }
+            completion(.success(ycDevices))
+        }
+    }
+    
+    func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, any Error>) -> Void)
+    {
+        do {
+            let lastConnectedDevice = YCProduct.shared.currentPeripheral;
+            if (device == nil) {
+                completion(.success(lastConnectedDevice != nil))
+            }
+            let isConnected = (lastConnectedDevice?.macAddress == device?.uuid);
+            completion(.success(isConnected))
+        } catch (let e) {
+            completion(.failure(e))
+        }
+    }
+    
+    func connect(device: YuchengDevice, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        if (currentDevice != nil) {
+            if (device.deviceName == currentDevice?.name || device.uuid == currentDevice?.macAddress) {
+                completion(.success(true))
+                return;
+            }
+        }
+        
+        currentDevice = scannedDevices.first(where: { scannedDevice in
+            scannedDevice.name == device.deviceName || scannedDevice.macAddress == device.uuid
+        })
+        
+        if (currentDevice == nil) {
+            currentDevice = YCProduct.shared.currentPeripheral;
+        }
+        
+        if (currentDevice == nil) {
+            completion(.failure(NoDeviceError.noDevice("Current device is nil")))
+            return
+        }
+        
+        var isCompleted = false;
+        YCProduct.connectDevice(currentDevice!) { state, error in
+            if let error = error {
+                isCompleted = true
+                completion(.failure(error));
+            } else {
+                if state == .connected {
+                    completion(.success(true));
+                } else {
+                    completion(.success(false))
+                }
+                isCompleted = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+            if (isCompleted) {
+                return;
+            }
+            self.onState(YuchengDeviceStateTimeOutEvent(isTimeout: true))
+            completion(.success(false))
+        }
+    }
+    
+    func reconnect(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        completion(.failure(UnimplementedError.notImplemented("Manual reconnect not support. SDK do it himself")))
+    }
+    
+    func disconnect(completion: @escaping (Result<Void, any Error>) -> Void) {
+        var isCompleted = false
+        YCProduct.disconnectDevice(currentDevice ?? YCProduct.shared.currentPeripheral) { state, error in
+            if let error = error {
+                completion(.failure(error));
+                isCompleted = true
+            } else {
+                completion(.success(()))
+                isCompleted = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            if (isCompleted) {
+                return;
+            }
+            completion(.success(()))
+        }
+    }
+    
+    func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, any Error>) -> Void) {
+        do {
+            currentDevice = YCProduct.shared.currentPeripheral
+            let device = currentDevice
+            if device == nil {
+                completion(.success(nil))
+                return
+            }
+            completion(.success(YuchengDevice(index: 0, deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isCurrentConnected: true)))
+        } catch (let e) {
+            completion(.failure(e))
+        }
+    }
+    
+    private func getSleepData(skipHandler: Bool = false) async -> [YuchengSleepData] {
+        let completer: Completer<[YuchengSleepData]> = Completer()
+        var sleepDataList: [YuchengSleepData] = []
+        let timeoutTask = DispatchWorkItem {
+                guard !completer.isCompleted() else { return }
+            if (!skipHandler) {
+                for sleepData in sleepDataList {
+                    let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
+                    DispatchQueue.main.async {
+                        self.onSleepData(ycSleepEvent)
+                    }
+                }
+            }
+            completer.complete(.success(sleepDataList))
+            DispatchQueue.main.async {
+                self.onSleepData(YuchengSleepTimeOutEvent(isTimeout: true))
+            }
+            }
+        
+        YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
+            if state == .succeed, let datas = response as? [YCHealthDataSleep] {
+                for info in datas {
+                    let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
+                    sleepDataList.append(sleepData)
+                    if (!skipHandler) {
+                        let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
+                        DispatchQueue.main.async {
+                            self.onSleepData(ycSleepEvent)
+                        }
+                    }
+                }
+            } else {
+                print("No data")
+            }
+            completer.complete(.success(sleepDataList))
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+        
+        let data = try! await completer.awaitResult()
+        return data
+    }
+    
+    func getSleepData(completion: @escaping (Result<[(YuchengSleepData)], any Error>) -> Void) {
+        do {
+            Task {
+                let sleepData = await getSleepData()
+                DispatchQueue.main.async {
+                    completion(.success(sleepData))
+                }
+            }
+        } catch (let e) {
+            DispatchQueue.main.async {
+                completion(.failure(e))
+            }
+        }
+    }
+    
+    func getHealthData(skipHandler: Bool = false) async -> [YuchengHealthData] {
+        let completer: Completer<[YuchengHealthData]> = Completer()
+        var healthDataList: [YuchengHealthData] = []
+        
+        let timeoutTask = DispatchWorkItem {
+                guard !completer.isCompleted() else { return }
+            if (!skipHandler) {
+                for healthData in healthDataList {
+                    let event = YuchengHealthDataEvent(healthData: healthData)
+                    DispatchQueue.main.async { self.onHealth(event) }
+                }
+            }
+                completer.complete(.success(healthDataList))
+                DispatchQueue.main.async { self.onHealth(YuchengHealthTimeOutEvent(isTimeout: true)) }
+            }
+        
+        YCProduct.queryHealthData(dataType: YCQueryHealthDataType.combinedData) { state, response in
+            guard !completer.isCompleted() else { return }
+            
+            if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
+                for info in datas {
+                    let healthData = self.healdConverter.convert(healthDataFromDevice: info)
+                    healthDataList.append(healthData)
+                    if (!skipHandler) {
+                        let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
+                        DispatchQueue.main.async {
+                            self.onHealth(ycHealthEvent)
+                        }
+                    }
+                }
+            } else {
+                print("No data")
+            }
+            timeoutTask.cancel()
+            completer.complete(.success(healthDataList))
+        }
+            
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+        
+        let data = try! await completer.awaitResult()
+        return data
+    }
+    
+    func getHealthData(completion: @escaping (Result<[YuchengHealthData], any Error>) -> Void) {
+        Task {
+            do {
+                let healthData = await getHealthData()
+                DispatchQueue.main.async {
+                    completion(.success(healthData))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+    
+    func getSleepHealthData(completion: @escaping (Result<YuchengSleepHealthData, any Error>) -> Void) {
+        let completer: Completer<YuchengSleepHealthData> = Completer()
+        let empty = YuchengSleepHealthData(sleepData: [], healthData: [])
+        let timeoutTask = DispatchWorkItem {
+                guard !completer.isCompleted() else { return }
+            DispatchQueue.main.async {
+                self.onSleepHealth(YuchengSleepHealthDataEvent(data: empty))
+                completer.complete(.success(empty))
+                self.onSleepHealth(YuchengSleepHealthTimeOutEvent(isTimeout: true))
+            }
+            }
+        Task {
+            do {
+                let healthData = await getHealthData(skipHandler: true)
+                let sleepData = await getSleepData(skipHandler: true)
+                let ycData = YuchengSleepHealthData(sleepData: sleepData, healthData: healthData)
+                DispatchQueue.main.async {
+                    self.onSleepHealth(YuchengSleepHealthDataEvent(data: ycData))
+                    completer.complete(.success(ycData))
+                }
+                
+            } catch (let e) {
+                completer.complete(.failure(e))
+            }
+        }
+        Task {
+            let ycSleepHealth = try! await completer.awaitResult()
+            DispatchQueue.main.async {
+                completion(.success(ycSleepHealth))
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+    }
 }

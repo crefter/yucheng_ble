@@ -31,7 +31,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.contracts.Effect
 
 
 private const val SCAN_PERIOD: Int = 14
@@ -187,6 +186,11 @@ class YuchengApiImpl(
                 Log.e("RECONNECT BLE", "CODE = $code")
                 if (code == 0) {
                     val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+                    val macAddress = YCBTClient.getBindDeviceMac()
+                    val deviceName = YCBTClient.getBindDeviceName()
+                    val ycDevice =
+                        YuchengDevice(index++, deviceName, macAddress, false)
+                    selectedDevice = ycDevice
                     if (!completer.isCompleted) completer.complete(isConnected)
                 }
             }
@@ -219,6 +223,7 @@ class YuchengApiImpl(
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     private suspend fun getSleepData(): List<YuchengSleepData> {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get sleep data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
@@ -247,7 +252,7 @@ class YuchengApiImpl(
                 }
                 Log.d("SLEEP CODE", code.toString())
                 Log.d("SLEEP RATIO", ratio.toString())
-                if (sleepDataCompleter.isCompleted == false) {
+                if (!sleepDataCompleter.isCompleted) {
                     sleepDataCompleter.complete(sleepDataList)
                 }
             }
@@ -258,7 +263,7 @@ class YuchengApiImpl(
 
         GlobalScope.launch {
             delay(1000 * TIME_TO_TIMEOUT)
-            if (sleepDataCompleter.isCompleted == false) {
+            if (!sleepDataCompleter.isCompleted) {
                 for (sleep in sleepDataList) {
                     val ycDataEvent = YuchengSleepDataEvent(sleep)
                     onSleepData(ycDataEvent)
@@ -296,8 +301,9 @@ class YuchengApiImpl(
                 return
             }
             val macAddress = YCBTClient.getBindDeviceMac()
+            val deviceName = YCBTClient.getBindDeviceName()
             val ycDevice =
-                YuchengDevice(index++, "", macAddress, false)
+                YuchengDevice(index++, deviceName, macAddress, false)
             selectedDevice = ycDevice
             callback(Result.success(ycDevice))
         } catch (e: Exception) {
@@ -334,7 +340,7 @@ class YuchengApiImpl(
                 }
                 Log.d("HEALTH CODE", code.toString())
                 Log.d("HEALTH RATIO", ratio.toString())
-                if (healthDataCompleter.isCompleted == false) {
+                if (!healthDataCompleter.isCompleted) {
                     healthDataCompleter.complete(healthDataList)
                 }
             }
