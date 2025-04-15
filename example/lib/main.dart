@@ -1,55 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:yucheng_ble/export.dart';
-
-extension RingSleepDataDetailX on YuchengSleepDataDetail {
-  String toJson() {
-    return '{"startTime": "$startDate", "endDate": "$endDate", "duration": $duration, "type": "$type"}';
-  }
-}
-
-extension RingSleepDataX on YuchengSleepData {
-  String toJson() {
-    return '{"start": "$startDate", "end": "$endDate",'
-        ' "deepCount": $deepCount, "lightCount": $lightCount, "awakeCount": $awakeCount, '
-        '"deepInSeconds": $deepInSeconds, "lightInSeconds": $lightInSeconds, "awakeInSeconds": $awakeInSeconds, "remInSeconds": $remInSeconds, '
-        '"details":'
-        '${details.map((e) => e.toJson()).toList()}}';
-  }
-}
-
-extension HealthDataX on YuchengHealthData {
-  String toJson() {
-    return '{"heartValue":"$heartValue", "hrvValue":"$hrvValue","cvrrValue":"$cvrrValue",'
-        '"OOValue":"$OOValue", "stepValue":"$stepValue", "DBPValue":"$DBPValue",'
-        '"tempIntValue":"$tempIntValue", "tempFloatValue":"$tempFloatValue",'
-        '"startDate":"$startDate","SBPValue":"$SBPValue", "respiratoryRateValue":"$respiratoryRateValue",'
-        '"bodyFatIntValue":"$bodyFatIntValue", "bodyFatFloatValue":"$bodyFatFloatValue",'
-        '"bloodSugarValue":"$bloodSugarValue"}';
-  }
-}
-
-extension SleepHealthDataX on YuchengSleepHealthData {
-  String toJson() {
-    final healthsJson = StringBuffer();
-    for (final health in this.healthData) {
-      healthsJson.write(health.toJson());
-    }
-    final healthJson = '[${healthsJson.toString()}]';
-    final sleepsJson = StringBuffer();
-    for (final sleep in this.sleepData) {
-      sleepsJson.write(sleep.toJson());
-    }
-    final sleepJson = '[${sleepsJson.toString()}]';
-    return '{'
-        '"health":$healthJson, "sleep": $sleepJson'
-        '}';
-  }
-}
 
 extension SleepTypeX on YuchengSleepType {
   ({int r, int g, int b}) toColor() => switch (this) {
@@ -182,7 +138,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           _showSnackBar(context, 'Таймаут соединения');
         } else if (event is YuchengSleepDataEvent) {
           final json = event.sleepData.toJson();
-          print(json);
+          final str = jsonEncode(json);
+          print(str);
         } else if (event is YuchengSleepErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
@@ -203,7 +160,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           _showSnackBar(context, 'Таймаут соединения');
         } else if (event is YuchengHealthDataEvent) {
           final json = event.healthData.toJson();
-          print(json);
+          final str = jsonEncode(json);
+          print(str);
         } else if (event is YuchengHealthErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
@@ -218,7 +176,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           _showSnackBar(context, 'Таймаут соединения');
         } else if (event is YuchengSleepHealthDataEvent) {
           final json = event.data.toJson();
-          print(json);
+          final str = jsonEncode(json);
+          print(str);
         } else if (event is YuchengSleepHealthErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
