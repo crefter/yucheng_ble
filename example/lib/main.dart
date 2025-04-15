@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,13 +13,33 @@ extension RingSleepDataDetailX on YuchengSleepDataDetail {
   }
 }
 
-extension RingSleepDataX on YuchengSleepDataEvent {
+extension RingSleepDataX on YuchengSleepData {
   String toJson() {
     return '{"start": "$startDate", "end": "$endDate",'
         ' "deepCount": $deepCount, "lightCount": $lightCount, "awakeCount": $awakeCount, '
         '"deepInSeconds": $deepInSeconds, "lightInSeconds": $lightInSeconds, "awakeInSeconds": $awakeInSeconds, "remInSeconds": $remInSeconds, '
         '"details":'
         '${details.map((e) => e.toJson()).toList()}}';
+  }
+}
+
+extension HealthDataX on YuchengHealthData {
+  String toJson() {
+    return '{"heartValue":"$heartValue", "hrvValue":"$hrvValue","cvrrValue":"$cvrrValue",'
+        '"OOValue":"$OOValue", "stepValue":"$stepValue", "DBPValue":"$DBPValue",'
+        '"tempIntValue":"$tempIntValue", "tempFloatValue":"$tempFloatValue",'
+        '"startDate":"$startDate","SBPValue":"$SBPValue", "respiratoryRateValue":"$respiratoryRateValue",'
+        '"bodyFatIntValue":"$bodyFatIntValue", "bodyFatFloatValue":"$bodyFatFloatValue",'
+        '"bloodSugarValue":"$bloodSugarValue"}';
+  }
+}
+
+extension SleepHealthDataX on YuchengSleepHealthData {
+  String toJson() {
+    final healthJson = jsonEncode(this.healthData);
+    final sleepJson = jsonEncode(this.sleepData);
+    return '{'
+        '"health":$healthJson, "sleep": $sleepJson}';
   }
 }
 
@@ -91,9 +112,13 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
   late final StreamSubscription<YuchengDeviceStateEvent> deviceStateSub;
+  late final StreamSubscription<YuchengHealthEvent> healthSub;
+  late final StreamSubscription<YuchengSleepHealthEvent> sleepHealthSub;
   late final StreamSubscription<BluetoothAdapterState> bluetoothStateSub;
   final List<YuchengDevice> devices = [];
-  final List<YuchengSleepDataEvent> sleepData = [];
+  final List<YuchengSleepData> sleepData = [];
+  final List<YuchengHealthData> healthData = [];
+  final List<YuchengSleepHealthData> sleepHealthData = [];
   final List<YuchengDeviceStateEvent> deviceState = [];
   bool isDeviceScanning = false;
   YuchengDevice? selectedDevice;
@@ -148,7 +173,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           if (!context.mounted) return;
           _showSnackBar(context, 'Таймаут соединения');
         } else if (event is YuchengSleepDataEvent) {
-          print(event.toJson());
+          print(event.sleepData.toJson());
         } else if (event is YuchengSleepErrorEvent) {
           if (!context.mounted) return;
           _showSnackBar(context, 'Ошибка: ${event.error}');
@@ -159,6 +184,34 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
       },
       onDone: () {
         print("SLEEP DATA IS DONE");
+      },
+    );
+
+    healthSub = _ble.healthDataStream().listen(
+      (event) {
+        if (event is YuchengHealthTimeOutEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Таймаут соединения');
+        } else if (event is YuchengHealthDataEvent) {
+          print(event.healthData.toJson());
+        } else if (event is YuchengHealthErrorEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Ошибка: ${event.error}');
+        }
+      },
+    );
+
+    sleepHealthSub = _ble.sleepHealthDataStream().listen(
+      (event) {
+        if (event is YuchengSleepHealthTimeOutEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Таймаут соединения');
+        } else if (event is YuchengSleepHealthDataEvent) {
+          print(event.data.toJson());
+        } else if (event is YuchengSleepHealthErrorEvent) {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Ошибка: ${event.error}');
+        }
       },
     );
 
@@ -364,10 +417,45 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   Future<void> tryGetSleepData() async {
     try {
       final data = await _ble.getSleepData();
-      final sleepDataFromDevice = data.whereType<YuchengSleepDataEvent>();
       setState(() {
         sleepData.clear();
-        sleepData.addAll(sleepDataFromDevice);
+        sleepData.addAll(data);
+      });
+      print(data);
+    } catch (e) {
+      if (!context.mounted) return;
+      _showSnackBar(context, 'Ошибка: ${e}');
+    }
+  }
+
+  Future<void> tryGetHealthData() async {
+    try {
+      final data = await _ble.getHealthData();
+      setState(() {
+        healthData.clear();
+        healthData.addAll(data);
+      });
+      print(data);
+    } catch (e) {
+      if (!context.mounted) return;
+      _showSnackBar(context, 'Ошибка: ${e}');
+    }
+  }
+
+  Future<void> tryGetSleepHealthData() async {
+    try {
+      final data = await _ble.getSleepHealthData();
+      setState(() {
+        sleepHealthData.clear();
+        sleepData
+          ..clear()
+          ..addAll(data.sleepData);
+
+        healthData
+          ..clear()
+          ..addAll(data.healthData);
+
+        sleepHealthData.add(data);
       });
       print(data);
     } catch (e) {
@@ -538,8 +626,67 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                         onPressed: tryGetSleepData,
                         child: const Text('Получить данные о сне'),
                       ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: tryGetHealthData,
+                        child: const Text('Получить данные о здоровье'),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: tryGetSleepHealthData,
+                        child: const Text('Получить данные о сне и здоровье'),
+                      ),
                     ],
                   );
+                },
+              ),
+            ),
+            if (healthData.isNotEmpty)
+              const SliverPadding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    'Данные о здоровье:',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: 12),
+              sliver: SliverList.separated(
+                itemCount: healthData.length,
+                itemBuilder: (context, index) {
+                  final item = healthData[index];
+                  return DecoratedBox(
+                    decoration: const BoxDecoration(color: Colors.blueGrey),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Дата: ${item.startDate}',
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Кислород: ${item.OOValue}',
+                        ),
+                        Text(
+                          'Шаги: ${item.stepValue}',
+                        ),
+                        Text(
+                          'Пульс: ${item.heartValue}',
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                separatorBuilder: (context, index) {
+                  return const SizedBox(height: 8);
                 },
               ),
             ),

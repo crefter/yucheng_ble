@@ -40,8 +40,16 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('disconnect has not been implemented.');
   }
 
-  Future<List<YuchengSleepEvent?>> getSleepData() {
+  Future<List<YuchengSleepData>> getSleepData() {
     throw UnimplementedError('getSleepData has not been implemented.');
+  }
+
+  Future<List<YuchengHealthData>> getHealthData() {
+    throw UnimplementedError('getHealthData has not been implemented.');
+  }
+
+  Future<YuchengSleepHealthData> getSleepHealthData() {
+    throw UnimplementedError('getSleepHealthData has not been implemented.');
   }
 
   Future<YuchengDevice?> getCurrentConnectedDevice() {
@@ -59,6 +67,14 @@ abstract class YuchengBlePlatform extends PlatformInterface {
 
   Stream<YuchengDeviceStateEvent> deviceStateStream() {
     throw UnimplementedError('deviceState has not been implemented.');
+  }
+
+  Stream<YuchengHealthEvent> healthDataStream() {
+    throw UnimplementedError('healthData has not been implemented.');
+  }
+
+  Stream<YuchengSleepHealthEvent> sleepHealthDataStream() {
+    throw UnimplementedError('sleepHealthData has not been implemented.');
   }
 
   Future<bool> reconnect() {

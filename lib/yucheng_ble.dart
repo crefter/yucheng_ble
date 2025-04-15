@@ -2,7 +2,7 @@ import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 
 import 'yucheng_ble_platform_interface.dart';
 
-extension YuchengSleepDataEventX on YuchengSleepDataEvent {
+extension YuchengSleepDataEventX on YuchengSleepData {
   DateTime get startDate {
     final startInMs = _timeStampInMs(startTimeStamp);
     return DateTime.fromMillisecondsSinceEpoch(startInMs);
@@ -41,6 +41,19 @@ extension YuchengSleepDataDetailX on YuchengSleepDataDetail {
   }
 }
 
+extension YuchengHealthDataX on YuchengHealthData {
+  DateTime get startDate {
+    final startInMs = _timeStampInMs;
+    return DateTime.fromMillisecondsSinceEpoch(startInMs);
+  }
+
+  int get _timeStampInMs {
+    final isMs = startTimestamp.toString().length == 13;
+    final timeStampInMs = isMs ? startTimestamp : startTimestamp * 1000;
+    return timeStampInMs;
+  }
+}
+
 class YuchengBle {
   Future<List<YuchengDevice>> startScanDevices(double? scanTimeInSeconds) =>
       YuchengBlePlatform.instance.startScanDevices(scanTimeInSeconds);
@@ -53,8 +66,14 @@ class YuchengBle {
 
   Future<void> disconnect() => YuchengBlePlatform.instance.disconnect();
 
-  Future<List<YuchengSleepEvent?>> getSleepData() =>
+  Future<List<YuchengSleepData>> getSleepData() =>
       YuchengBlePlatform.instance.getSleepData();
+
+  Future<List<YuchengHealthData>> getHealthData() =>
+      YuchengBlePlatform.instance.getHealthData();
+
+  Future<YuchengSleepHealthData> getSleepHealthData() =>
+      YuchengBlePlatform.instance.getSleepHealthData();
 
   Future<YuchengDevice?> getCurrentConnectedDevice() =>
       YuchengBlePlatform.instance.getCurrentConnectedDevice();
@@ -67,6 +86,12 @@ class YuchengBle {
 
   Stream<YuchengDeviceStateEvent> deviceStateStream() =>
       YuchengBlePlatform.instance.deviceStateStream();
+
+  Stream<YuchengHealthEvent> healthDataStream() =>
+      YuchengBlePlatform.instance.healthDataStream();
+
+  Stream<YuchengSleepHealthEvent> sleepHealthDataStream() =>
+      YuchengBlePlatform.instance.sleepHealthDataStream();
 
   Future<bool> reconnect() => YuchengBlePlatform.instance.reconnect();
 }

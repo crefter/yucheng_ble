@@ -8,8 +8,19 @@ import YuchengDeviceEvent
 import YuchengDeviceStateEvent
 import YuchengDeviceStateTimeOutEvent
 import YuchengDeviceTimeOutEvent
+import YuchengHealthData
+import YuchengHealthDataEvent
+import YuchengHealthEvent
+import YuchengHealthTimeOutEvent
 import YuchengHostApi
+import YuchengSleepData
+import YuchengSleepDataEvent
 import YuchengSleepEvent
+import YuchengSleepHealthData
+import YuchengSleepHealthDataEvent
+import YuchengSleepHealthErrorEvent
+import YuchengSleepHealthEvent
+import YuchengSleepHealthTimeOutEvent
 import YuchengSleepTimeOutEvent
 import android.util.Log
 import com.yucheng.ycbtsdk.Constants
@@ -20,6 +31,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.contracts.Effect
 
 
 private const val SCAN_PERIOD: Int = 14
@@ -28,8 +40,11 @@ private const val TIME_TO_TIMEOUT: Long = 15
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
     private val onSleepData: (sleepData: YuchengSleepEvent) -> Unit,
+    private val onHealthData: (healthData: YuchengHealthEvent) -> Unit,
+    private val onSleepHealthData: (sleepHealthEvent: YuchengSleepHealthEvent) -> Unit,
     private val onState: (state: YuchengDeviceStateEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
+    private val healthDataConverter: YuchengHealthDataConverter,
     private val onReconnect: () -> Unit,
 ) : YuchengHostApi {
 
@@ -204,14 +219,13 @@ class YuchengApiImpl(
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
-    override fun getSleepData(callback: (Result<List<YuchengSleepEvent?>>) -> Unit) {
+    private suspend fun getSleepData(): List<YuchengSleepData> {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get sleep data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
-            callback(Result.success(listOf()))
+            return listOf()
         }
-        val sleepDataCompleter = CompletableDeferred<List<YuchengSleepEvent>>()
-        val sleepDataList: MutableList<YuchengSleepEvent> = mutableListOf()
+        val sleepDataCompleter = CompletableDeferred<List<YuchengSleepData>>()
+        val sleepDataList: MutableList<YuchengSleepData> = mutableListOf()
         try {
             YCBTClient.healthHistoryData(
                 Constants.DATATYPE.Health_HistorySleep
@@ -219,12 +233,13 @@ class YuchengApiImpl(
                 if (data != null) {
                     val sleepData = data["data"] as List<*>? ?: return@healthHistoryData
                     val sleepEvents = sleepData.map {
-                        val yuchengSleepEvent = sleepDataConverter.convert(it)
-                        return@map yuchengSleepEvent
+                        val yuchengSleepData = sleepDataConverter.convert(it)
+                        return@map yuchengSleepData
                     }
                     sleepDataList.addAll(sleepEvents)
-                    for (i in 0 until sleepDataList.size) {
-                        onSleepData(sleepEvents[i])
+                    for (sleep in sleepDataList) {
+                        val ycDataEvent = YuchengSleepDataEvent(sleep)
+                        onSleepData(ycDataEvent)
                     }
                     Log.d("SLEEP DATA CONVERTED", sleepEvents.toString())
                 } else {
@@ -238,30 +253,38 @@ class YuchengApiImpl(
             }
         } catch (e: Exception) {
             Log.e(GET_SLEEP_DATA, e.toString())
-            callback(Result.failure(e))
             sleepDataCompleter.completeExceptionally(e)
-        }
-        GlobalScope.launch {
-            try {
-                val sleepData = sleepDataCompleter.await()
-                callback(Result.success(sleepData))
-            } catch (e: Exception) {
-                Log.e("GET SLEEP DATA ERROR", e.toString())
-                callback(Result.failure(e))
-            }
         }
 
         GlobalScope.launch {
             delay(1000 * TIME_TO_TIMEOUT)
             if (sleepDataCompleter.isCompleted == false) {
-                if (sleepDataList.isEmpty()) {
-                    onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
-                } else {
-                    for (sleep in sleepDataList) {
-                        onSleepData(sleep)
-                    }
+                for (sleep in sleepDataList) {
+                    val ycDataEvent = YuchengSleepDataEvent(sleep)
+                    onSleepData(ycDataEvent)
                 }
                 sleepDataCompleter.complete(sleepDataList)
+                onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
+            }
+        }
+
+        try {
+            val sleepData = sleepDataCompleter.await()
+            return sleepData
+        } catch (e: Exception) {
+            Log.e("GET SLEEP DATA ERROR", e.toString())
+            throw e
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun getSleepData(callback: (Result<List<YuchengSleepData>>) -> Unit) {
+        GlobalScope.launch {
+            try {
+                val sleepData = getSleepData()
+                callback(Result.success(sleepData))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
             }
         }
     }
@@ -282,10 +305,129 @@ class YuchengApiImpl(
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
+    private suspend fun getHealthData(): List<YuchengHealthData> {
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get health data")
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            return listOf()
+        }
+        val healthDataCompleter = CompletableDeferred<List<YuchengHealthData>>()
+        val healthDataList: MutableList<YuchengHealthData> = mutableListOf()
+        try {
+            YCBTClient.healthHistoryData(
+                Constants.DATATYPE.Health_HistoryAll
+            ) { code, ratio, data ->
+                if (data != null) {
+                    val healthData = data["data"] as List<*>? ?: return@healthHistoryData
+                    val healthDatas = healthData.map {
+                        val yuchengHealthData = healthDataConverter.convert(it)
+                        return@map yuchengHealthData
+                    }
+                    healthDataList.addAll(healthDatas)
+                    for (health in healthDataList) {
+                        val ycDataEvent = YuchengHealthDataEvent(health)
+                        onHealthData(ycDataEvent)
+                    }
+                    Log.d("HEALTH DATA CONVERTED", healthDatas.toString())
+                } else {
+                    Log.e("NO HEALTH DATA", "NO HEALTH DATA")
+                }
+                Log.d("HEALTH CODE", code.toString())
+                Log.d("HEALTH RATIO", ratio.toString())
+                if (healthDataCompleter.isCompleted == false) {
+                    healthDataCompleter.complete(healthDataList)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(GET_HEALTH_DATA, e.toString())
+            healthDataCompleter.completeExceptionally(e)
+        }
+
+        GlobalScope.launch {
+            delay(1000 * TIME_TO_TIMEOUT)
+            if (!healthDataCompleter.isCompleted) {
+                for (health in healthDataList) {
+                    val ycDataEvent = YuchengHealthDataEvent(health)
+                    onHealthData(ycDataEvent)
+                }
+                healthDataCompleter.complete(healthDataList)
+                onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
+            }
+        }
+
+        try {
+            val healthData = healthDataCompleter.await()
+            return healthData
+        } catch (e: Exception) {
+            Log.e("GET HEALTH DATA ERROR", e.toString())
+            throw e
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun getHealthData(callback: (Result<List<YuchengHealthData>>) -> Unit) {
+        GlobalScope.launch {
+            try {
+                val healthData = getHealthData()
+                callback(Result.success(healthData))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun getSleepHealthData(callback: (Result<YuchengSleepHealthData>) -> Unit) {
+        Log.d(GET_SLEEP_HEALTH_DATA, "Start get sleep health data")
+        val empty = YuchengSleepHealthData(listOf(), listOf())
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            callback(Result.success(empty))
+            return
+        }
+        val sleepHealthDataCompleter = CompletableDeferred<YuchengSleepHealthData>()
+        GlobalScope.launch {
+            try {
+                val sleepData = getSleepData()
+                val healthData = getHealthData()
+                val sleepHealthData = YuchengSleepHealthData(sleepData, healthData)
+                Log.d(GET_SLEEP_HEALTH_DATA, "Sleep Health data = $sleepHealthData")
+                if (!sleepHealthDataCompleter.isCompleted) {
+                    onSleepHealthData(YuchengSleepHealthDataEvent(sleepHealthData))
+                    sleepHealthDataCompleter.complete(sleepHealthData)
+                }
+            } catch (e: Exception) {
+                if (!sleepHealthDataCompleter.isCompleted) {
+                    Log.e(GET_SLEEP_HEALTH_DATA, "Sleep Health error = $e")
+                    onSleepHealthData(YuchengSleepHealthErrorEvent(error = e.toString()))
+                    sleepHealthDataCompleter.completeExceptionally(e)
+                }
+            }
+        }
+        GlobalScope.launch {
+            delay(1000 * (TIME_TO_TIMEOUT + 1))
+            if (!sleepHealthDataCompleter.isCompleted) {
+                onSleepHealthData(YuchengSleepHealthDataEvent(empty))
+                sleepHealthDataCompleter.complete(empty)
+                onSleepHealthData(YuchengSleepHealthTimeOutEvent(isTimeout = true))
+            }
+        }
+
+        GlobalScope.launch {
+            try {
+                val sleepHealthData = sleepHealthDataCompleter.await()
+                callback(Result.success(sleepHealthData))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
 
     companion object {
         private const val YUCHENG_API = "YUCH_API"
         private const val GET_SLEEP_DATA = "$YUCHENG_API GET_SLEEP_DATA"
+        private const val GET_HEALTH_DATA = "$YUCHENG_API GET_HEALTH_DAT"
+        private const val GET_SLEEP_HEALTH_DATA = "GET_SLEEP_HEALTH_DATA"
         private const val DISCONNECT = "$YUCHENG_API DISCONNECT"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"

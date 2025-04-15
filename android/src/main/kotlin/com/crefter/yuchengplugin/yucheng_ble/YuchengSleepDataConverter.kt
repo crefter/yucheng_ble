@@ -1,7 +1,7 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
+import YuchengSleepData
 import YuchengSleepDataDetail
-import YuchengSleepDataEvent
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 
@@ -38,7 +38,7 @@ private class SleepData(
 )
 
 class YuchengSleepDataConverter(private val gson: Gson) {
-    fun convert(sleepDataBean: Any?): YuchengSleepDataEvent {
+    fun convert(sleepDataBean: Any?): YuchengSleepData {
         val converted = gson.fromJson(sleepDataBean.toString(), SleepDataBean::class.java)
         val deepSleepCount = converted.deepSleepCount.toLong()
         val isOldFormat = deepSleepCount.toInt() != 0xFFFF
@@ -63,7 +63,7 @@ class YuchengSleepDataConverter(private val gson: Gson) {
                 type = sleepType
             )
         }
-        return YuchengSleepDataEvent(
+        return YuchengSleepData(
             startTimeStamp = converted.startTime,
             endTimeStamp = converted.endTime ?: 0,
             deepCount = deepSleepCount,

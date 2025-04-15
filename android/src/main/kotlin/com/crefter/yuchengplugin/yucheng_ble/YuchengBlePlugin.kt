@@ -19,7 +19,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin {
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start attaching to engine")
+        Log.d(PLUGIN_TAG, "Start attaching to engine")
         if (handler == null) {
             handler = Handler(Looper.getMainLooper())
         }
@@ -34,9 +34,15 @@ class YuchengBlePlugin : FlutterPlugin {
         if (deviceStateStreamHandler == null) {
             deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
         }
+        if (sleepHealthStreamHandler == null) {
+            sleepHealthStreamHandler = SleepHealthDataStreamHandlerImpl(handler!!)
+        }
+        if (healthStreamHandler == null) {
+            healthStreamHandler = HealthDataStreamHandlerImpl(handler!!)
+        }
 
         Log.d(
-            YuchengBlePlugin.PLUGIN_TAG,
+            PLUGIN_TAG,
             "Device state stream handler sink = $deviceStateStreamHandler"
         )
 
@@ -47,7 +53,7 @@ class YuchengBlePlugin : FlutterPlugin {
         val hashCode = this.hashCode()
 
         Log.d(
-            YuchengBlePlugin.PLUGIN_TAG,
+            PLUGIN_TAG,
             "Device state stream handler sink this hashcode = $hashCode"
         )
 
@@ -57,12 +63,17 @@ class YuchengBlePlugin : FlutterPlugin {
             flutterPluginBinding.binaryMessenger,
             deviceStateStreamHandler!!
         )
+        HealthDataStreamHandler.register(flutterPluginBinding.binaryMessenger, healthStreamHandler!!)
+        SleepHealthDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepHealthStreamHandler!!)
 
         api = if (api == null) YuchengApiImpl(
             onDevice = { device -> devicesHandler?.onDevice(device) },
             onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
             sleepDataConverter = YuchengSleepDataConverter(gson!!),
             onState = { data -> deviceStateStreamHandler?.onState(data) },
+            onHealthData = {data -> healthStreamHandler?.onHealth(data) },
+            onSleepHealthData = {data -> sleepHealthStreamHandler?.onSleepHealth(data)},
+            healthDataConverter = YuchengHealthDataConverter(gson!!),
             onReconnect = {
                 Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
             }
@@ -122,6 +133,8 @@ class YuchengBlePlugin : FlutterPlugin {
         devicesHandler?.detach()
         sleepDataHandler?.detach()
         deviceStateStreamHandler?.detach()
+        healthStreamHandler?.detach()
+        sleepHealthStreamHandler?.detach()
     }
 
     companion object {
@@ -129,6 +142,8 @@ class YuchengBlePlugin : FlutterPlugin {
         private var devicesHandler: DevicesStreamHandlerImpl? = null
         private var sleepDataHandler: SleepDataHandlerImpl? = null
         private var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = null
+        private var healthStreamHandler: HealthDataStreamHandlerImpl? = null
+        private var sleepHealthStreamHandler: SleepHealthDataStreamHandlerImpl? = null
         private var gson: Gson? = null
         private var handler: Handler? = null
         val PLUGIN_TAG: String = "YuchengBlePlugin"

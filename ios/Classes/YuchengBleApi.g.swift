@@ -147,6 +147,176 @@ enum YuchengDeviceState: Int {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct YuchengSleepData: Hashable {
+  /// Начало сна в мс
+  var startTimeStamp: Int64
+  /// Конец сна в мс
+  var endTimeStamp: Int64
+  /// Если равен 0xFFFF, то новый формат в секундах, иначе старый в минутах
+  var deepCount: Int64
+  var lightCount: Int64
+  var awakeCount: Int64
+  var deepInSeconds: Int64
+  var remInSeconds: Int64
+  var lightInSeconds: Int64
+  var awakeInSeconds: Int64
+  var details: [YuchengSleepDataDetail]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengSleepData? {
+    let startTimeStamp = pigeonVar_list[0] as! Int64
+    let endTimeStamp = pigeonVar_list[1] as! Int64
+    let deepCount = pigeonVar_list[2] as! Int64
+    let lightCount = pigeonVar_list[3] as! Int64
+    let awakeCount = pigeonVar_list[4] as! Int64
+    let deepInSeconds = pigeonVar_list[5] as! Int64
+    let remInSeconds = pigeonVar_list[6] as! Int64
+    let lightInSeconds = pigeonVar_list[7] as! Int64
+    let awakeInSeconds = pigeonVar_list[8] as! Int64
+    let details = pigeonVar_list[9] as! [YuchengSleepDataDetail]
+
+    return YuchengSleepData(
+      startTimeStamp: startTimeStamp,
+      endTimeStamp: endTimeStamp,
+      deepCount: deepCount,
+      lightCount: lightCount,
+      awakeCount: awakeCount,
+      deepInSeconds: deepInSeconds,
+      remInSeconds: remInSeconds,
+      lightInSeconds: lightInSeconds,
+      awakeInSeconds: awakeInSeconds,
+      details: details
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      startTimeStamp,
+      endTimeStamp,
+      deepCount,
+      lightCount,
+      awakeCount,
+      deepInSeconds,
+      remInSeconds,
+      lightInSeconds,
+      awakeInSeconds,
+      details,
+    ]
+  }
+  static func == (lhs: YuchengSleepData, rhs: YuchengSleepData) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengHealthData: Hashable {
+  var heartValue: Int64
+  var hrvValue: Int64
+  var cvrrValue: Int64
+  var OOValue: Int64
+  var stepValue: Int64
+  var DBPValue: Int64
+  var tempIntValue: Int64
+  var tempFloatValue: Int64
+  var startTimestamp: Int64
+  var SBPValue: Int64
+  var respiratoryRateValue: Int64
+  var bodyFatIntValue: Int64
+  var bodyFatFloatValue: Int64
+  var bloodSugarValue: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengHealthData? {
+    let heartValue = pigeonVar_list[0] as! Int64
+    let hrvValue = pigeonVar_list[1] as! Int64
+    let cvrrValue = pigeonVar_list[2] as! Int64
+    let OOValue = pigeonVar_list[3] as! Int64
+    let stepValue = pigeonVar_list[4] as! Int64
+    let DBPValue = pigeonVar_list[5] as! Int64
+    let tempIntValue = pigeonVar_list[6] as! Int64
+    let tempFloatValue = pigeonVar_list[7] as! Int64
+    let startTimestamp = pigeonVar_list[8] as! Int64
+    let SBPValue = pigeonVar_list[9] as! Int64
+    let respiratoryRateValue = pigeonVar_list[10] as! Int64
+    let bodyFatIntValue = pigeonVar_list[11] as! Int64
+    let bodyFatFloatValue = pigeonVar_list[12] as! Int64
+    let bloodSugarValue = pigeonVar_list[13] as! Int64
+
+    return YuchengHealthData(
+      heartValue: heartValue,
+      hrvValue: hrvValue,
+      cvrrValue: cvrrValue,
+      OOValue: OOValue,
+      stepValue: stepValue,
+      DBPValue: DBPValue,
+      tempIntValue: tempIntValue,
+      tempFloatValue: tempFloatValue,
+      startTimestamp: startTimestamp,
+      SBPValue: SBPValue,
+      respiratoryRateValue: respiratoryRateValue,
+      bodyFatIntValue: bodyFatIntValue,
+      bodyFatFloatValue: bodyFatFloatValue,
+      bloodSugarValue: bloodSugarValue
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      heartValue,
+      hrvValue,
+      cvrrValue,
+      OOValue,
+      stepValue,
+      DBPValue,
+      tempIntValue,
+      tempFloatValue,
+      startTimestamp,
+      SBPValue,
+      respiratoryRateValue,
+      bodyFatIntValue,
+      bodyFatFloatValue,
+      bloodSugarValue,
+    ]
+  }
+  static func == (lhs: YuchengHealthData, rhs: YuchengHealthData) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengSleepHealthData: Hashable {
+  var sleepData: [YuchengSleepData]
+  var healthData: [YuchengHealthData]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengSleepHealthData? {
+    let sleepData = pigeonVar_list[0] as! [YuchengSleepData]
+    let healthData = pigeonVar_list[1] as! [YuchengHealthData]
+
+    return YuchengSleepHealthData(
+      sleepData: sleepData,
+      healthData: healthData
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      sleepData,
+      healthData,
+    ]
+  }
+  static func == (lhs: YuchengSleepHealthData, rhs: YuchengSleepHealthData) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 /// This protocol should not be extended by any user class outside of the generated file.
 protocol YuchengSleepEvent {
 
@@ -179,59 +349,20 @@ struct YuchengSleepTimeOutEvent: YuchengSleepEvent {
 
 /// Generated class from Pigeon that represents data sent in messages.
 struct YuchengSleepDataEvent: YuchengSleepEvent {
-  /// Начало сна в мс
-  var startTimeStamp: Int64
-  /// Конец сна в мс
-  var endTimeStamp: Int64
-  /// Если равен 0xFFFF, то новый формат в секундах, иначе старый в минутах
-  var deepCount: Int64
-  var lightCount: Int64
-  var awakeCount: Int64
-  var deepInSeconds: Int64
-  var remInSeconds: Int64
-  var lightInSeconds: Int64
-  var awakeInSeconds: Int64
-  var details: [YuchengSleepDataDetail]
+  var sleepData: YuchengSleepData
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> YuchengSleepDataEvent? {
-    let startTimeStamp = pigeonVar_list[0] as! Int64
-    let endTimeStamp = pigeonVar_list[1] as! Int64
-    let deepCount = pigeonVar_list[2] as! Int64
-    let lightCount = pigeonVar_list[3] as! Int64
-    let awakeCount = pigeonVar_list[4] as! Int64
-    let deepInSeconds = pigeonVar_list[5] as! Int64
-    let remInSeconds = pigeonVar_list[6] as! Int64
-    let lightInSeconds = pigeonVar_list[7] as! Int64
-    let awakeInSeconds = pigeonVar_list[8] as! Int64
-    let details = pigeonVar_list[9] as! [YuchengSleepDataDetail]
+    let sleepData = pigeonVar_list[0] as! YuchengSleepData
 
     return YuchengSleepDataEvent(
-      startTimeStamp: startTimeStamp,
-      endTimeStamp: endTimeStamp,
-      deepCount: deepCount,
-      lightCount: lightCount,
-      awakeCount: awakeCount,
-      deepInSeconds: deepInSeconds,
-      remInSeconds: remInSeconds,
-      lightInSeconds: lightInSeconds,
-      awakeInSeconds: awakeInSeconds,
-      details: details
+      sleepData: sleepData
     )
   }
   func toList() -> [Any?] {
     return [
-      startTimeStamp,
-      endTimeStamp,
-      deepCount,
-      lightCount,
-      awakeCount,
-      deepInSeconds,
-      remInSeconds,
-      lightInSeconds,
-      awakeInSeconds,
-      details,
+      sleepData
     ]
   }
   static func == (lhs: YuchengSleepDataEvent, rhs: YuchengSleepDataEvent) -> Bool {
@@ -464,8 +595,6 @@ struct YuchengDeviceDataEvent: YuchengDeviceEvent {
   var index: Int64
   /// ДЛЯ ANDROID
   /// Нужен, чтобы подключиться к девайсу
-  /// ДЛЯ IOS
-  /// Uuid девайса
   var mac: String
   /// Только IOS
   /// true - уже изначально подключен
@@ -528,6 +657,168 @@ struct YuchengDeviceCompleteEvent: YuchengDeviceEvent {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+/// This protocol should not be extended by any user class outside of the generated file.
+protocol YuchengHealthEvent {
+
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengHealthDataEvent: YuchengHealthEvent {
+  var healthData: YuchengHealthData
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengHealthDataEvent? {
+    let healthData = pigeonVar_list[0] as! YuchengHealthData
+
+    return YuchengHealthDataEvent(
+      healthData: healthData
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      healthData
+    ]
+  }
+  static func == (lhs: YuchengHealthDataEvent, rhs: YuchengHealthDataEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengHealthErrorEvent: YuchengHealthEvent {
+  var error: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengHealthErrorEvent? {
+    let error = pigeonVar_list[0] as! String
+
+    return YuchengHealthErrorEvent(
+      error: error
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      error
+    ]
+  }
+  static func == (lhs: YuchengHealthErrorEvent, rhs: YuchengHealthErrorEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengHealthTimeOutEvent: YuchengHealthEvent {
+  var isTimeout: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengHealthTimeOutEvent? {
+    let isTimeout = pigeonVar_list[0] as! Bool
+
+    return YuchengHealthTimeOutEvent(
+      isTimeout: isTimeout
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      isTimeout
+    ]
+  }
+  static func == (lhs: YuchengHealthTimeOutEvent, rhs: YuchengHealthTimeOutEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+/// This protocol should not be extended by any user class outside of the generated file.
+protocol YuchengSleepHealthEvent {
+
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengSleepHealthDataEvent: YuchengSleepHealthEvent {
+  var data: YuchengSleepHealthData
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengSleepHealthDataEvent? {
+    let data = pigeonVar_list[0] as! YuchengSleepHealthData
+
+    return YuchengSleepHealthDataEvent(
+      data: data
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      data
+    ]
+  }
+  static func == (lhs: YuchengSleepHealthDataEvent, rhs: YuchengSleepHealthDataEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengSleepHealthErrorEvent: YuchengSleepHealthEvent {
+  var error: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengSleepHealthErrorEvent? {
+    let error = pigeonVar_list[0] as! String
+
+    return YuchengSleepHealthErrorEvent(
+      error: error
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      error
+    ]
+  }
+  static func == (lhs: YuchengSleepHealthErrorEvent, rhs: YuchengSleepHealthErrorEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct YuchengSleepHealthTimeOutEvent: YuchengSleepHealthEvent {
+  var isTimeout: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengSleepHealthTimeOutEvent? {
+    let isTimeout = pigeonVar_list[0] as! Bool
+
+    return YuchengSleepHealthTimeOutEvent(
+      isTimeout: isTimeout
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      isTimeout
+    ]
+  }
+  static func == (lhs: YuchengSleepHealthTimeOutEvent, rhs: YuchengSleepHealthTimeOutEvent) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
 private class YuchengBleApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -544,27 +835,45 @@ private class YuchengBleApiPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 131:
-      return YuchengSleepTimeOutEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepData.fromList(self.readValue() as! [Any?])
     case 132:
-      return YuchengSleepDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengHealthData.fromList(self.readValue() as! [Any?])
     case 133:
-      return YuchengSleepDataDetail.fromList(self.readValue() as! [Any?])
+      return YuchengSleepHealthData.fromList(self.readValue() as! [Any?])
     case 134:
-      return YuchengSleepErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 135:
-      return YuchengDeviceStateTimeOutEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepDataEvent.fromList(self.readValue() as! [Any?])
     case 136:
-      return YuchengDeviceStateDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepDataDetail.fromList(self.readValue() as! [Any?])
     case 137:
-      return YuchengDeviceStateErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepErrorEvent.fromList(self.readValue() as! [Any?])
     case 138:
-      return YuchengDevice.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 139:
-      return YuchengDeviceTimeOutEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateDataEvent.fromList(self.readValue() as! [Any?])
     case 140:
-      return YuchengDeviceDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateErrorEvent.fromList(self.readValue() as! [Any?])
     case 141:
+      return YuchengDevice.fromList(self.readValue() as! [Any?])
+    case 142:
+      return YuchengDeviceTimeOutEvent.fromList(self.readValue() as! [Any?])
+    case 143:
+      return YuchengDeviceDataEvent.fromList(self.readValue() as! [Any?])
+    case 144:
       return YuchengDeviceCompleteEvent.fromList(self.readValue() as! [Any?])
+    case 145:
+      return YuchengHealthDataEvent.fromList(self.readValue() as! [Any?])
+    case 146:
+      return YuchengHealthErrorEvent.fromList(self.readValue() as! [Any?])
+    case 147:
+      return YuchengHealthTimeOutEvent.fromList(self.readValue() as! [Any?])
+    case 148:
+      return YuchengSleepHealthDataEvent.fromList(self.readValue() as! [Any?])
+    case 149:
+      return YuchengSleepHealthErrorEvent.fromList(self.readValue() as! [Any?])
+    case 150:
+      return YuchengSleepHealthTimeOutEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -579,38 +888,65 @@ private class YuchengBleApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? YuchengDeviceState {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? YuchengSleepTimeOutEvent {
+    } else if let value = value as? YuchengSleepData {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepDataEvent {
+    } else if let value = value as? YuchengHealthData {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepDataDetail {
+    } else if let value = value as? YuchengSleepHealthData {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepErrorEvent {
+    } else if let value = value as? YuchengSleepTimeOutEvent {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateTimeOutEvent {
+    } else if let value = value as? YuchengSleepDataEvent {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateDataEvent {
+    } else if let value = value as? YuchengSleepDataDetail {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateErrorEvent {
+    } else if let value = value as? YuchengSleepErrorEvent {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDevice {
+    } else if let value = value as? YuchengDeviceStateTimeOutEvent {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceTimeOutEvent {
+    } else if let value = value as? YuchengDeviceStateDataEvent {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceDataEvent {
+    } else if let value = value as? YuchengDeviceStateErrorEvent {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceCompleteEvent {
+    } else if let value = value as? YuchengDevice {
       super.writeByte(141)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengDeviceTimeOutEvent {
+      super.writeByte(142)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengDeviceDataEvent {
+      super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengDeviceCompleteEvent {
+      super.writeByte(144)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengHealthDataEvent {
+      super.writeByte(145)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengHealthErrorEvent {
+      super.writeByte(146)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengHealthTimeOutEvent {
+      super.writeByte(147)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengSleepHealthDataEvent {
+      super.writeByte(148)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengSleepHealthErrorEvent {
+      super.writeByte(149)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengSleepHealthTimeOutEvent {
+      super.writeByte(150)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -654,12 +990,14 @@ protocol YuchengHostApi {
   func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
   /// Запрос на получение данных о сне
   /// Можно также прослушивать стрим sleepData
-  func getSleepData(completion: @escaping (Result<[YuchengSleepEvent?], Error>) -> Void)
+  func getSleepData(completion: @escaping (Result<[YuchengSleepData], Error>) -> Void)
   /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
   /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
   /// к девайсу повторно и возвращает его
   func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, Error>) -> Void)
+  func getHealthData(completion: @escaping (Result<[YuchengHealthData], Error>) -> Void)
+  func getSleepHealthData(completion: @escaping (Result<YuchengSleepHealthData, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -795,6 +1133,36 @@ class YuchengHostApiSetup {
     } else {
       getCurrentConnectedDeviceChannel.setMessageHandler(nil)
     }
+    let getHealthDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getHealthDataChannel.setMessageHandler { _, reply in
+        api.getHealthData { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getHealthDataChannel.setMessageHandler(nil)
+    }
+    let getSleepHealthDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepHealthData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getSleepHealthDataChannel.setMessageHandler { _, reply in
+        api.getSleepHealthData { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getSleepHealthDataChannel.setMessageHandler(nil)
+    }
   }
 }
 
@@ -884,6 +1252,34 @@ class DeviceStateStreamHandler: PigeonEventChannelWrapper<YuchengDeviceStateEven
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<YuchengDeviceStateEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: yuchengBleApiPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class HealthDataStreamHandler: PigeonEventChannelWrapper<YuchengHealthEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: HealthDataStreamHandler) {
+    var channelName = "dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.healthData"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<YuchengHealthEvent>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: yuchengBleApiPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class SleepHealthDataStreamHandler: PigeonEventChannelWrapper<YuchengSleepHealthEvent> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: SleepHealthDataStreamHandler) {
+    var channelName = "dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.sleepHealthData"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<YuchengSleepHealthEvent>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: yuchengBleApiPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

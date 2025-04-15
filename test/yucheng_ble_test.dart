@@ -39,7 +39,7 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<List<YuchengSleepDataEvent?>> getSleepData() {
+  Future<List<YuchengSleepData>> getSleepData() {
     // TODO: implement getSleepData
     throw UnimplementedError();
   }
@@ -66,6 +66,30 @@ class MockYuchengBlePlatform
   @override
   Future<bool> reconnect() {
     // TODO: implement reconnect
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<YuchengHealthData>> getHealthData() {
+    // TODO: implement getHealthData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<YuchengSleepHealthData> getSleepHealthData() {
+    // TODO: implement getSleepHealthData
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<YuchengHealthEvent> healthDataStream() {
+    // TODO: implement healthDataStream
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<YuchengSleepHealthEvent> sleepHealthDataStream() {
+    // TODO: implement sleepHealthDataStream
     throw UnimplementedError();
   }
 }
