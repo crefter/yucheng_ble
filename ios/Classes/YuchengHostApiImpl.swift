@@ -230,7 +230,11 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
     }
     
-    private func getSleepData(skipHandler: Bool = false) async -> [YuchengSleepData] {
+    private func getSleepData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async -> [YuchengSleepData] {
+        if (startTimestamp >= endTimestamp) {
+            onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
+            return []
+        }
         let completer: Completer<[YuchengSleepData]> = Completer()
         var sleepDataList: [YuchengSleepData] = []
         let timeoutTask = DispatchWorkItem {
@@ -253,11 +257,14 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             if state == .succeed, let datas = response as? [YCHealthDataSleep] {
                 for info in datas {
                     let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
-                    sleepDataList.append(sleepData)
-                    if (!skipHandler) {
-                        let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
-                        DispatchQueue.main.async {
-                            self.onSleepData(ycSleepEvent)
+                    let isInRange = sleepData.startTimeStamp >= startTimestamp && sleepData.endTimeStamp <= endTimestamp
+                    if (isInRange) {
+                        sleepDataList.append(sleepData)
+                        if (!skipHandler) {
+                            let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
+                            DispatchQueue.main.async {
+                                self.onSleepData(ycSleepEvent)
+                            }
                         }
                     }
                 }
@@ -272,10 +279,28 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         return data
     }
     
-    func getSleepData(completion: @escaping (Result<[(YuchengSleepData)], any Error>) -> Void) {
+    func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) {
+        var startComponents = DateComponents()
+        startComponents.weekOfYear = -1
+        startComponents.day = -1
+        var endComponents = DateComponents()
+        endComponents.day = 1
+        let date = Date().localDate()
+        let currentDate = Calendar.current.startOfDay(for: date).localDate()
+        let startDate = Calendar.current.date(byAdding: startComponents, to: currentDate)
+        let endDate = Calendar.current.date(byAdding: endComponents, to: currentDate)
+        let start = Int64(startDate?.timeIntervalSince1970 ?? 0).toMilliseconds()
+        let end = Int64(endDate?.timeIntervalSince1970 ?? 0).toMilliseconds()
+        return (start: start, end: end)
+    }
+    
+    func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[(YuchengSleepData)], any Error>) -> Void) {
         do {
             Task {
-                let sleepData = await getSleepData()
+                let defaultDate = getDefaultStartAndEndDate()
+                let start = startTimestamp ?? defaultDate.start
+                let end = endTimestamp ?? defaultDate.end
+                let sleepData = await getSleepData(startTimestamp: start, endTimestamp: end)
                 DispatchQueue.main.async {
                     completion(.success(sleepData))
                 }
@@ -287,7 +312,12 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
     }
     
-    func getHealthData(skipHandler: Bool = false) async -> [YuchengHealthData] {
+    func getHealthData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async -> [YuchengHealthData] {
+        if (startTimestamp >= endTimestamp) {
+            onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
+            return []
+        }
+        
         let completer: Completer<[YuchengHealthData]> = Completer()
         var healthDataList: [YuchengHealthData] = []
         
@@ -309,11 +339,14 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
                 for info in datas {
                     let healthData = self.healdConverter.convert(healthDataFromDevice: info)
-                    healthDataList.append(healthData)
-                    if (!skipHandler) {
-                        let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
-                        DispatchQueue.main.async {
-                            self.onHealth(ycHealthEvent)
+                    let isInRange = healthData.startTimestamp >= startTimestamp && healthData.startTimestamp <= endTimestamp
+                    if (isInRange) {
+                        healthDataList.append(healthData)
+                        if (!skipHandler) {
+                            let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
+                            DispatchQueue.main.async {
+                                self.onHealth(ycHealthEvent)
+                            }
                         }
                     }
                 }
@@ -330,10 +363,13 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         return data
     }
     
-    func getHealthData(completion: @escaping (Result<[YuchengHealthData], any Error>) -> Void) {
+    func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], any Error>) -> Void) {
         Task {
             do {
-                let healthData = await getHealthData()
+                let defaultDate = getDefaultStartAndEndDate()
+                let start = startTimestamp ?? defaultDate.start
+                let end = endTimestamp ?? defaultDate.end
+                let healthData = await getHealthData(startTimestamp: start, endTimestamp: end)
                 DispatchQueue.main.async {
                     completion(.success(healthData))
                 }
@@ -345,7 +381,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
     }
     
-    func getSleepHealthData(completion: @escaping (Result<YuchengSleepHealthData, any Error>) -> Void) {
+    func getSleepHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengSleepHealthData, any Error>) -> Void) {
         let completer: Completer<YuchengSleepHealthData> = Completer()
         let empty = YuchengSleepHealthData(sleepData: [], healthData: [])
         let timeoutTask = DispatchWorkItem {
@@ -358,8 +394,11 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             }
         Task {
             do {
-                let healthData = await getHealthData(skipHandler: true)
-                let sleepData = await getSleepData(skipHandler: true)
+                let defaultDate = getDefaultStartAndEndDate()
+                let start = startTimestamp ?? defaultDate.start
+                let end = endTimestamp ?? defaultDate.end
+                let healthData = await getHealthData(skipHandler: true, startTimestamp: start, endTimestamp: end)
+                let sleepData = await getSleepData(skipHandler: true, startTimestamp: start, endTimestamp: end)
                 let ycData = YuchengSleepHealthData(sleepData: sleepData, healthData: healthData)
                 DispatchQueue.main.async {
                     self.onSleepHealth(YuchengSleepHealthDataEvent(data: ycData))
@@ -378,5 +417,20 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+    }
+}
+
+extension Date {
+    func localDate() -> Date {
+        let timeZoneOffset = Double(TimeZone.current.secondsFromGMT(for: self))
+        guard let localDate = Calendar.current.date(byAdding: .second, value: Int(timeZoneOffset), to: self) else {return self}
+    
+        return localDate
+    }
+}
+
+extension Int64 {
+    func toMilliseconds() -> Int64 {
+        return self * 1000
     }
 }

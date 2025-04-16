@@ -1047,7 +1047,7 @@ interface YuchengHostApi {
    * Запрос на получение данных о сне
    * Можно также прослушивать стрим sleepData
    */
-  fun getSleepData(callback: (Result<List<YuchengSleepData>>) -> Unit)
+  fun getSleepData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengSleepData>>) -> Unit)
   /**
    * ТОЛЬКО IOS
    * Возвращает текущий подключенный девайс
@@ -1055,8 +1055,8 @@ interface YuchengHostApi {
    * к девайсу повторно и возвращает его
    */
   fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit)
-  fun getHealthData(callback: (Result<List<YuchengHealthData>>) -> Unit)
-  fun getSleepHealthData(callback: (Result<YuchengSleepHealthData>) -> Unit)
+  fun getHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengHealthData>>) -> Unit)
+  fun getSleepHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<YuchengSleepHealthData>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1165,8 +1165,11 @@ interface YuchengHostApi {
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepData$separatedMessageChannelSuffix", codec)
         if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            api.getSleepData{ result: Result<List<YuchengSleepData>> ->
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startTimestampArg = args[0] as Long?
+            val endTimestampArg = args[1] as Long?
+            api.getSleepData(startTimestampArg, endTimestampArg) { result: Result<List<YuchengSleepData>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
@@ -1201,8 +1204,11 @@ interface YuchengHostApi {
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthData$separatedMessageChannelSuffix", codec)
         if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            api.getHealthData{ result: Result<List<YuchengHealthData>> ->
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startTimestampArg = args[0] as Long?
+            val endTimestampArg = args[1] as Long?
+            api.getHealthData(startTimestampArg, endTimestampArg) { result: Result<List<YuchengHealthData>> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
@@ -1219,8 +1225,11 @@ interface YuchengHostApi {
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepHealthData$separatedMessageChannelSuffix", codec)
         if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            api.getSleepHealthData{ result: Result<YuchengSleepHealthData> ->
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val startTimestampArg = args[0] as Long?
+            val endTimestampArg = args[1] as Long?
+            api.getSleepHealthData(startTimestampArg, endTimestampArg) { result: Result<YuchengSleepHealthData> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))

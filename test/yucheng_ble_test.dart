@@ -39,7 +39,10 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<List<YuchengSleepData>> getSleepData() {
+  Future<List<YuchengSleepData>> getSleepData({
+    int? startTimestamp,
+    int? endTimestamp,
+  }) {
     // TODO: implement getSleepData
     throw UnimplementedError();
   }
@@ -70,13 +73,19 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<List<YuchengHealthData>> getHealthData() {
+  Future<List<YuchengHealthData>> getHealthData({
+    int? startTimestamp,
+    int? endTimestamp,
+  }) {
     // TODO: implement getHealthData
     throw UnimplementedError();
   }
 
   @override
-  Future<YuchengSleepHealthData> getSleepHealthData() {
+  Future<YuchengSleepHealthData> getSleepHealthData({
+    int? startTimestamp,
+    int? endTimestamp,
+  }) {
     // TODO: implement getSleepHealthData
     throw UnimplementedError();
   }

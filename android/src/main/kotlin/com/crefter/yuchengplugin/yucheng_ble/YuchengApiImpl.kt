@@ -22,7 +22,9 @@ import YuchengSleepHealthErrorEvent
 import YuchengSleepHealthEvent
 import YuchengSleepHealthTimeOutEvent
 import YuchengSleepTimeOutEvent
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.response.BleScanResponse
@@ -31,6 +33,11 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.util.Date
 
 
 private const val SCAN_PERIOD: Int = 14
@@ -224,7 +231,11 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private suspend fun getSleepData(skipHandler: Boolean = false): List<YuchengSleepData> {
+    private suspend fun getSleepData(
+        skipHandler: Boolean = false,
+        startTimestamp: Long,
+        endTimestamp: Long,
+    ): List<YuchengSleepData> {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get sleep data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
             return listOf()
@@ -240,6 +251,9 @@ class YuchengApiImpl(
                     val mappedSleep = sleepData.map {
                         val yuchengSleepData = sleepDataConverter.convert(it)
                         return@map yuchengSleepData
+                    }.filter {
+                        val isInRange = it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
+                        return@filter isInRange
                     }
                     sleepDataList.addAll(mappedSleep)
                     if (!skipHandler) {
@@ -286,11 +300,27 @@ class YuchengApiImpl(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun getDefaultStartAndEndTimestamp(): StartEndTimestamp {
+        val startDate = Instant.now().atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay()
+        val start: Long = (startDate.minusDays(DEFAULT_START_DATE_OFFSET).toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
+        val end: Long = (startDate.plusDays(1).toLocalDate().atStartOfDay().toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
+        return StartEndTimestamp(start, end)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(DelicateCoroutinesApi::class)
-    override fun getSleepData(callback: (Result<List<YuchengSleepData>>) -> Unit) {
+    override fun getSleepData(
+        startTimestamp: Long?,
+        endTimestamp: Long?, callback: (Result<List<YuchengSleepData>>) -> Unit,
+    ) {
         GlobalScope.launch {
             try {
-                val sleepData = getSleepData()
+                val default = getDefaultStartAndEndTimestamp()
+                val start: Long =
+                    startTimestamp ?: default.start
+                val end: Long = endTimestamp ?: default.end
+                val sleepData = getSleepData(startTimestamp = start, endTimestamp = end)
                 callback(Result.success(sleepData))
             } catch (e: Exception) {
                 callback(Result.failure(e))
@@ -316,7 +346,11 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private suspend fun getHealthData(skipHandler: Boolean = false): List<YuchengHealthData> {
+    private suspend fun getHealthData(
+        skipHandler: Boolean = false,
+        startTimestamp: Long,
+        endTimestamp: Long,
+    ): List<YuchengHealthData> {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get health data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
             return listOf()
@@ -332,6 +366,8 @@ class YuchengApiImpl(
                     val healthDatas = healthData.map {
                         val yuchengHealthData = healthDataConverter.convert(it)
                         return@map yuchengHealthData
+                    }.filter {
+                        it.startTimestamp >= startTimestamp && it.startTimestamp <= endTimestamp
                     }
                     healthDataList.addAll(healthDatas)
                     if (!skipHandler) {
@@ -378,11 +414,19 @@ class YuchengApiImpl(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(DelicateCoroutinesApi::class)
-    override fun getHealthData(callback: (Result<List<YuchengHealthData>>) -> Unit) {
+    override fun getHealthData(
+        startTimestamp: Long?,
+        endTimestamp: Long?, callback: (Result<List<YuchengHealthData>>) -> Unit,
+    ) {
         GlobalScope.launch {
             try {
-                val healthData = getHealthData()
+                val default = getDefaultStartAndEndTimestamp()
+                val start: Long =
+                    startTimestamp ?: default.start
+                val end: Long = endTimestamp ?: default.end
+                val healthData = getHealthData(startTimestamp = start, endTimestamp = end)
                 callback(Result.success(healthData))
             } catch (e: Exception) {
                 callback(Result.failure(e))
@@ -390,8 +434,12 @@ class YuchengApiImpl(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(DelicateCoroutinesApi::class)
-    override fun getSleepHealthData(callback: (Result<YuchengSleepHealthData>) -> Unit) {
+    override fun getSleepHealthData(
+        startTimestamp: Long?,
+        endTimestamp: Long?, callback: (Result<YuchengSleepHealthData>) -> Unit,
+    ) {
         Log.d(GET_SLEEP_HEALTH_DATA, "Start get sleep health data")
         val empty = YuchengSleepHealthData(listOf(), listOf())
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
@@ -401,8 +449,14 @@ class YuchengApiImpl(
         val sleepHealthDataCompleter = CompletableDeferred<YuchengSleepHealthData>()
         GlobalScope.launch {
             try {
-                val sleepData = getSleepData(skipHandler = true)
-                val healthData = getHealthData(skipHandler = true)
+                val default = getDefaultStartAndEndTimestamp()
+                val start: Long =
+                    startTimestamp ?: default.start
+                val end: Long = endTimestamp ?: default.end
+                val sleepData =
+                    getSleepData(skipHandler = true, startTimestamp = start, endTimestamp = end)
+                val healthData =
+                    getHealthData(skipHandler = true, startTimestamp = start, endTimestamp = end)
                 val sleepHealthData = YuchengSleepHealthData(sleepData, healthData)
                 Log.d(GET_SLEEP_HEALTH_DATA, "Sleep Health data = $sleepHealthData")
                 if (!sleepHealthDataCompleter.isCompleted) {
@@ -445,5 +499,8 @@ class YuchengApiImpl(
         private const val DISCONNECT = "$YUCHENG_API DISCONNECT"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"
+        private const val DEFAULT_START_DATE_OFFSET: Long = 8
     }
 }
+
+private data class StartEndTimestamp(val start: Long, val end: Long)

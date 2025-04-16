@@ -990,14 +990,14 @@ protocol YuchengHostApi {
   func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
   /// Запрос на получение данных о сне
   /// Можно также прослушивать стрим sleepData
-  func getSleepData(completion: @escaping (Result<[YuchengSleepData], Error>) -> Void)
+  func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengSleepData], Error>) -> Void)
   /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
   /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
   /// к девайсу повторно и возвращает его
   func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, Error>) -> Void)
-  func getHealthData(completion: @escaping (Result<[YuchengHealthData], Error>) -> Void)
-  func getSleepHealthData(completion: @escaping (Result<YuchengSleepHealthData, Error>) -> Void)
+  func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], Error>) -> Void)
+  func getSleepHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengSleepHealthData, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1101,8 +1101,11 @@ class YuchengHostApiSetup {
     /// Можно также прослушивать стрим sleepData
     let getSleepDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getSleepDataChannel.setMessageHandler { _, reply in
-        api.getSleepData { result in
+      getSleepDataChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let startTimestampArg: Int64? = nilOrValue(args[0])
+        let endTimestampArg: Int64? = nilOrValue(args[1])
+        api.getSleepData(startTimestamp: startTimestampArg, endTimestamp: endTimestampArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1135,8 +1138,11 @@ class YuchengHostApiSetup {
     }
     let getHealthDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getHealthDataChannel.setMessageHandler { _, reply in
-        api.getHealthData { result in
+      getHealthDataChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let startTimestampArg: Int64? = nilOrValue(args[0])
+        let endTimestampArg: Int64? = nilOrValue(args[1])
+        api.getHealthData(startTimestamp: startTimestampArg, endTimestamp: endTimestampArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1150,8 +1156,11 @@ class YuchengHostApiSetup {
     }
     let getSleepHealthDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepHealthData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getSleepHealthDataChannel.setMessageHandler { _, reply in
-        api.getSleepHealthData { result in
+      getSleepHealthDataChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let startTimestampArg: Int64? = nilOrValue(args[0])
+        let endTimestampArg: Int64? = nilOrValue(args[1])
+        api.getSleepHealthData(startTimestamp: startTimestampArg, endTimestamp: endTimestampArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

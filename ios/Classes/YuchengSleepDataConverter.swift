@@ -36,7 +36,7 @@ final class YuchengSleepDataConverter: Sendable {
         let lightSeconds = isOldFormat ? sleepDataFromDevice.lightSleepMinutes * 60 : sleepDataFromDevice.lightSleepSeconds
         let remSeconds = isOldFormat ? sleepDataFromDevice.remSleepMinutes * 60 : sleepDataFromDevice.remSleepSeconds
         
-        let event = YuchengSleepData(startTimeStamp: Int64(sleepDataFromDevice.startTimeStamp), endTimeStamp: Int64(sleepDataFromDevice.endTimeStamp), deepCount: Int64(sleepDataFromDevice.deepSleepCount), lightCount: Int64(sleepDataFromDevice.lightSleepCount),  awakeCount: Int64(awakeCount), deepInSeconds: Int64(deepSeconds), remInSeconds: Int64(remSeconds), lightInSeconds: Int64(lightSeconds), awakeInSeconds: Int64(awakeSeconds), details: sleepDetails )
+        let event = YuchengSleepData(startTimeStamp: Int64(sleepDataFromDevice.startTimeStamp).toMilliseconds(), endTimeStamp: Int64(sleepDataFromDevice.endTimeStamp).toMilliseconds(), deepCount: Int64(sleepDataFromDevice.deepSleepCount), lightCount: Int64(sleepDataFromDevice.lightSleepCount),  awakeCount: Int64(awakeCount), deepInSeconds: Int64(deepSeconds), remInSeconds: Int64(remSeconds), lightInSeconds: Int64(lightSeconds), awakeInSeconds: Int64(awakeSeconds), details: sleepDetails )
         return event
     }
 }

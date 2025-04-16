@@ -14,14 +14,44 @@ class YuchengBle {
 
   Future<void> disconnect() => YuchengBlePlatform.instance.disconnect();
 
-  Future<List<YuchengSleepData>> getSleepData() =>
-      YuchengBlePlatform.instance.getSleepData();
+  /// If startTime == null:
+  /// start time = now - 7 days
+  /// If endTime == null:
+  /// end time = next day
+  Future<List<YuchengSleepData>> getSleepData({
+    DateTime? startTime,
+    DateTime? endTime,
+  }) =>
+      YuchengBlePlatform.instance.getSleepData(
+        startTimestamp: startTime?.millisecondsSinceEpoch,
+        endTimestamp: endTime?.millisecondsSinceEpoch,
+      );
 
-  Future<List<YuchengHealthData>> getHealthData() =>
-      YuchengBlePlatform.instance.getHealthData();
+  /// If startTime == null:
+  /// start time = now - 7 days
+  /// If endTime == null:
+  /// end time = next day
+  Future<List<YuchengHealthData>> getHealthData({
+    DateTime? startTime,
+    DateTime? endTime,
+  }) =>
+      YuchengBlePlatform.instance.getHealthData(
+        startTimestamp: startTime?.millisecondsSinceEpoch,
+        endTimestamp: endTime?.millisecondsSinceEpoch,
+      );
 
-  Future<YuchengSleepHealthData> getSleepHealthData() =>
-      YuchengBlePlatform.instance.getSleepHealthData();
+  /// If startTime == null:
+  /// start time = now - 7 days
+  /// If endTime == null:
+  /// end time = next day
+  Future<YuchengSleepHealthData> getSleepHealthData({
+    DateTime? startTime,
+    DateTime? endTime,
+  }) =>
+      YuchengBlePlatform.instance.getSleepHealthData(
+        startTimestamp: startTime?.millisecondsSinceEpoch,
+        endTimestamp: endTime?.millisecondsSinceEpoch,
+      );
 
   Future<YuchengDevice?> getCurrentConnectedDevice() =>
       YuchengBlePlatform.instance.getCurrentConnectedDevice();

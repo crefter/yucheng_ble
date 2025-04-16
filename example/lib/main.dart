@@ -386,7 +386,9 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
 
   Future<void> tryGetSleepData() async {
     try {
-      final data = await _ble.getSleepData();
+      final data = await _ble.getSleepData(
+        startTime: DateTime.now().subtract(const Duration(days: 4)),
+      );
       setState(() {
         sleepData.clear();
         sleepData.addAll(data);
