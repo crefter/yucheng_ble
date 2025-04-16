@@ -604,7 +604,7 @@ class YuchengDevice {
     required this.index,
     required this.deviceName,
     required this.uuid,
-    required this.isCurrentConnected,
+    required this.isReconnected,
   });
 
   int index;
@@ -617,14 +617,14 @@ class YuchengDevice {
 
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  bool isCurrentConnected;
+  bool isReconnected;
 
   List<Object?> _toList() {
     return <Object?>[
       index,
       deviceName,
       uuid,
-      isCurrentConnected,
+      isReconnected,
     ];
   }
 
@@ -637,7 +637,7 @@ class YuchengDevice {
       index: result[0]! as int,
       deviceName: result[1]! as String,
       uuid: result[2]! as String,
-      isCurrentConnected: result[3]! as bool,
+      isReconnected: result[3]! as bool,
     );
   }
 
@@ -707,7 +707,7 @@ class YuchengDeviceDataEvent extends YuchengDeviceEvent {
   YuchengDeviceDataEvent({
     required this.index,
     required this.mac,
-    this.isCurrentConnected,
+    required this.isReconnected,
     required this.deviceName,
   });
 
@@ -720,7 +720,7 @@ class YuchengDeviceDataEvent extends YuchengDeviceEvent {
   /// Только IOS
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  bool? isCurrentConnected;
+  bool isReconnected;
 
   String deviceName;
 
@@ -728,7 +728,7 @@ class YuchengDeviceDataEvent extends YuchengDeviceEvent {
     return <Object?>[
       index,
       mac,
-      isCurrentConnected,
+      isReconnected,
       deviceName,
     ];
   }
@@ -741,7 +741,7 @@ class YuchengDeviceDataEvent extends YuchengDeviceEvent {
     return YuchengDeviceDataEvent(
       index: result[0]! as int,
       mac: result[1]! as String,
-      isCurrentConnected: result[2] as bool?,
+      isReconnected: result[2]! as bool,
       deviceName: result[3]! as String,
     );
   }
@@ -1381,10 +1381,7 @@ class YuchengHostApi {
     }
   }
 
-  /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
-  /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
-  /// к девайсу повторно и возвращает его
   Future<YuchengDevice?> getCurrentConnectedDevice() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getCurrentConnectedDevice$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(

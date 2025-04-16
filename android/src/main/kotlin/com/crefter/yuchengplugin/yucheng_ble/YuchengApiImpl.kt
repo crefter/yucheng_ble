@@ -117,7 +117,7 @@ class YuchengApiImpl(
                             YuchengDeviceDataEvent(
                                 device.index,
                                 device.uuid,
-                                device.isCurrentConnected,
+                                device.isReconnected,
                                 device.deviceName,
                             ),
                         )
@@ -196,8 +196,15 @@ class YuchengApiImpl(
                     val macAddress = YCBTClient.getBindDeviceMac()
                     val deviceName = YCBTClient.getBindDeviceName()
                     val ycDevice =
-                        YuchengDevice(index++, deviceName, macAddress, false)
+                        YuchengDevice(index++, deviceName, macAddress, true)
                     selectedDevice = ycDevice
+                    onDevice(
+                        YuchengDeviceDataEvent(
+                            ycDevice.index,
+                            ycDevice.uuid,
+                            ycDevice.isReconnected,
+                            ycDevice.deviceName,
+                    ))
                     if (!completer.isCompleted) completer.complete(isConnected)
                 }
             }
@@ -212,7 +219,7 @@ class YuchengApiImpl(
             }
         }
         GlobalScope.launch {
-            delay(1000 * TIME_TO_TIMEOUT)
+            delay(1000 * TIME_TO_TIMEOUT * 2)
             if (!completer.isCompleted) {
                 onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
                 completer.complete(false)

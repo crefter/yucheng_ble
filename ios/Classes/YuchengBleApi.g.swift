@@ -527,7 +527,7 @@ struct YuchengDevice: Hashable {
   var uuid: String
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  var isCurrentConnected: Bool
+  var isReconnected: Bool
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -535,13 +535,13 @@ struct YuchengDevice: Hashable {
     let index = pigeonVar_list[0] as! Int64
     let deviceName = pigeonVar_list[1] as! String
     let uuid = pigeonVar_list[2] as! String
-    let isCurrentConnected = pigeonVar_list[3] as! Bool
+    let isReconnected = pigeonVar_list[3] as! Bool
 
     return YuchengDevice(
       index: index,
       deviceName: deviceName,
       uuid: uuid,
-      isCurrentConnected: isCurrentConnected
+      isReconnected: isReconnected
     )
   }
   func toList() -> [Any?] {
@@ -549,7 +549,7 @@ struct YuchengDevice: Hashable {
       index,
       deviceName,
       uuid,
-      isCurrentConnected,
+      isReconnected,
     ]
   }
   static func == (lhs: YuchengDevice, rhs: YuchengDevice) -> Bool {
@@ -599,7 +599,7 @@ struct YuchengDeviceDataEvent: YuchengDeviceEvent {
   /// Только IOS
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  var isCurrentConnected: Bool? = nil
+  var isReconnected: Bool
   var deviceName: String
 
 
@@ -607,13 +607,13 @@ struct YuchengDeviceDataEvent: YuchengDeviceEvent {
   static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceDataEvent? {
     let index = pigeonVar_list[0] as! Int64
     let mac = pigeonVar_list[1] as! String
-    let isCurrentConnected: Bool? = nilOrValue(pigeonVar_list[2])
+    let isReconnected = pigeonVar_list[2] as! Bool
     let deviceName = pigeonVar_list[3] as! String
 
     return YuchengDeviceDataEvent(
       index: index,
       mac: mac,
-      isCurrentConnected: isCurrentConnected,
+      isReconnected: isReconnected,
       deviceName: deviceName
     )
   }
@@ -621,7 +621,7 @@ struct YuchengDeviceDataEvent: YuchengDeviceEvent {
     return [
       index,
       mac,
-      isCurrentConnected,
+      isReconnected,
       deviceName,
     ]
   }
@@ -991,10 +991,7 @@ protocol YuchengHostApi {
   /// Запрос на получение данных о сне
   /// Можно также прослушивать стрим sleepData
   func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengSleepData], Error>) -> Void)
-  /// ТОЛЬКО IOS
   /// Возвращает текущий подключенный девайс
-  /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
-  /// к девайсу повторно и возвращает его
   func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, Error>) -> Void)
   func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], Error>) -> Void)
   func getSleepHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengSleepHealthData, Error>) -> Void)
@@ -1117,10 +1114,7 @@ class YuchengHostApiSetup {
     } else {
       getSleepDataChannel.setMessageHandler(nil)
     }
-    /// ТОЛЬКО IOS
     /// Возвращает текущий подключенный девайс
-    /// Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
-    /// к девайсу повторно и возвращает его
     let getCurrentConnectedDeviceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getCurrentConnectedDevice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getCurrentConnectedDeviceChannel.setMessageHandler { _, reply in

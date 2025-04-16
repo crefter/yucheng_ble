@@ -101,10 +101,10 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                     self.scannedDevices = devices;
                     for device in devices {
                         print("UUID DEVICE = " + device.identifier.uuidString)
-                        let isCurrentDevice = lastConnectedDevice?.macAddress == device.macAddress;
-                        self.currentDevice = isCurrentDevice ? device : nil;
-                        let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isCurrentConnected: isCurrentDevice)
-                        self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isCurrentConnected: isCurrentDevice, deviceName: device.name ?? device.deviceModel))
+                        let isReconnected = lastConnectedDevice?.macAddress == device.macAddress;
+                        self.currentDevice = isReconnected ? device : nil;
+                        let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
+                        self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isReconnected: ycDevice.isReconnected, deviceName: device.name ?? device.deviceModel))
                         self.index += 1
                         ycDevices.append(ycDevice)
                         print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
@@ -126,7 +126,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
             } else {
                 for ycDevice in ycDevices {
-                    self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: ycDevice.uuid, isCurrentConnected: ycDevice.isCurrentConnected, deviceName: ycDevice.deviceName))
+                    self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
                     self.index += 1
                 }
                 self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
@@ -194,7 +194,21 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     }
     
     func reconnect(completion: @escaping (Result<Bool, any Error>) -> Void) {
-        completion(.failure(UnimplementedError.notImplemented("Manual reconnect not support. SDK do it himself")))
+        do {
+            YCProduct.shared.reconnectedDevice()
+            let device = YCProduct.shared.currentPeripheral
+            let isDevice = device != nil
+            completion(.success(isDevice))
+            if (isDevice) {
+                let ycDevice = YuchengDevice(index: Int64(index), deviceName: device?.name ?? "", uuid: device?.macAddress ?? "", isReconnected: true)
+                DispatchQueue.main.async {
+                    self.onDevice(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
+                }
+            }
+            index += 1
+        } catch {
+            completion(.failure(error))
+        }
     }
     
     func disconnect(completion: @escaping (Result<Void, any Error>) -> Void) {
@@ -224,7 +238,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 completion(.success(nil))
                 return
             }
-            completion(.success(YuchengDevice(index: 0, deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isCurrentConnected: true)))
+            completion(.success(YuchengDevice(index: 0, deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isReconnected: true)))
         } catch (let e) {
             completion(.failure(e))
         }

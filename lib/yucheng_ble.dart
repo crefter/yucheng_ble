@@ -3,6 +3,7 @@ import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 import 'yucheng_ble_platform_interface.dart';
 
 class YuchengBle {
+  const YuchengBle();
   Future<List<YuchengDevice>> startScanDevices(double? scanTimeInSeconds) =>
       YuchengBlePlatform.instance.startScanDevices(scanTimeInSeconds);
 

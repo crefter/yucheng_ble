@@ -1,10 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:yucheng_ble/export.dart';
 
 extension SleepTypeX on YuchengSleepType {
@@ -72,174 +68,46 @@ class YuchengSdkScreen extends StatefulWidget {
 }
 
 class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
-  final _ble = YuchengBle();
+  final _service = YuchengService();
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
   late final StreamSubscription<YuchengDeviceStateEvent> deviceStateSub;
   late final StreamSubscription<YuchengHealthEvent> healthSub;
   late final StreamSubscription<YuchengSleepHealthEvent> sleepHealthSub;
-  late final StreamSubscription<BluetoothAdapterState> bluetoothStateSub;
   final List<YuchengDevice> devices = [];
   final List<YuchengSleepData> sleepData = [];
   final List<YuchengHealthData> healthData = [];
   final List<YuchengSleepHealthData> sleepHealthData = [];
-  final List<YuchengDeviceStateEvent> deviceState = [];
-  bool isDeviceScanning = false;
   YuchengDevice? selectedDevice;
-  bool isDeviceConnected = false;
-  bool isReconnected = false;
-
-  Future<bool> requestPermissions() async {
-    final granted = (await [
-      Permission.location,
-      Permission.storage,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.bluetoothAdvertise,
-      Permission.bluetooth,
-    ].request())
-        .values
-        .any((e) => e.isGranted);
-
-    return granted;
-  }
 
   @override
   void initState() {
     super.initState();
 
-    devicesSub = _ble.devicesStream().listen(
-      (event) {
-        if (event is YuchengDeviceTimeOutEvent) {
+    _service
+      ..updateUiOnNotifiersChanges(() => setState(() {}))
+      ..init(
+        shouldTryReconnect: () async => true,
+        onBluetoothNotSupported: () {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Таймаут соединения');
-        } else if (event is YuchengDeviceCompleteEvent) {
+          _showSnackBar(context, 'Блютуз не поддерживается!');
+        },
+        onPermissionsNotGranted: () {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Конец сканирования');
-          setState(() {
-            isDeviceScanning = false;
-          });
-          return;
-        }
-        print(event);
-      },
-      onError: (e) {
-        print('Error: Devices: $e');
-      },
-      onDone: () {
-        print("DEVICES IS DONE");
-      },
-    );
-
-    sleepDataSub = _ble.sleepDataStream().listen(
-      (event) {
-        if (event is YuchengSleepTimeOutEvent) {
+          _showSnackBar(context, 'Разрешения не выданы!');
+        },
+        onDeviceConnectedYet: () {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Таймаут соединения');
-        } else if (event is YuchengSleepDataEvent) {
-          final json = event.sleepData.toJson();
-          final str = jsonEncode(json);
-          print(str);
-        } else if (event is YuchengSleepErrorEvent) {
+          _showSnackBar(context, 'Девайс уже подключен!');
+        },
+        onBluetoothOff: () {
           if (!context.mounted) return;
-          _showSnackBar(context, 'Ошибка: ${event.error}');
-        }
-      },
-      onError: (e) {
-        print('Error: Sleep data: $e');
-      },
-      onDone: () {
-        print("SLEEP DATA IS DONE");
-      },
-    );
-
-    healthSub = _ble.healthDataStream().listen(
-      (event) {
-        if (event is YuchengHealthTimeOutEvent) {
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Таймаут соединения');
-        } else if (event is YuchengHealthDataEvent) {
-          final json = event.healthData.toJson();
-          final str = jsonEncode(json);
-          print(str);
-        } else if (event is YuchengHealthErrorEvent) {
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Ошибка: ${event.error}');
-        }
-      },
-    );
-
-    sleepHealthSub = _ble.sleepHealthDataStream().listen(
-      (event) {
-        if (event is YuchengSleepHealthTimeOutEvent) {
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Таймаут соединения');
-        } else if (event is YuchengSleepHealthDataEvent) {
-          final json = event.data.toJson();
-          final str = jsonEncode(json);
-          print(str);
-        } else if (event is YuchengSleepHealthErrorEvent) {
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Ошибка: ${event.error}');
-        }
-      },
-    );
-
-    deviceStateSub = _ble.deviceStateStream().listen(
-      (event) {
-        if (event is YuchengDeviceStateTimeOutEvent) {
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Таймаут соединения');
-          setState(() {
-            isDeviceConnected = false;
-          });
-        } else if (event is YuchengDeviceStateDataEvent) {
-          if (event.state == YuchengDeviceState.readWriteOK) {
-            isDeviceConnected = true;
-          }
-          setState(() {
-            deviceState.add(event);
-          });
-          print('PRODUCT STATE = $event');
-        } else if (event is YuchengDeviceStateErrorEvent) {
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Ошибка: ${event.error}');
-          setState(() {
-            isDeviceConnected = false;
-          });
-        }
-      },
-      onError: (e) {
-        print('Error: Product state: $e');
-      },
-      onDone: () {
-        print("PRODUCT STATE IS DONE");
-      },
-    );
-
-    bluetoothStateSub = FlutterBluePlus.adapterState.listen(
-      (event) async {
-        // Тут должна быть проверка на девайс, чтобы этот листенер работал только для реконнекта
-        if (event == BluetoothAdapterState.on) {
-          final isSupported = await _isBluetoothSupported();
-          if (!isSupported) return;
-
-          final isGranted = await requestPermissions();
-          if (!isGranted) {
-            if (!context.mounted) return;
-            setState(() {
-              isDeviceScanning = false;
-            });
-            _showSnackBar(context, 'Необходимо выдать разрешения!');
-            return;
-          }
-          await tryReconnect();
-        } else if (event == BluetoothAdapterState.off) {
-          if (!context.mounted) return;
-          _showSnackBar(context, 'Включи блутуз для работы с девайсом');
-        }
-      },
-    );
+          _showSnackBar(context, 'Включи блютуз!');
+        },
+      );
+    _service.selectedDeviceNotifier.addListener(() {
+      selectedDevice = _service.selectedDevice;
+    });
   }
 
   @override
@@ -247,193 +115,69 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     devicesSub.cancel();
     sleepDataSub.cancel();
     deviceStateSub.cancel();
-    bluetoothStateSub.cancel();
+    _service.dispose();
     super.dispose();
   }
 
-  Future<bool> _isBluetoothSupported() async {
-    final isSupported = await FlutterBluePlus.isSupported;
-    if (!isSupported) {
-      if (!context.mounted) return isSupported;
-      _showSnackBar(context, 'Нет поддержки блютуз');
-    }
-    return isSupported;
-  }
-
-  Future<bool> _isBluetoothOn() async {
-    final bluetoothIsOnCompleter = Completer<bool>();
-    Timer? bluetoothTimer;
-    final sub = FlutterBluePlus.adapterState.listen(
-      (event) {
-        if (event == BluetoothAdapterState.on &&
-            !bluetoothIsOnCompleter.isCompleted) {
-          bluetoothTimer?.cancel();
-          bluetoothIsOnCompleter.complete(true);
-          return;
-        }
-        if (bluetoothIsOnCompleter.isCompleted) return;
-        bluetoothTimer ??= Timer.periodic(
-          const Duration(seconds: 1),
-          (timer) {
-            if (timer.tick >= 5) {
-              timer.cancel();
-              bluetoothIsOnCompleter.complete(false);
-              return;
-            }
-          },
-        );
+  Future<void> scanDevices() async {
+    final scannedDevices = await _service.scanDevices(
+      onBluetoothNotSupported: () {
+        if (!context.mounted) return;
+        _showSnackBar(context, 'Блютуз не поддерживается!');
+      },
+      onPermissionsNotGranted: () {
+        if (!context.mounted) return;
+        _showSnackBar(context, 'Разрешения не выданы!');
+      },
+      onBluetoothOffIos: () {
+        if (!context.mounted) return;
+        _showSnackBar(context, 'Включи блютуз вручную!');
+      },
+      onBluetoothOffAndroid: () {
+        if (!context.mounted) return;
+        _showSnackBar(context, 'Включи блютуз вручную!');
       },
     );
-    final isBluetoothOn = await bluetoothIsOnCompleter.future;
-    await sub.cancel();
-    return isBluetoothOn;
-  }
-
-  Future<void> tryReconnect() async {
-    final isBluetoothSupported = await _isBluetoothSupported();
-    if (!isBluetoothSupported) return;
-
-    final isGranted = await requestPermissions();
-    if (!isGranted) {
-      if (!context.mounted) return;
-      setState(() {
-        isDeviceScanning = false;
-      });
-      _showSnackBar(context, 'Необходимо выдать разрешения!');
-      return;
-    }
-
-    if (!Platform.isIOS) {
-      final isBleReconnected = await _ble.reconnect();
-      if (isReconnected || isDeviceConnected) return;
-      setState(() {
-        isReconnected = isBleReconnected;
-        isDeviceConnected = isBleReconnected;
-      });
-      print('RECONNECTED!!!!! - $isBleReconnected');
-    } else {
-      final isBleReconnect = await _ble.isDeviceConnected(null);
-      if (isReconnected || isDeviceConnected) return;
-      setState(() {
-        isReconnected = isBleReconnect;
-        isDeviceConnected = isBleReconnect;
-      });
-      print('RECONNECTED!!!!! - $isBleReconnect');
-    }
-  }
-
-  Future<void> scanDevices() async {
-    final isSupported = await _isBluetoothSupported();
-    if (!isSupported) return;
-
-    final isGranted = await requestPermissions();
-    if (!isGranted) {
-      if (!context.mounted) return;
-      setState(() {
-        isDeviceScanning = false;
-      });
-      _showSnackBar(context, 'Необходимо выдать разрешения!');
-      return;
-    }
-
-    if (await _isBluetoothOn()) {
-      setState(() {
-        isDeviceScanning = true;
-      });
-      final devices = await _ble.startScanDevices(null);
-      this.devices.clear();
-      setState(() {
-        this.devices.addAll(devices);
-      });
-    } else {
-      if (!context.mounted) return;
-      setState(() {
-        isDeviceScanning = false;
-      });
-      await FlutterBluePlus.turnOn();
-      final bleState = await FlutterBluePlus.adapterState.last;
-      final isOn = bleState == BluetoothAdapterState.on;
-      if (!context.mounted) return;
-      if (Platform.isIOS) {
-        _showSnackBar(
-            context, 'Включи блютуз вручную и попробуй сканировать еще раз');
-      } else if (Platform.isAndroid && !isOn) {
-        _showSnackBar(context, 'Включи блютуз и попробуй сканировать еще раз');
-      }
-    }
+    setState(() {
+      devices.clear();
+      devices.addAll(scannedDevices);
+    });
   }
 
   Future<void> tryConnectToDevice() async {
-    try {
-      final isDeviceConnected = await _ble.connect(selectedDevice!);
-      if (!context.mounted) return;
-      this.isDeviceConnected = isDeviceConnected;
-      if (isDeviceConnected) {
-        _showSnackBar(context, 'Подключился!');
-      } else {
-        _showSnackBar(
-            context, 'Не удалось подключиться почему-то, попробуй еще раз');
-      }
-      setState(() {});
-    } catch (e) {
-      if (!context.mounted) return;
-      _showSnackBar(
-        context,
-        'Не удалось подключиться( ${e.toString()}',
-      );
-    }
+    if (selectedDevice == null) return;
+    await _service.tryConnectToDevice(selectedDevice!);
+    setState(() {});
   }
 
   Future<void> tryGetSleepData() async {
-    try {
-      final data = await _ble.getSleepData(
-        startTime: DateTime.now().subtract(const Duration(days: 4)),
-      );
-      setState(() {
-        sleepData.clear();
-        sleepData.addAll(data);
-      });
-      print(data);
-    } catch (e) {
-      if (!context.mounted) return;
-      _showSnackBar(context, 'Ошибка: ${e}');
-    }
+    final data = await _service.tryGetSleepData();
+    sleepData
+      ..clear()
+      ..addAll(data);
+    setState(() {});
   }
 
   Future<void> tryGetHealthData() async {
-    try {
-      final data = await _ble.getHealthData();
-      setState(() {
-        healthData.clear();
-        healthData.addAll(data);
-      });
-      print(data);
-    } catch (e) {
-      if (!context.mounted) return;
-      _showSnackBar(context, 'Ошибка: ${e}');
-    }
+    final data = await _service.tryGetHealthData();
+    healthData
+      ..clear()
+      ..addAll(data);
+    setState(() {});
   }
 
   Future<void> tryGetSleepHealthData() async {
-    try {
-      final data = await _ble.getSleepHealthData();
-      setState(() {
-        sleepHealthData.clear();
-        sleepData
-          ..clear()
-          ..addAll(data.sleepData);
-
-        healthData
-          ..clear()
-          ..addAll(data.healthData);
-
-        sleepHealthData.add(data);
-      });
-      print(data);
-    } catch (e) {
-      if (!context.mounted) return;
-      _showSnackBar(context, 'Ошибка: ${e}');
-    }
+    final data = await _service.tryGetSleepHealthData();
+    sleepHealthData
+      ..clear()
+      ..add(data);
+    sleepData
+      ..clear()
+      ..addAll(data.sleepData);
+    healthData
+      ..clear()
+      ..addAll(data.healthData);
+    setState(() {});
   }
 
   @override
@@ -451,11 +195,41 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
-            if (isReconnected || isDeviceConnected)
+            SliverToBoxAdapter(
+              child: ValueListenableBuilder(
+                valueListenable: _service.isReconnectedNotifier,
+                builder: (context, isReconnected, child) {
+                  if (isReconnected) {
+                    return Text(
+                      'Переподключились!',
+                      textAlign: TextAlign.center,
+                    );
+                  } else {
+                    return child!;
+                  }
+                },
+                child: ValueListenableBuilder(
+                  valueListenable: _service.isReconnectingNotifier,
+                  builder: (context, isReconnecting, child) {
+                    if (isReconnecting) {
+                      return Column(
+                        children: [
+                          Text('Пробуем переподключиться...'),
+                          CircularProgressIndicator(),
+                        ],
+                      );
+                    } else {
+                      return const SizedBox.shrink();
+                    }
+                  },
+                ),
+              ),
+            ),
+            if (_service.isReconnected || _service.isAnyDeviceConnected)
               SliverToBoxAdapter(
                 child: TextButton(
                   onPressed: () async {
-                    final device = await _ble.getCurrentConnectedDevice();
+                    final device = await _service.getCurrentConnectedDevice();
                     print(device);
                   },
                   child: Text("Получить данные о текущем девайсе"),
@@ -464,10 +238,25 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
             SliverToBoxAdapter(
               child: TextButton(
                 onPressed: scanDevices,
-                child: Text(
-                  isDeviceScanning
-                      ? 'Идет сканирование'
-                      : 'Начать сканировать девайсов',
+                child: ValueListenableBuilder(
+                  valueListenable: _service.isReconnectedNotifier,
+                  builder: (context, isReconnected, child) {
+                    if (isReconnected) {
+                      return const SizedBox.shrink();
+                    } else {
+                      return child!;
+                    }
+                  },
+                  child: ValueListenableBuilder(
+                    valueListenable: _service.isDeviceScanningNotifier,
+                    builder: (context, isDeviceScanning, _) {
+                      return Text(
+                        isDeviceScanning
+                            ? 'Идет сканирвание'
+                            : 'Начать сканирование',
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -487,7 +276,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           index: event.index,
                           uuid: mac,
                           deviceName: deviceName,
-                          isCurrentConnected: false,
+                          isReconnected: event.isReconnected,
                         );
                       });
                     },
@@ -521,48 +310,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 return const SizedBox(height: 8);
               },
             ),
-            const SliverPadding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              sliver: SliverToBoxAdapter(
-                child: Text(
-                  'Состояния девайса: ',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            SliverList.separated(
-              itemCount: deviceState.length,
-              itemBuilder: (context, index) {
-                final event = deviceState[index];
-
-                final text = switch (event) {
-                  YuchengDeviceStateDataEvent() => event.state.name,
-                  YuchengDeviceStateErrorEvent() =>
-                    '${event.state.name} - ${event.error}',
-                  YuchengDeviceStateTimeOutEvent() => 'Time out to listen!',
-                };
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _DecoratedItem(
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text(text),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              separatorBuilder: (context, index) {
-                return const SizedBox(height: 10);
-              },
-            ),
-            if (!isReconnected && selectedDevice != null)
+            if (selectedDevice != null)
               SliverToBoxAdapter(
                 child: Builder(
                   builder: (context) {
@@ -573,11 +321,11 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           'Ты выбрал девайс: ${selectedDevice?.deviceName} : ${selectedDevice?.uuid}',
                         ),
                         const SizedBox(height: 10),
-                        if (!isDeviceConnected)
+                        if (!_service.isAnyDeviceConnected)
                           ElevatedButton(
                             onPressed: tryConnectToDevice,
                             child: const Text(
-                                'Попробовать подключиться к девайсу'),
+                                'Попробовать подключиться к девайkсу'),
                           ),
                       ],
                     );
@@ -587,7 +335,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
             SliverToBoxAdapter(
               child: Builder(
                 builder: (context) {
-                  if (!(isDeviceConnected || isReconnected)) {
+                  if (!(_service.isAnyDeviceConnected ||
+                      _service.isReconnected)) {
                     return const SizedBox();
                   }
 

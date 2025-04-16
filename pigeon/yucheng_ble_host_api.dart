@@ -196,13 +196,13 @@ class YuchengDevice {
 
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  final bool isCurrentConnected;
+  final bool isReconnected;
 
   const YuchengDevice({
     required this.index,
     required this.deviceName,
     required this.uuid,
-    required this.isCurrentConnected,
+    required this.isReconnected,
   });
 }
 
@@ -228,14 +228,14 @@ class YuchengDeviceDataEvent extends YuchengDeviceEvent {
   /// Только IOS
   /// true - уже изначально подключен
   /// false - не был подключен изначально, нужно подключить
-  final bool? isCurrentConnected;
+  final bool isReconnected;
   final String deviceName;
 
   const YuchengDeviceDataEvent({
     required this.index,
     required this.deviceName,
     required this.mac,
-    required this.isCurrentConnected,
+    required this.isReconnected,
   });
 }
 

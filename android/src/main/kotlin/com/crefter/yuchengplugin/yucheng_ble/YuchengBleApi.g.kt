@@ -492,7 +492,7 @@ data class YuchengDevice (
    * true - уже изначально подключен
    * false - не был подключен изначально, нужно подключить
    */
-  val isCurrentConnected: Boolean
+  val isReconnected: Boolean
 )
  {
   companion object {
@@ -500,8 +500,8 @@ data class YuchengDevice (
       val index = pigeonVar_list[0] as Long
       val deviceName = pigeonVar_list[1] as String
       val uuid = pigeonVar_list[2] as String
-      val isCurrentConnected = pigeonVar_list[3] as Boolean
-      return YuchengDevice(index, deviceName, uuid, isCurrentConnected)
+      val isReconnected = pigeonVar_list[3] as Boolean
+      return YuchengDevice(index, deviceName, uuid, isReconnected)
     }
   }
   fun toList(): List<Any?> {
@@ -509,7 +509,7 @@ data class YuchengDevice (
       index,
       deviceName,
       uuid,
-      isCurrentConnected,
+      isReconnected,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -570,7 +570,7 @@ data class YuchengDeviceDataEvent (
    * true - уже изначально подключен
    * false - не был подключен изначально, нужно подключить
    */
-  val isCurrentConnected: Boolean? = null,
+  val isReconnected: Boolean,
   val deviceName: String
 ) : YuchengDeviceEvent()
  {
@@ -578,16 +578,16 @@ data class YuchengDeviceDataEvent (
     fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceDataEvent {
       val index = pigeonVar_list[0] as Long
       val mac = pigeonVar_list[1] as String
-      val isCurrentConnected = pigeonVar_list[2] as Boolean?
+      val isReconnected = pigeonVar_list[2] as Boolean
       val deviceName = pigeonVar_list[3] as String
-      return YuchengDeviceDataEvent(index, mac, isCurrentConnected, deviceName)
+      return YuchengDeviceDataEvent(index, mac, isReconnected, deviceName)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       index,
       mac,
-      isCurrentConnected,
+      isReconnected,
       deviceName,
     )
   }
@@ -1048,12 +1048,7 @@ interface YuchengHostApi {
    * Можно также прослушивать стрим sleepData
    */
   fun getSleepData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengSleepData>>) -> Unit)
-  /**
-   * ТОЛЬКО IOS
-   * Возвращает текущий подключенный девайс
-   * Если девайс был подключен до этого и не был отключен, то сдк пытается подключиться
-   * к девайсу повторно и возвращает его
-   */
+  /** Возвращает текущий подключенный девайс */
   fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit)
   fun getHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengHealthData>>) -> Unit)
   fun getSleepHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<YuchengSleepHealthData>) -> Unit)
