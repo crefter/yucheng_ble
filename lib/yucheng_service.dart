@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,6 +10,7 @@ import 'package:yucheng_ble/yucheng_ble.dart';
 
 final class YuchengService {
   final YuchengBle _ble = const YuchengBle();
+  final _deviceInfo = DeviceInfoPlugin();
 
   YuchengService();
 
@@ -22,6 +24,7 @@ final class YuchengService {
   final ValueNotifier<bool> isDeviceConnectedNotifier = ValueNotifier(false);
   final ValueNotifier<bool> isReconnectedNotifier = ValueNotifier(false);
   final ValueNotifier<bool> isReconnectingNotifier = ValueNotifier(false);
+  String? _deviceId;
 
   Stream<YuchengDeviceStateEvent> get deviceStateStream =>
       _ble.deviceStateStream();
@@ -292,6 +295,13 @@ final class YuchengService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<String> getDeviceId() async {
+    _deviceId ??= (Platform.isAndroid
+        ? (await _deviceInfo.androidInfo).id
+        : (await _deviceInfo.iosInfo).identifierForVendor);
+    return _deviceId ?? '';
   }
 
   Future<bool> isBluetoothSupported() async {

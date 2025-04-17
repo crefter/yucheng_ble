@@ -135,14 +135,14 @@ class SleepHealthDataStreamHandlerImpl(private val uiThreadHandler: Handler) : S
 
     override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengSleepHealthEvent>) {
         eventSink = sink
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Health data stream handler sink onListen = $this")
-        Log.d( YuchengBlePlugin.PLUGIN_TAG, "Health data handler onListen")
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Health data handler sink = $sink")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data stream handler sink onListen = $this")
+        Log.d( YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler onListen")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler sink = $sink")
     }
 
     override fun onCancel(p0: Any?) {
         eventSink = null
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Health data handler onCancel")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler onCancel")
     }
 
     fun onSleepHealth(state: YuchengSleepHealthEvent) {
@@ -150,13 +150,13 @@ class SleepHealthDataStreamHandlerImpl(private val uiThreadHandler: Handler) : S
             eventSink?.success(state)
         }
         if (eventSink == null) {
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Health data EVENT SINK IS NULL!")
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data EVENT SINK IS NULL!")
         }
     }
 
     fun detach() {
         eventSink?.endOfStream()
         eventSink = null
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Health data handler detach")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler detach")
     }
 }

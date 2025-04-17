@@ -66,22 +66,21 @@ class YuchengBlePlugin : FlutterPlugin {
         HealthDataStreamHandler.register(flutterPluginBinding.binaryMessenger, healthStreamHandler!!)
         SleepHealthDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepHealthStreamHandler!!)
 
-        api = if (api == null) YuchengApiImpl(
-            onDevice = { device -> devicesHandler?.onDevice(device) },
-            onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
-            sleepDataConverter = YuchengSleepDataConverter(gson!!),
-            onState = { data -> deviceStateStreamHandler?.onState(data) },
-            onHealthData = {data -> healthStreamHandler?.onHealth(data) },
-            onSleepHealthData = {data -> sleepHealthStreamHandler?.onSleepHealth(data)},
-            healthDataConverter = YuchengHealthDataConverter(gson!!),
-            onReconnect = {
-                Reconnect.getInstance().init(flutterPluginBinding.applicationContext, true)
-            }
-        ) else api
+        if (api == null) {
+            api = YuchengApiImpl(
+                onDevice = { device -> devicesHandler?.onDevice(device) },
+                onSleepData = { data -> sleepDataHandler?.onSleepData(data) },
+                sleepDataConverter = YuchengSleepDataConverter(gson!!),
+                onState = { data -> deviceStateStreamHandler?.onState(data) },
+                onHealthData = { data -> healthStreamHandler?.onHealth(data) },
+                onSleepHealthData = { data -> sleepHealthStreamHandler?.onSleepHealth(data) },
+                healthDataConverter = YuchengHealthDataConverter(gson!!),
+            )
+        }
 
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
-        YCBTClient.initClient(flutterPluginBinding.applicationContext, false)
+        YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
         YCBTClient.registerBleStateChange { state ->
             when (state) {
                 Constants.BLEState.Connected -> {

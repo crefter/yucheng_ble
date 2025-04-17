@@ -34,13 +34,11 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.util.Date
 
 
-private const val SCAN_PERIOD: Int = 14
+private const val SCAN_PERIOD: Int = 15
 private const val TIME_TO_TIMEOUT: Long = 15
 
 class YuchengApiImpl(
@@ -51,7 +49,6 @@ class YuchengApiImpl(
     private val onState: (state: YuchengDeviceStateEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
     private val healthDataConverter: YuchengHealthDataConverter,
-    private val onReconnect: () -> Unit,
 ) : YuchengHostApi {
 
     private var index: Long = 0
@@ -107,7 +104,7 @@ class YuchengApiImpl(
         }
 
         GlobalScope.launch {
-            delay(1000 * TIME_TO_TIMEOUT)
+            delay(1000 * (TIME_TO_TIMEOUT + 5))
             if (!completer.isCompleted) {
                 if (devices.isEmpty()) {
                     onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
@@ -188,7 +185,6 @@ class YuchengApiImpl(
     override fun reconnect(callback: (Result<Boolean>) -> Unit) {
         val completer = CompletableDeferred<Boolean>()
         try {
-            onReconnect()
             YCBTClient.reconnectBle { code ->
                 Log.e("RECONNECT BLE", "CODE = $code")
                 if (code == 0) {
@@ -204,7 +200,8 @@ class YuchengApiImpl(
                             ycDevice.uuid,
                             ycDevice.isReconnected,
                             ycDevice.deviceName,
-                    ))
+                        )
+                    )
                     if (!completer.isCompleted) completer.complete(isConnected)
                 }
             }
@@ -259,7 +256,8 @@ class YuchengApiImpl(
                         val yuchengSleepData = sleepDataConverter.convert(it)
                         return@map yuchengSleepData
                     }.filter {
-                        val isInRange = it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
+                        val isInRange =
+                            it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
                         return@filter isInRange
                     }
                     sleepDataList.addAll(mappedSleep)
@@ -308,14 +306,6 @@ class YuchengApiImpl(
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private fun getDefaultStartAndEndTimestamp(): StartEndTimestamp {
-        val startDate = Instant.now().atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay()
-        val start: Long = (startDate.minusDays(DEFAULT_START_DATE_OFFSET).toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
-        val end: Long = (startDate.plusDays(1).toLocalDate().atStartOfDay().toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
-        return StartEndTimestamp(start, end)
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(DelicateCoroutinesApi::class)
     override fun getSleepData(
         startTimestamp: Long?,
@@ -323,7 +313,7 @@ class YuchengApiImpl(
     ) {
         GlobalScope.launch {
             try {
-                val default = getDefaultStartAndEndTimestamp()
+                val default = StartEndTimestamp.default()
                 val start: Long =
                     startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
@@ -429,7 +419,7 @@ class YuchengApiImpl(
     ) {
         GlobalScope.launch {
             try {
-                val default = getDefaultStartAndEndTimestamp()
+                val default = StartEndTimestamp.default()
                 val start: Long =
                     startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
@@ -456,7 +446,7 @@ class YuchengApiImpl(
         val sleepHealthDataCompleter = CompletableDeferred<YuchengSleepHealthData>()
         GlobalScope.launch {
             try {
-                val default = getDefaultStartAndEndTimestamp()
+                val default = StartEndTimestamp.default()
                 val start: Long =
                     startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
@@ -506,8 +496,21 @@ class YuchengApiImpl(
         private const val DISCONNECT = "$YUCHENG_API DISCONNECT"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"
-        private const val DEFAULT_START_DATE_OFFSET: Long = 8
     }
 }
 
-private data class StartEndTimestamp(val start: Long, val end: Long)
+private data class StartEndTimestamp(val start: Long, val end: Long) {
+    @RequiresApi(Build.VERSION_CODES.O)
+    companion object {
+        private const val DEFAULT_START_DATE_OFFSET: Long = 8
+        fun default(): StartEndTimestamp {
+            val startDate =
+                Instant.now().atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay()
+            val start: Long = (startDate.minusDays(DEFAULT_START_DATE_OFFSET)
+                .toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
+            val end: Long = (startDate.plusDays(1).toLocalDate().atStartOfDay()
+                .toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
+            return StartEndTimestamp(start, end)
+        }
+    }
+}

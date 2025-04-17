@@ -69,7 +69,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     private var currentDevice: CBPeripheral? = nil;
     private var index: Int = 0;
     private let TIME_TO_TIMEOUT = 15.0;
-    private let TIME_TO_SCAN = 14.0;
+    private let TIME_TO_SCAN = 15.0;
     
     init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter) {
         self.onDevice = onDevice
@@ -118,7 +118,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             self.onDevice(YuchengDeviceCompleteEvent(completed: false))
             completion(.failure(e))
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT + 5) {
             if (isCompleted) {
                 return;
             }
@@ -184,7 +184,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 isCompleted = true
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + (TIME_TO_TIMEOUT + 10)) {
             if (isCompleted) {
                 return;
             }
@@ -198,13 +198,13 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             YCProduct.shared.reconnectedDevice()
             let device = YCProduct.shared.currentPeripheral
             let isDevice = device != nil
-            completion(.success(isDevice))
             if (isDevice) {
                 let ycDevice = YuchengDevice(index: Int64(index), deviceName: device?.name ?? "", uuid: device?.macAddress ?? "", isReconnected: true)
                 DispatchQueue.main.async {
                     self.onDevice(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
                 }
             }
+            completion(.success(isDevice))
             index += 1
         } catch {
             completion(.failure(error))
