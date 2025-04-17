@@ -9,7 +9,7 @@ extension YuchengSleepDataDetailJson on YuchengSleepDataDetail {
     return {
       "startDate": startDate.toIso8601String(),
       "endDate": endDate.toIso8601String(),
-      "duration": duration,
+      "durationInSeconds": duration,
       "type": type.json,
     };
   }
