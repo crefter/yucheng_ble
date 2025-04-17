@@ -38,7 +38,7 @@ extension YuchengHealthDataJson on YuchengHealthData {
       "heartValue": heartValue,
       "hrvValue": hrvValue,
       "cvrrValue": cvrrValue,
-      "OOValue": OOValue,
+      "oxygenValue": OOValue,
       "stepValue": stepValue,
       "DBPValue": DBPValue,
       "tempIntValue": tempIntValue,
