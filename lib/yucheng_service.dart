@@ -54,6 +54,8 @@ final class YuchengService {
     VoidCallback? onPermissionsNotGranted,
     VoidCallback? onDeviceConnectedYet,
     VoidCallback? onBluetoothOff,
+    VoidCallback? onSuccessfulReconnect,
+    VoidCallback? onFailedReconnect,
   }) async {
     _deviceStateSub = deviceStateStream.listen(
       (event) {
@@ -86,10 +88,11 @@ final class YuchengService {
       },
     );
 
+    final shouldReconnect = await shouldTryReconnect?.call() ?? true;
+    if (!shouldReconnect) return;
+
     _bluetoothStateSub = FlutterBluePlus.adapterState.listen(
       (event) async {
-        final shouldReconnect = await shouldTryReconnect?.call() ?? true;
-        if (!shouldReconnect) return;
         if (event == BluetoothAdapterState.on) {
           final isSupported = await isBluetoothSupported();
           if (!isSupported) {
@@ -108,6 +111,8 @@ final class YuchengService {
             onPermissionsNotGranted: onPermissionsNotGranted,
             onBluetoothNotSupported: onBluetoothNotSupported,
             onDeviceConnectedYet: onDeviceConnectedYet,
+            onSuccessfulReconnect: onSuccessfulReconnect,
+            onFailedReconnect: onFailedReconnect,
           );
         } else if (event == BluetoothAdapterState.off) {
           onBluetoothOff?.call();
@@ -140,6 +145,8 @@ final class YuchengService {
     VoidCallback? onBluetoothNotSupported,
     VoidCallback? onPermissionsNotGranted,
     VoidCallback? onDeviceConnectedYet,
+    VoidCallback? onSuccessfulReconnect,
+    VoidCallback? onFailedReconnect,
   }) async {
     isReconnectingNotifier.value = true;
     final isSupported = await isBluetoothSupported();
@@ -170,7 +177,13 @@ final class YuchengService {
     isReconnectedNotifier.value = isBleReconnected;
     isDeviceConnectedNotifier.value = isBleReconnected;
     isReconnectingNotifier.value = false;
-
+    switch (isBleReconnected) {
+      case true:
+        onSuccessfulReconnect?.call();
+      case false:
+        onFailedReconnect?.call();
+    }
+    ;
     return isBleReconnected;
   }
 
