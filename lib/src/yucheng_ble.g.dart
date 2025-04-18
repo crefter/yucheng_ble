@@ -47,6 +47,47 @@ enum YuchengDeviceState {
   timeOut,
 }
 
+class YuchengDeviceSettings {
+  YuchengDeviceSettings({
+    required this.batteryValue,
+  });
+
+  int batteryValue;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      batteryValue,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengDeviceSettings decode(Object result) {
+    result as List<Object?>;
+    return YuchengDeviceSettings(
+      batteryValue: result[0]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengDeviceSettings || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 class YuchengSleepData {
   YuchengSleepData({
     required this.startTimeStamp,
@@ -1071,65 +1112,68 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is YuchengDeviceState) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is YuchengSleepData) {
+    }    else if (value is YuchengDeviceSettings) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengHealthData) {
+    }    else if (value is YuchengSleepData) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthData) {
+    }    else if (value is YuchengHealthData) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepTimeOutEvent) {
+    }    else if (value is YuchengSleepHealthData) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataEvent) {
+    }    else if (value is YuchengSleepTimeOutEvent) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataDetail) {
+    }    else if (value is YuchengSleepDataEvent) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepErrorEvent) {
+    }    else if (value is YuchengSleepDataDetail) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateTimeOutEvent) {
+    }    else if (value is YuchengSleepErrorEvent) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateDataEvent) {
+    }    else if (value is YuchengDeviceStateTimeOutEvent) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateErrorEvent) {
+    }    else if (value is YuchengDeviceStateDataEvent) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDevice) {
+    }    else if (value is YuchengDeviceStateErrorEvent) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceTimeOutEvent) {
+    }    else if (value is YuchengDevice) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceDataEvent) {
+    }    else if (value is YuchengDeviceTimeOutEvent) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceCompleteEvent) {
+    }    else if (value is YuchengDeviceDataEvent) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengHealthDataEvent) {
+    }    else if (value is YuchengDeviceCompleteEvent) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengHealthErrorEvent) {
+    }    else if (value is YuchengHealthDataEvent) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengHealthTimeOutEvent) {
+    }    else if (value is YuchengHealthErrorEvent) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthDataEvent) {
+    }    else if (value is YuchengHealthTimeOutEvent) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthErrorEvent) {
+    }    else if (value is YuchengSleepHealthDataEvent) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthTimeOutEvent) {
+    }    else if (value is YuchengSleepHealthErrorEvent) {
       buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengSleepHealthTimeOutEvent) {
+      buffer.putUint8(151);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1146,44 +1190,46 @@ class _PigeonCodec extends StandardMessageCodec {
         final int? value = readValue(buffer) as int?;
         return value == null ? null : YuchengDeviceState.values[value];
       case 131: 
-        return YuchengSleepData.decode(readValue(buffer)!);
+        return YuchengDeviceSettings.decode(readValue(buffer)!);
       case 132: 
-        return YuchengHealthData.decode(readValue(buffer)!);
+        return YuchengSleepData.decode(readValue(buffer)!);
       case 133: 
-        return YuchengSleepHealthData.decode(readValue(buffer)!);
+        return YuchengHealthData.decode(readValue(buffer)!);
       case 134: 
-        return YuchengSleepTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengSleepHealthData.decode(readValue(buffer)!);
       case 135: 
-        return YuchengSleepDataEvent.decode(readValue(buffer)!);
+        return YuchengSleepTimeOutEvent.decode(readValue(buffer)!);
       case 136: 
-        return YuchengSleepDataDetail.decode(readValue(buffer)!);
+        return YuchengSleepDataEvent.decode(readValue(buffer)!);
       case 137: 
-        return YuchengSleepErrorEvent.decode(readValue(buffer)!);
+        return YuchengSleepDataDetail.decode(readValue(buffer)!);
       case 138: 
-        return YuchengDeviceStateTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengSleepErrorEvent.decode(readValue(buffer)!);
       case 139: 
-        return YuchengDeviceStateDataEvent.decode(readValue(buffer)!);
+        return YuchengDeviceStateTimeOutEvent.decode(readValue(buffer)!);
       case 140: 
-        return YuchengDeviceStateErrorEvent.decode(readValue(buffer)!);
+        return YuchengDeviceStateDataEvent.decode(readValue(buffer)!);
       case 141: 
-        return YuchengDevice.decode(readValue(buffer)!);
+        return YuchengDeviceStateErrorEvent.decode(readValue(buffer)!);
       case 142: 
-        return YuchengDeviceTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengDevice.decode(readValue(buffer)!);
       case 143: 
-        return YuchengDeviceDataEvent.decode(readValue(buffer)!);
+        return YuchengDeviceTimeOutEvent.decode(readValue(buffer)!);
       case 144: 
-        return YuchengDeviceCompleteEvent.decode(readValue(buffer)!);
+        return YuchengDeviceDataEvent.decode(readValue(buffer)!);
       case 145: 
-        return YuchengHealthDataEvent.decode(readValue(buffer)!);
+        return YuchengDeviceCompleteEvent.decode(readValue(buffer)!);
       case 146: 
-        return YuchengHealthErrorEvent.decode(readValue(buffer)!);
+        return YuchengHealthDataEvent.decode(readValue(buffer)!);
       case 147: 
-        return YuchengHealthTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengHealthErrorEvent.decode(readValue(buffer)!);
       case 148: 
-        return YuchengSleepHealthDataEvent.decode(readValue(buffer)!);
+        return YuchengHealthTimeOutEvent.decode(readValue(buffer)!);
       case 149: 
-        return YuchengSleepHealthErrorEvent.decode(readValue(buffer)!);
+        return YuchengSleepHealthDataEvent.decode(readValue(buffer)!);
       case 150: 
+        return YuchengSleepHealthErrorEvent.decode(readValue(buffer)!);
+      case 151: 
         return YuchengSleepHealthTimeOutEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1458,6 +1504,29 @@ class YuchengHostApi {
       );
     } else {
       return (pigeonVar_replyList[0] as YuchengSleepHealthData?)!;
+    }
+  }
+
+  Future<YuchengDeviceSettings?> getDeviceSettings() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getDeviceSettings$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return (pigeonVar_replyList[0] as YuchengDeviceSettings?);
     }
   }
 }

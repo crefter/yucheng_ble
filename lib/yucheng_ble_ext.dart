@@ -7,9 +7,9 @@ extension YuchengSleepTypeJson on YuchengSleepType {
 extension YuchengSleepDataDetailJson on YuchengSleepDataDetail {
   Map<String, dynamic> toJson() {
     return {
-      "startDate": startDate.toIso8601String(),
-      "endDate": endDate.toIso8601String(),
-      "durationInSeconds": duration,
+      "start_date": startDate.toIso8601String(),
+      "end_date": endDate.toIso8601String(),
+      "duration_in_seconds": duration,
       "type": type.json,
     };
   }
@@ -18,15 +18,15 @@ extension YuchengSleepDataDetailJson on YuchengSleepDataDetail {
 extension YuchengSleepDataJson on YuchengSleepData {
   Map<String, dynamic> toJson() {
     return {
-      "startDate": startDate.toIso8601String(),
-      "endDate": endDate.toIso8601String(),
-      "deepCount": deepCount,
-      "lightCount": lightCount,
-      "awakeCount": awakeCount,
-      "deepInSeconds": deepInSeconds,
-      "lightInSeconds": lightInSeconds,
-      "awakeInSeconds": awakeInSeconds,
-      "remInSeconds": remInSeconds,
+      "start_date": startDate.toIso8601String(),
+      "end_date": endDate.toIso8601String(),
+      "deep_count": deepCount,
+      "light_count": lightCount,
+      "awake_count": awakeCount,
+      "deep_in_seconds": deepInSeconds,
+      "light_in_seconds": lightInSeconds,
+      "awake_in_seconds": awakeInSeconds,
+      "rem_in_seconds": remInSeconds,
       "details": details.map((e) => e.toJson()).toList(),
     };
   }
@@ -35,20 +35,20 @@ extension YuchengSleepDataJson on YuchengSleepData {
 extension YuchengHealthDataJson on YuchengHealthData {
   Map<String, dynamic> toJson() {
     return {
-      "heartValue": heartValue,
-      "hrvValue": hrvValue,
-      "cvrrValue": cvrrValue,
-      "oxygenValue": OOValue,
-      "stepValue": stepValue,
-      "DBPValue": DBPValue,
-      "tempIntValue": tempIntValue,
-      "tempFloatValue": tempFloatValue,
-      "startDate": startDate.toIso8601String(),
-      "SBPValue": SBPValue,
-      "respiratoryRateValue": respiratoryRateValue,
-      "bodyFatIntValue": bodyFatIntValue,
-      "bodyFatFloatValue": bodyFatFloatValue,
-      "bloodSugarValue": bloodSugarValue,
+      "heart_value": heartValue,
+      "hrv_value": hrvValue,
+      "cvrr_value": cvrrValue,
+      "oxygen_value": OOValue,
+      "step_value": stepValue,
+      "dbp_Value": DBPValue,
+      "temp_int_value": tempIntValue,
+      "temp_float_value": tempFloatValue,
+      "start_date": startDate.toIso8601String(),
+      "sbp_value": SBPValue,
+      "respiratory_rate_value": respiratoryRateValue,
+      "body_fat_int_value": bodyFatIntValue,
+      "body_fat_float_value": bodyFatFloatValue,
+      "blood_sugar_value": bloodSugarValue,
     };
   }
 }
@@ -56,8 +56,16 @@ extension YuchengHealthDataJson on YuchengHealthData {
 extension YuchengSleepHealthDataX on YuchengSleepHealthData {
   Map<String, dynamic> toJson() {
     return {
-      "sleepData": this.sleepData.map((e) => e.toJson()).toList(),
-      "healthData": this.healthData.map((e) => e.toJson()).toList(),
+      "sleep_data": this.sleepData.map((e) => e.toJson()).toList(),
+      "health_data": this.healthData.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+
+extension YuchengDeviceSettingsJson on YuchengDeviceSettings {
+  Map<String, dynamic> toJson() {
+    return {
+      "battery_value": batteryValue,
     };
   }
 }

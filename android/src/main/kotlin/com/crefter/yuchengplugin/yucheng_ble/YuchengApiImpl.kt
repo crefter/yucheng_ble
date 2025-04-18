@@ -5,6 +5,7 @@ import YuchengDevice
 import YuchengDeviceCompleteEvent
 import YuchengDeviceDataEvent
 import YuchengDeviceEvent
+import YuchengDeviceSettings
 import YuchengDeviceStateEvent
 import YuchengDeviceStateTimeOutEvent
 import YuchengDeviceTimeOutEvent
@@ -327,6 +328,11 @@ class YuchengApiImpl(
 
     override fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit) {
         try {
+            YCBTClient.getDeviceInfo { code, ratio, data ->
+                if (data != null) {
+                    print(data)
+                }
+            }
             if (selectedDevice != null) {
                 callback(Result.success(selectedDevice))
                 return
@@ -484,6 +490,24 @@ class YuchengApiImpl(
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }
+        }
+    }
+
+    override fun getDeviceSettings(callback: (Result<YuchengDeviceSettings?>) -> Unit) {
+        Log.d(YUCHENG_API, "Get device settings")
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            Log.d(YUCHENG_API, "Device not connected")
+            callback(Result.success(null))
+            return
+        }
+        try {
+            val batteryValue = YCBTClient.getDeviceBatteryValue()
+            val settings = YuchengDeviceSettings(batteryValue = batteryValue.toLong())
+            callback(Result.success(settings))
+            Log.d(YUCHENG_API, "Settings = $settings")
+        } catch (e: Exception) {
+            callback(Result.failure(e))
+            Log.e(YUCHENG_API, "Get device settings error = $e")
         }
     }
 

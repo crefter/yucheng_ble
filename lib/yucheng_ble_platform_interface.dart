@@ -89,4 +89,8 @@ abstract class YuchengBlePlatform extends PlatformInterface {
   Future<bool> reconnect() {
     throw UnimplementedError('reconnect has not been implemented.');
   }
+
+  Future<YuchengDeviceSettings?> getDeviceSettings() {
+    throw UnimplementedError('getDeviceSettings has not been implemented.');
+  }
 }

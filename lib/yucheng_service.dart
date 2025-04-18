@@ -8,6 +8,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
+/// Must call init() before use
+/// Must call dispose() after use
 final class YuchengService {
   final YuchengBle _ble = const YuchengBle();
   final _deviceInfo = DeviceInfoPlugin();
@@ -18,9 +20,11 @@ final class YuchengService {
   late final StreamSubscription<YuchengDeviceEvent> _devicesSub;
   late final StreamSubscription<BluetoothAdapterState> _bluetoothStateSub;
 
-  final ValueNotifier<bool> isDeviceScanningNotifier = ValueNotifier(false);
   final ValueNotifier<YuchengDevice?> selectedDeviceNotifier =
       ValueNotifier(null);
+  final ValueNotifier<YuchengDeviceSettings?> deviceSettingsNotifier =
+      ValueNotifier(null);
+  final ValueNotifier<bool> isDeviceScanningNotifier = ValueNotifier(false);
   final ValueNotifier<bool> isDeviceConnectedNotifier = ValueNotifier(false);
   final ValueNotifier<bool> isReconnectedNotifier = ValueNotifier(false);
   final ValueNotifier<bool> isReconnectingNotifier = ValueNotifier(false);
@@ -47,6 +51,7 @@ final class YuchengService {
   bool get isReconnecting => isReconnectingNotifier.value;
 
   YuchengDevice? get selectedDevice => selectedDeviceNotifier.value;
+  YuchengDeviceSettings? get deviceSettings => deviceSettingsNotifier.value;
 
   Future<void> init({
     required Future<bool> Function()? shouldTryReconnect,
@@ -80,9 +85,9 @@ final class YuchengService {
               uuid: event.mac,
               isReconnected: isReconnected,
             );
+            isDeviceConnectedNotifier.value = isReconnected;
             isReconnectingNotifier.value = false;
             isReconnectedNotifier.value = isReconnected;
-            isDeviceConnectedNotifier.value = isReconnected;
           }
         }
       },
@@ -128,6 +133,7 @@ final class YuchengService {
     isDeviceConnectedNotifier.addListener(update);
     selectedDeviceNotifier.addListener(update);
     isReconnectingNotifier.addListener(update);
+    deviceSettingsNotifier.addListener(update);
   }
 
   void dispose() {
@@ -139,6 +145,7 @@ final class YuchengService {
     isDeviceConnectedNotifier.dispose();
     selectedDeviceNotifier.dispose();
     isReconnectingNotifier.dispose();
+    deviceSettingsNotifier.dispose();
   }
 
   Future<bool> tryReconnect({
@@ -305,6 +312,15 @@ final class YuchengService {
     try {
       selectedDeviceNotifier.value = await _ble.getCurrentConnectedDevice();
       return selectedDevice;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<YuchengDeviceSettings?> getDeviceSettings() async {
+    try {
+      deviceSettingsNotifier.value = await _ble.getDeviceSettings();
+      return deviceSettings;
     } catch (e) {
       rethrow;
     }

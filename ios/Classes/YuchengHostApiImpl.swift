@@ -196,10 +196,10 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     func reconnect(completion: @escaping (Result<Bool, any Error>) -> Void) {
         do {
             YCProduct.shared.reconnectedDevice()
-            let device = YCProduct.shared.currentPeripheral
-            let isDevice = device != nil
+            currentDevice = YCProduct.shared.currentPeripheral
+            let isDevice = currentDevice != nil
             if (isDevice) {
-                let ycDevice = YuchengDevice(index: Int64(index), deviceName: device?.name ?? "", uuid: device?.macAddress ?? "", isReconnected: true)
+                let ycDevice = YuchengDevice(index: Int64(index), deviceName: currentDevice?.name ?? "", uuid: currentDevice?.macAddress ?? "", isReconnected: true)
                 DispatchQueue.main.async {
                     self.onDevice(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
                 }
@@ -244,7 +244,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
     }
     
-    private func getSleepData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async -> [YuchengSleepData] {
+    private func getSleepData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async throws -> [YuchengSleepData] {
         if (startTimestamp >= endTimestamp) {
             onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
             return []
@@ -252,7 +252,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         let completer: Completer<[YuchengSleepData]> = Completer()
         var sleepDataList: [YuchengSleepData] = []
         let timeoutTask = DispatchWorkItem {
-                guard !completer.isCompleted() else { return }
+            guard !completer.isCompleted() else { return }
             if (!skipHandler) {
                 for sleepData in sleepDataList {
                     let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
@@ -265,7 +265,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             DispatchQueue.main.async {
                 self.onSleepData(YuchengSleepTimeOutEvent(isTimeout: true))
             }
-            }
+        }
         
         YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
             if state == .succeed, let datas = response as? [YCHealthDataSleep] {
@@ -289,8 +289,12 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
         
-        let data = try! await completer.awaitResult()
-        return data
+        do {
+            let data = try await completer.awaitResult()
+            return data
+        } catch {
+            throw error
+        }
     }
     
     func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) {
@@ -309,24 +313,24 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     }
     
     func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[(YuchengSleepData)], any Error>) -> Void) {
-        do {
             Task {
                 let defaultDate = getDefaultStartAndEndDate()
                 let start = startTimestamp ?? defaultDate.start
                 let end = endTimestamp ?? defaultDate.end
-                let sleepData = await getSleepData(startTimestamp: start, endTimestamp: end)
-                DispatchQueue.main.async {
-                    completion(.success(sleepData))
+                do {
+                    let sleepData = try await getSleepData(startTimestamp: start, endTimestamp: end)
+                    DispatchQueue.main.async {
+                        completion(.success(sleepData))
+                    }
+                } catch {
+                    DispatchQueue.main.async {
+                        completion(.failure(error))
+                    }
                 }
             }
-        } catch (let e) {
-            DispatchQueue.main.async {
-                completion(.failure(e))
-            }
-        }
     }
     
-    func getHealthData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async -> [YuchengHealthData] {
+    func getHealthData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async throws -> [YuchengHealthData] {
         if (startTimestamp >= endTimestamp) {
             onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
             return []
@@ -373,17 +377,21 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
         
-        let data = try! await completer.awaitResult()
-        return data
+        do {
+            let data = try await completer.awaitResult()
+            return data
+        } catch {
+            throw error
+        }
     }
     
     func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], any Error>) -> Void) {
         Task {
+            let defaultDate = getDefaultStartAndEndDate()
+            let start = startTimestamp ?? defaultDate.start
+            let end = endTimestamp ?? defaultDate.end
             do {
-                let defaultDate = getDefaultStartAndEndDate()
-                let start = startTimestamp ?? defaultDate.start
-                let end = endTimestamp ?? defaultDate.end
-                let healthData = await getHealthData(startTimestamp: start, endTimestamp: end)
+                let healthData = try await getHealthData(startTimestamp: start, endTimestamp: end)
                 DispatchQueue.main.async {
                     completion(.success(healthData))
                 }
@@ -399,34 +407,83 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         let completer: Completer<YuchengSleepHealthData> = Completer()
         let empty = YuchengSleepHealthData(sleepData: [], healthData: [])
         let timeoutTask = DispatchWorkItem {
-                guard !completer.isCompleted() else { return }
+            guard !completer.isCompleted() else { return }
             DispatchQueue.main.async {
                 self.onSleepHealth(YuchengSleepHealthDataEvent(data: empty))
                 completer.complete(.success(empty))
                 self.onSleepHealth(YuchengSleepHealthTimeOutEvent(isTimeout: true))
             }
-            }
+        }
         Task {
+            let defaultDate = getDefaultStartAndEndDate()
+            let start = startTimestamp ?? defaultDate.start
+            let end = endTimestamp ?? defaultDate.end
             do {
-                let defaultDate = getDefaultStartAndEndDate()
-                let start = startTimestamp ?? defaultDate.start
-                let end = endTimestamp ?? defaultDate.end
-                let healthData = await getHealthData(skipHandler: true, startTimestamp: start, endTimestamp: end)
-                let sleepData = await getSleepData(skipHandler: true, startTimestamp: start, endTimestamp: end)
+                let healthData = try await getHealthData(skipHandler: true, startTimestamp: start, endTimestamp: end)
+                let sleepData = try await getSleepData(skipHandler: true, startTimestamp: start, endTimestamp: end)
                 let ycData = YuchengSleepHealthData(sleepData: sleepData, healthData: healthData)
                 DispatchQueue.main.async {
                     self.onSleepHealth(YuchengSleepHealthDataEvent(data: ycData))
                     completer.complete(.success(ycData))
                 }
-                
-            } catch (let e) {
-                completer.complete(.failure(e))
+            } catch {
+                completer.complete(.failure(error))
             }
         }
         Task {
-            let ycSleepHealth = try! await completer.awaitResult()
+            do {
+                let ycSleepHealth = try await completer.awaitResult()
+                DispatchQueue.main.async {
+                    completion(.success(ycSleepHealth))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+    }
+    
+    func getDeviceSettings(completion: @escaping (Result<YuchengDeviceSettings?, any Error>) -> Void) {
+        let completer: Completer<YuchengDeviceSettings?> = Completer();
+        if (currentDevice == nil) {
+            completer.complete(Result.success(nil))
+        }
+        let timeoutTask = DispatchWorkItem {
+            guard !completer.isCompleted() else { return }
             DispatchQueue.main.async {
-                completion(.success(ycSleepHealth))
+                completer.complete(.success(nil))
+            }
+        }
+    
+        Task {
+            do {
+                YCProduct.queryDeviceBasicInfo(completion: {state, response in
+                    if state == .succeed, let data = response as? YCDeviceBasicInfo {
+                        let batteryValue = data.batteryPower
+                        let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue))
+                        completer.complete(.success(settings))
+                    }
+                })
+            } catch {
+                DispatchQueue.main.async {
+                    completer.complete(.failure(error))
+                }
+            }
+        }
+        
+        Task {
+            do {
+                let settings = try await completer.awaitResult()
+                DispatchQueue.main.async {
+                    completion(.success(settings))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
             }
         }
         

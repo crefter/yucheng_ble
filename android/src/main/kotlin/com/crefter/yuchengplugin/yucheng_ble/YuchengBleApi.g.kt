@@ -106,6 +106,34 @@ enum class YuchengDeviceState(val raw: Int) {
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengDeviceSettings (
+  val batteryValue: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceSettings {
+      val batteryValue = pigeonVar_list[0] as Long
+      return YuchengDeviceSettings(batteryValue)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      batteryValue,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengDeviceSettings) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return deepEqualsYuchengBleApi(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class YuchengSleepData (
   /** Начало сна в мс */
   val startTimeStamp: Long,
@@ -823,100 +851,105 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepData.fromList(it)
+          YuchengDeviceSettings.fromList(it)
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengHealthData.fromList(it)
+          YuchengSleepData.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepHealthData.fromList(it)
+          YuchengHealthData.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepTimeOutEvent.fromList(it)
+          YuchengSleepHealthData.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepDataEvent.fromList(it)
+          YuchengSleepTimeOutEvent.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepDataDetail.fromList(it)
+          YuchengSleepDataEvent.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepErrorEvent.fromList(it)
+          YuchengSleepDataDetail.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceStateTimeOutEvent.fromList(it)
+          YuchengSleepErrorEvent.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceStateDataEvent.fromList(it)
+          YuchengDeviceStateTimeOutEvent.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceStateErrorEvent.fromList(it)
+          YuchengDeviceStateDataEvent.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDevice.fromList(it)
+          YuchengDeviceStateErrorEvent.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceTimeOutEvent.fromList(it)
+          YuchengDevice.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceDataEvent.fromList(it)
+          YuchengDeviceTimeOutEvent.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengDeviceCompleteEvent.fromList(it)
+          YuchengDeviceDataEvent.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengHealthDataEvent.fromList(it)
+          YuchengDeviceCompleteEvent.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengHealthErrorEvent.fromList(it)
+          YuchengHealthDataEvent.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengHealthTimeOutEvent.fromList(it)
+          YuchengHealthErrorEvent.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepHealthDataEvent.fromList(it)
+          YuchengHealthTimeOutEvent.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          YuchengSleepHealthErrorEvent.fromList(it)
+          YuchengSleepHealthDataEvent.fromList(it)
         }
       }
       150.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengSleepHealthErrorEvent.fromList(it)
+        }
+      }
+      151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           YuchengSleepHealthTimeOutEvent.fromList(it)
         }
@@ -934,84 +967,88 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw)
       }
-      is YuchengSleepData -> {
+      is YuchengDeviceSettings -> {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is YuchengHealthData -> {
+      is YuchengSleepData -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepHealthData -> {
+      is YuchengHealthData -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepTimeOutEvent -> {
+      is YuchengSleepHealthData -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepDataEvent -> {
+      is YuchengSleepTimeOutEvent -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepDataDetail -> {
+      is YuchengSleepDataEvent -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepErrorEvent -> {
+      is YuchengSleepDataDetail -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceStateTimeOutEvent -> {
+      is YuchengSleepErrorEvent -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceStateDataEvent -> {
+      is YuchengDeviceStateTimeOutEvent -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceStateErrorEvent -> {
+      is YuchengDeviceStateDataEvent -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is YuchengDevice -> {
+      is YuchengDeviceStateErrorEvent -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceTimeOutEvent -> {
+      is YuchengDevice -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceDataEvent -> {
+      is YuchengDeviceTimeOutEvent -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is YuchengDeviceCompleteEvent -> {
+      is YuchengDeviceDataEvent -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is YuchengHealthDataEvent -> {
+      is YuchengDeviceCompleteEvent -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is YuchengHealthErrorEvent -> {
+      is YuchengHealthDataEvent -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is YuchengHealthTimeOutEvent -> {
+      is YuchengHealthErrorEvent -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepHealthDataEvent -> {
+      is YuchengHealthTimeOutEvent -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepHealthErrorEvent -> {
+      is YuchengSleepHealthDataEvent -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is YuchengSleepHealthTimeOutEvent -> {
+      is YuchengSleepHealthErrorEvent -> {
         stream.write(150)
+        writeValue(stream, value.toList())
+      }
+      is YuchengSleepHealthTimeOutEvent -> {
+        stream.write(151)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1052,6 +1089,7 @@ interface YuchengHostApi {
   fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit)
   fun getHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengHealthData>>) -> Unit)
   fun getSleepHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<YuchengSleepHealthData>) -> Unit)
+  fun getDeviceSettings(callback: (Result<YuchengDeviceSettings?>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1225,6 +1263,24 @@ interface YuchengHostApi {
             val startTimestampArg = args[0] as Long?
             val endTimestampArg = args[1] as Long?
             api.getSleepHealthData(startTimestampArg, endTimestampArg) { result: Result<YuchengSleepHealthData> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getDeviceSettings$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getDeviceSettings{ result: Result<YuchengDeviceSettings?> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))

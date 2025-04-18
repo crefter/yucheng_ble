@@ -13,6 +13,14 @@ import 'package:pigeon/pigeon.dart';
 ))
 // #enddocregion config
 
+class YuchengDeviceSettings {
+  final int batteryValue;
+
+  const YuchengDeviceSettings({
+    required this.batteryValue,
+  });
+}
+
 // SLEEP DATA
 enum YuchengSleepType {
   rem,
@@ -351,6 +359,9 @@ abstract class YuchengHostApi {
     int? startTimestamp,
     int? endTimestamp,
   });
+
+  @async
+  YuchengDeviceSettings? getDeviceSettings();
 }
 
 @EventChannelApi()

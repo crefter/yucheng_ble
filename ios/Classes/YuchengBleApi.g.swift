@@ -147,6 +147,31 @@ enum YuchengDeviceState: Int {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct YuchengDeviceSettings: Hashable {
+  var batteryValue: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceSettings? {
+    let batteryValue = pigeonVar_list[0] as! Int64
+
+    return YuchengDeviceSettings(
+      batteryValue: batteryValue
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      batteryValue
+    ]
+  }
+  static func == (lhs: YuchengDeviceSettings, rhs: YuchengDeviceSettings) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct YuchengSleepData: Hashable {
   /// Начало сна в мс
   var startTimeStamp: Int64
@@ -835,44 +860,46 @@ private class YuchengBleApiPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 131:
-      return YuchengSleepData.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceSettings.fromList(self.readValue() as! [Any?])
     case 132:
-      return YuchengHealthData.fromList(self.readValue() as! [Any?])
+      return YuchengSleepData.fromList(self.readValue() as! [Any?])
     case 133:
-      return YuchengSleepHealthData.fromList(self.readValue() as! [Any?])
+      return YuchengHealthData.fromList(self.readValue() as! [Any?])
     case 134:
-      return YuchengSleepTimeOutEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepHealthData.fromList(self.readValue() as! [Any?])
     case 135:
-      return YuchengSleepDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 136:
-      return YuchengSleepDataDetail.fromList(self.readValue() as! [Any?])
+      return YuchengSleepDataEvent.fromList(self.readValue() as! [Any?])
     case 137:
-      return YuchengSleepErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepDataDetail.fromList(self.readValue() as! [Any?])
     case 138:
-      return YuchengDeviceStateTimeOutEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepErrorEvent.fromList(self.readValue() as! [Any?])
     case 139:
-      return YuchengDeviceStateDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 140:
-      return YuchengDeviceStateErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateDataEvent.fromList(self.readValue() as! [Any?])
     case 141:
-      return YuchengDevice.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceStateErrorEvent.fromList(self.readValue() as! [Any?])
     case 142:
-      return YuchengDeviceTimeOutEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDevice.fromList(self.readValue() as! [Any?])
     case 143:
-      return YuchengDeviceDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 144:
-      return YuchengDeviceCompleteEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceDataEvent.fromList(self.readValue() as! [Any?])
     case 145:
-      return YuchengHealthDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengDeviceCompleteEvent.fromList(self.readValue() as! [Any?])
     case 146:
-      return YuchengHealthErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengHealthDataEvent.fromList(self.readValue() as! [Any?])
     case 147:
-      return YuchengHealthTimeOutEvent.fromList(self.readValue() as! [Any?])
+      return YuchengHealthErrorEvent.fromList(self.readValue() as! [Any?])
     case 148:
-      return YuchengSleepHealthDataEvent.fromList(self.readValue() as! [Any?])
+      return YuchengHealthTimeOutEvent.fromList(self.readValue() as! [Any?])
     case 149:
-      return YuchengSleepHealthErrorEvent.fromList(self.readValue() as! [Any?])
+      return YuchengSleepHealthDataEvent.fromList(self.readValue() as! [Any?])
     case 150:
+      return YuchengSleepHealthErrorEvent.fromList(self.readValue() as! [Any?])
+    case 151:
       return YuchengSleepHealthTimeOutEvent.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -888,65 +915,68 @@ private class YuchengBleApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? YuchengDeviceState {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? YuchengSleepData {
+    } else if let value = value as? YuchengDeviceSettings {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengHealthData {
+    } else if let value = value as? YuchengSleepData {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepHealthData {
+    } else if let value = value as? YuchengHealthData {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepTimeOutEvent {
+    } else if let value = value as? YuchengSleepHealthData {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepDataEvent {
+    } else if let value = value as? YuchengSleepTimeOutEvent {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepDataDetail {
+    } else if let value = value as? YuchengSleepDataEvent {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepErrorEvent {
+    } else if let value = value as? YuchengSleepDataDetail {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateTimeOutEvent {
+    } else if let value = value as? YuchengSleepErrorEvent {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateDataEvent {
+    } else if let value = value as? YuchengDeviceStateTimeOutEvent {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceStateErrorEvent {
+    } else if let value = value as? YuchengDeviceStateDataEvent {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDevice {
+    } else if let value = value as? YuchengDeviceStateErrorEvent {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceTimeOutEvent {
+    } else if let value = value as? YuchengDevice {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceDataEvent {
+    } else if let value = value as? YuchengDeviceTimeOutEvent {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengDeviceCompleteEvent {
+    } else if let value = value as? YuchengDeviceDataEvent {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengHealthDataEvent {
+    } else if let value = value as? YuchengDeviceCompleteEvent {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengHealthErrorEvent {
+    } else if let value = value as? YuchengHealthDataEvent {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengHealthTimeOutEvent {
+    } else if let value = value as? YuchengHealthErrorEvent {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepHealthDataEvent {
+    } else if let value = value as? YuchengHealthTimeOutEvent {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepHealthErrorEvent {
+    } else if let value = value as? YuchengSleepHealthDataEvent {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? YuchengSleepHealthTimeOutEvent {
+    } else if let value = value as? YuchengSleepHealthErrorEvent {
       super.writeByte(150)
+      super.writeValue(value.toList())
+    } else if let value = value as? YuchengSleepHealthTimeOutEvent {
+      super.writeByte(151)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -995,6 +1025,7 @@ protocol YuchengHostApi {
   func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, Error>) -> Void)
   func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], Error>) -> Void)
   func getSleepHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengSleepHealthData, Error>) -> Void)
+  func getDeviceSettings(completion: @escaping (Result<YuchengDeviceSettings?, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1165,6 +1196,21 @@ class YuchengHostApiSetup {
       }
     } else {
       getSleepHealthDataChannel.setMessageHandler(nil)
+    }
+    let getDeviceSettingsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getDeviceSettings\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getDeviceSettingsChannel.setMessageHandler { _, reply in
+        api.getDeviceSettings { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getDeviceSettingsChannel.setMessageHandler(nil)
     }
   }
 }

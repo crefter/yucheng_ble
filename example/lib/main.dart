@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:yucheng_ble/export.dart';
@@ -72,8 +73,6 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   late final StreamSubscription<YuchengDeviceEvent> devicesSub;
   late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
   late final StreamSubscription<YuchengDeviceStateEvent> deviceStateSub;
-  late final StreamSubscription<YuchengHealthEvent> healthSub;
-  late final StreamSubscription<YuchengSleepHealthEvent> sleepHealthSub;
   final List<YuchengDevice> devices = [];
   final List<YuchengSleepData> sleepData = [];
   final List<YuchengHealthData> healthData = [];
@@ -103,6 +102,14 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
         onBluetoothOff: () {
           if (!context.mounted) return;
           _showSnackBar(context, 'Включи блютуз!');
+        },
+        onSuccessfulReconnect: () {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Подключение установлено!');
+        },
+        onFailedReconnect: () {
+          if (!context.mounted) return;
+          _showSnackBar(context, 'Подключение не установлено!');
         },
       );
     _service.selectedDeviceNotifier.addListener(() {
@@ -177,7 +184,12 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     healthData
       ..clear()
       ..addAll(data.healthData);
+    print(data.toJson());
     setState(() {});
+  }
+
+  Future<void> getDeviceSettings() async {
+    await _service.getDeviceSettings();
   }
 
   @override
@@ -200,7 +212,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 valueListenable: _service.isReconnectedNotifier,
                 builder: (context, isReconnected, child) {
                   if (isReconnected) {
-                    return Text(
+                    return const Text(
                       'Переподключились!',
                       textAlign: TextAlign.center,
                     );
@@ -212,7 +224,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                   valueListenable: _service.isReconnectingNotifier,
                   builder: (context, isReconnecting, child) {
                     if (isReconnecting) {
-                      return Column(
+                      return const Column(
                         children: [
                           Text('Пробуем переподключиться...'),
                           CircularProgressIndicator(),
@@ -232,7 +244,93 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                     final device = await _service.getCurrentConnectedDevice();
                     print(device);
                   },
-                  child: Text("Получить данные о текущем девайсе"),
+                  child: const Text('Получить данные о текущем девайсе'),
+                ),
+              ),
+            if (sleepHealthData.isNotEmpty)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    final data = jsonEncode(sleepHealthData.first.toJson());
+                    final deviceId = await _service.getDeviceId();
+                    final json = '{'
+                        '"device_id": "$deviceId",'
+                        '"utc_offset": "${DateTime.now().timeZoneOffset.inMinutes}",'
+                        '"data": $data'
+                        '}';
+                    if (!context.mounted) return;
+                    await showAdaptiveDialog(
+                      context: context,
+                      builder: (context) {
+                        return SimpleDialog(
+                          backgroundColor: Colors.blue.shade300,
+                          contentPadding: const EdgeInsets.all(12),
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  icon: const Icon(
+                                    Icons.clear,
+                                    size: 24,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              json,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  child: const Text(
+                      'Сформировать json c данными о сне и здоровье'),
+                ),
+              ),
+            if (_service.deviceSettings != null)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    final data = jsonEncode(_service.deviceSettings!.toJson());
+                    if (!context.mounted) return;
+                    await showAdaptiveDialog(
+                      context: context,
+                      builder: (context) {
+                        return SimpleDialog(
+                          backgroundColor: Colors.blue.shade300,
+                          contentPadding: const EdgeInsets.all(12),
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  icon: const Icon(
+                                    Icons.clear,
+                                    size: 24,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              data,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  child: const Text(
+                      'Сформировать json c данными о настройках (уровне заряда)'),
                 ),
               ),
             SliverToBoxAdapter(
@@ -272,7 +370,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                   child: InkWell(
                     onTap: () {
                       setState(() {
-                        selectedDevice = YuchengDevice(
+                        _service.selectedDeviceNotifier.value = YuchengDevice(
                           index: event.index,
                           uuid: mac,
                           deviceName: deviceName,
@@ -340,24 +438,35 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                     return const SizedBox();
                   }
 
-                  return Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: tryGetSleepData,
-                        child: const Text('Получить данные о сне'),
-                      ),
-                      const SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: tryGetHealthData,
-                        child: const Text('Получить данные о здоровье'),
-                      ),
-                      const SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: tryGetSleepHealthData,
-                        child: const Text('Получить данные о сне и здоровье'),
-                      ),
-                    ],
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: getDeviceSettings,
+                          child: const Text(
+                            'Получить данные о настройках (уровень заряда)',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: tryGetSleepData,
+                          child: const Text('Получить данные о сне'),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: tryGetHealthData,
+                          child: const Text('Получить данные о здоровье'),
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: tryGetSleepHealthData,
+                          child: const Text('Получить данные о сне и здоровье'),
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),

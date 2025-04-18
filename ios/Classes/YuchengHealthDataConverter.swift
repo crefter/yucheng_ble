@@ -9,7 +9,6 @@ import YCProductSDK
 
 final class YuchengHealthDataConverter: Sendable {
     func convert(healthDataFromDevice: YCHealthDataCombinedData) -> YuchengHealthData {
-        print(healthDataFromDevice.temperature)
         let tempInt = Int64(healthDataFromDevice.temperature)
         let tempFloat = Int64((healthDataFromDevice.temperature - healthDataFromDevice.temperature.rounded(.down)) * 100)
         

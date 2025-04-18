@@ -101,6 +101,12 @@ class MockYuchengBlePlatform
     // TODO: implement sleepHealthDataStream
     throw UnimplementedError();
   }
+
+  @override
+  Future<YuchengDeviceSettings?> getDeviceSettings() {
+    // TODO: implement getDeviceSettings
+    throw UnimplementedError();
+  }
 }
 
 void main() {

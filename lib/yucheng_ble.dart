@@ -4,6 +4,7 @@ import 'yucheng_ble_platform_interface.dart';
 
 class YuchengBle {
   const YuchengBle();
+
   Future<List<YuchengDevice>> startScanDevices(double? scanTimeInSeconds) =>
       YuchengBlePlatform.instance.startScanDevices(scanTimeInSeconds);
 
@@ -73,4 +74,7 @@ class YuchengBle {
       YuchengBlePlatform.instance.sleepHealthDataStream();
 
   Future<bool> reconnect() => YuchengBlePlatform.instance.reconnect();
+
+  Future<YuchengDeviceSettings?> getDeviceSettings() =>
+      YuchengBlePlatform.instance.getDeviceSettings();
 }

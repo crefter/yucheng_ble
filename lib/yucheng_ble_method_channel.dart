@@ -64,4 +64,8 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   }) =>
       _api.getHealthData(
           startTimestamp: startTimestamp, endTimestamp: endTimestamp);
+
+  @override
+  Future<YuchengDeviceSettings?> getDeviceSettings() =>
+      _api.getDeviceSettings();
 }
