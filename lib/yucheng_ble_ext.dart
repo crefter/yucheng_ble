@@ -40,7 +40,7 @@ extension YuchengHealthDataJson on YuchengHealthData {
       "cvrr_value": cvrrValue,
       "oxygen_value": OOValue,
       "step_value": stepValue,
-      "dbp_Value": DBPValue,
+      "dbp_value": DBPValue,
       "temp_int_value": tempIntValue,
       "temp_float_value": tempFloatValue,
       "start_date": startDate.toIso8601String(),
