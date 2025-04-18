@@ -4,6 +4,7 @@ import YuchengSleepData
 import YuchengSleepDataDetail
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.yucheng.ycbtsdk.Constants
 
 private class SleepDataBean(
     val deepSleepCount: Int,// deepSleepCount
@@ -51,10 +52,10 @@ class YuchengSleepDataConverter(private val gson: Gson) {
                 detail ->
             val sleepType = when(detail.sleepType)
             {
-                0xF1 -> YuchengSleepType.DEEP
-                0xF2 -> YuchengSleepType.LIGHT
-                0xF3 -> YuchengSleepType.REM
-                0xF4 -> YuchengSleepType.AWAKE
+                Constants.SleepType.deepSleep -> YuchengSleepType.DEEP
+                Constants.SleepType.lightSleep -> YuchengSleepType.LIGHT
+                Constants.SleepType.rem -> YuchengSleepType.REM
+                Constants.SleepType.awake -> YuchengSleepType.AWAKE
                 else -> YuchengSleepType.UNKNOWN
             }
             YuchengSleepDataDetail(

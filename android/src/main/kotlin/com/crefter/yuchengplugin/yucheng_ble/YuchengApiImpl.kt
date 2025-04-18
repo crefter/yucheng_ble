@@ -328,11 +328,6 @@ class YuchengApiImpl(
 
     override fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit) {
         try {
-            YCBTClient.getDeviceInfo { code, ratio, data ->
-                if (data != null) {
-                    print(data)
-                }
-            }
             if (selectedDevice != null) {
                 callback(Result.success(selectedDevice))
                 return
