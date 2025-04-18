@@ -488,13 +488,13 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 let settings = try await completer.awaitResult()
                 DispatchQueue.main.async {
                     completion(.success(settings))
-                    timeoutTask.cancel()
                 }
+                timeoutTask.cancel()
             } catch {
                 DispatchQueue.main.async {
                     completion(.failure(error))
-                    timeoutTask.cancel()
                 }
+                timeoutTask.cancel()
             }
         }
         
