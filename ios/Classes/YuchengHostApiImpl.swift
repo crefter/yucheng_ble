@@ -272,25 +272,26 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 for info in datas {
                     let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
                     let isInRange = sleepData.startTimeStamp >= startTimestamp && sleepData.endTimeStamp <= endTimestamp
-                    if (isInRange) {
-                        sleepDataList.append(sleepData)
-                        if (!skipHandler) {
-                            let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
-                            DispatchQueue.main.async {
-                                self.onSleepData(ycSleepEvent)
-                            }
-                        }
+                    if (!isInRange) { continue }
+                    sleepDataList.append(sleepData)
+                    if (skipHandler) { continue }
+                    let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
+                    DispatchQueue.main.async {
+                        self.onSleepData(ycSleepEvent)
                     }
                 }
             } else {
                 print("No data")
             }
-            completer.complete(.success(sleepDataList))
+            if (!completer.isCompleted()) {
+                completer.complete(.success(sleepDataList))
+            }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
         
         do {
             let data = try await completer.awaitResult()
+            timeoutTask.cancel()
             return data
         } catch {
             throw error
@@ -300,9 +301,8 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) {
         var startComponents = DateComponents()
         startComponents.weekOfYear = -1
-        startComponents.day = -1
+        startComponents.day = -2
         var endComponents = DateComponents()
-        endComponents.day = 1
         let date = Date().localDate()
         let currentDate = Calendar.current.startOfDay(for: date).localDate()
         let startDate = Calendar.current.date(byAdding: startComponents, to: currentDate)
@@ -313,21 +313,21 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     }
     
     func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[(YuchengSleepData)], any Error>) -> Void) {
-            Task {
-                let defaultDate = getDefaultStartAndEndDate()
-                let start = startTimestamp ?? defaultDate.start
-                let end = endTimestamp ?? defaultDate.end
-                do {
-                    let sleepData = try await getSleepData(startTimestamp: start, endTimestamp: end)
-                    DispatchQueue.main.async {
-                        completion(.success(sleepData))
-                    }
-                } catch {
-                    DispatchQueue.main.async {
-                        completion(.failure(error))
-                    }
+        Task {
+            let defaultDate = getDefaultStartAndEndDate()
+            let start = startTimestamp ?? defaultDate.start
+            let end = endTimestamp ?? defaultDate.end
+            do {
+                let sleepData = try await getSleepData(startTimestamp: start, endTimestamp: end)
+                DispatchQueue.main.async {
+                    completion(.success(sleepData))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
                 }
             }
+        }
     }
     
     func getHealthData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async throws -> [YuchengHealthData] {
@@ -340,16 +340,16 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         var healthDataList: [YuchengHealthData] = []
         
         let timeoutTask = DispatchWorkItem {
-                guard !completer.isCompleted() else { return }
+            guard !completer.isCompleted() else { return }
             if (!skipHandler) {
                 for healthData in healthDataList {
                     let event = YuchengHealthDataEvent(healthData: healthData)
                     DispatchQueue.main.async { self.onHealth(event) }
                 }
             }
-                completer.complete(.success(healthDataList))
-                DispatchQueue.main.async { self.onHealth(YuchengHealthTimeOutEvent(isTimeout: true)) }
-            }
+            completer.complete(.success(healthDataList))
+            DispatchQueue.main.async { self.onHealth(YuchengHealthTimeOutEvent(isTimeout: true)) }
+        }
         
         YCProduct.queryHealthData(dataType: YCQueryHealthDataType.combinedData) { state, response in
             guard !completer.isCompleted() else { return }
@@ -358,27 +358,27 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 for info in datas {
                     let healthData = self.healdConverter.convert(healthDataFromDevice: info)
                     let isInRange = healthData.startTimestamp >= startTimestamp && healthData.startTimestamp <= endTimestamp
-                    if (isInRange) {
-                        healthDataList.append(healthData)
-                        if (!skipHandler) {
-                            let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
-                            DispatchQueue.main.async {
-                                self.onHealth(ycHealthEvent)
-                            }
-                        }
+                    if (!isInRange) { continue }
+                    healthDataList.append(healthData)
+                    if (skipHandler) { continue }
+                    let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
+                    DispatchQueue.main.async {
+                        self.onHealth(ycHealthEvent)
                     }
                 }
             } else {
                 print("No data")
             }
-            timeoutTask.cancel()
-            completer.complete(.success(healthDataList))
+            if (!completer.isCompleted()) {
+                completer.complete(.success(healthDataList))
+            }
         }
-            
+        
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
         
         do {
             let data = try await completer.awaitResult()
+            timeoutTask.cancel()
             return data
         } catch {
             throw error
@@ -424,10 +424,14 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 let ycData = YuchengSleepHealthData(sleepData: sleepData, healthData: healthData)
                 DispatchQueue.main.async {
                     self.onSleepHealth(YuchengSleepHealthDataEvent(data: ycData))
-                    completer.complete(.success(ycData))
+                    if (!completer.isCompleted()) {
+                        completer.complete(.success(ycData))
+                    }
                 }
             } catch {
-                completer.complete(.failure(error))
+                if (!completer.isCompleted()) {
+                    completer.complete(.failure(error))
+                }
             }
         }
         Task {
@@ -435,10 +439,12 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 let ycSleepHealth = try await completer.awaitResult()
                 DispatchQueue.main.async {
                     completion(.success(ycSleepHealth))
+                    timeoutTask.cancel()
                 }
             } catch {
                 DispatchQueue.main.async {
                     completion(.failure(error))
+                    timeoutTask.cancel()
                 }
             }
         }
@@ -448,6 +454,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     
     func getDeviceSettings(completion: @escaping (Result<YuchengDeviceSettings?, any Error>) -> Void) {
         let completer: Completer<YuchengDeviceSettings?> = Completer();
+        
         if (currentDevice == nil) {
             completer.complete(Result.success(nil))
         }
@@ -457,18 +464,20 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 completer.complete(.success(nil))
             }
         }
-    
+        
         Task {
             do {
                 YCProduct.queryDeviceBasicInfo(completion: {state, response in
                     if state == .succeed, let data = response as? YCDeviceBasicInfo {
                         let batteryValue = data.batteryPower
                         let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue))
-                        completer.complete(.success(settings))
+                        if (!completer.isCompleted()) {
+                            completer.complete(.success(settings))
+                        }
                     }
                 })
             } catch {
-                DispatchQueue.main.async {
+                if (!completer.isCompleted()) {
                     completer.complete(.failure(error))
                 }
             }
@@ -479,10 +488,12 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 let settings = try await completer.awaitResult()
                 DispatchQueue.main.async {
                     completion(.success(settings))
+                    timeoutTask.cancel()
                 }
             } catch {
                 DispatchQueue.main.async {
                     completion(.failure(error))
+                    timeoutTask.cancel()
                 }
             }
         }
@@ -495,7 +506,7 @@ extension Date {
     func localDate() -> Date {
         let timeZoneOffset = Double(TimeZone.current.secondsFromGMT(for: self))
         guard let localDate = Calendar.current.date(byAdding: .second, value: Int(timeZoneOffset), to: self) else {return self}
-    
+        
         return localDate
     }
 }

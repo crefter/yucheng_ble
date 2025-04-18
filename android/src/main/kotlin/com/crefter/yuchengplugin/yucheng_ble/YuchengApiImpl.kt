@@ -106,24 +106,23 @@ class YuchengApiImpl(
 
         GlobalScope.launch {
             delay(1000 * (TIME_TO_TIMEOUT + 5))
-            if (!completer.isCompleted) {
-                if (devices.isEmpty()) {
-                    onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
-                } else {
-                    for (device in devices) {
-                        onDevice(
-                            YuchengDeviceDataEvent(
-                                device.index,
-                                device.uuid,
-                                device.isReconnected,
-                                device.deviceName,
-                            ),
-                        )
-                    }
-                    onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
+            if (!completer.isCompleted) return@launch
+            if (devices.isEmpty()) {
+                onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
+            } else {
+                for (device in devices) {
+                    onDevice(
+                        YuchengDeviceDataEvent(
+                            device.index,
+                            device.uuid,
+                            device.isReconnected,
+                            device.deviceName,
+                        ),
+                    )
                 }
-                completer.complete(devices)
+                onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
             }
+            completer.complete(devices)
         }
     }
 
@@ -175,10 +174,9 @@ class YuchengApiImpl(
         }
         GlobalScope.launch {
             delay(1000 * (TIME_TO_TIMEOUT + 10))
-            if (!completer.isCompleted) {
-                onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
-                completer.complete(false)
-            }
+            if (completer.isCompleted) return@launch
+            onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
+            completer.complete(false)
         }
     }
 
@@ -218,10 +216,9 @@ class YuchengApiImpl(
         }
         GlobalScope.launch {
             delay(1000 * TIME_TO_TIMEOUT * 2)
-            if (!completer.isCompleted) {
-                onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
-                completer.complete(false)
-            }
+            if (completer.isCompleted) return@launch
+            onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
+            completer.complete(false)
         }
     }
 
@@ -274,27 +271,25 @@ class YuchengApiImpl(
                 }
                 Log.d("SLEEP CODE", code.toString())
                 Log.d("SLEEP RATIO", ratio.toString())
-                if (!sleepDataCompleter.isCompleted) {
-                    sleepDataCompleter.complete(sleepDataList)
-                }
+                if (!sleepDataCompleter.isCompleted) sleepDataCompleter.complete(sleepDataList)
             }
         } catch (e: Exception) {
             Log.e(GET_SLEEP_DATA, e.toString())
-            sleepDataCompleter.completeExceptionally(e)
+            if (!sleepDataCompleter.isCompleted) sleepDataCompleter.completeExceptionally(e)
         }
 
         GlobalScope.launch {
             delay(1000 * TIME_TO_TIMEOUT)
-            if (!sleepDataCompleter.isCompleted) {
-                if (!skipHandler) {
-                    for (sleep in sleepDataList) {
-                        val ycDataEvent = YuchengSleepDataEvent(sleep)
-                        onSleepData(ycDataEvent)
-                    }
+            if (sleepDataCompleter.isCompleted) return@launch
+            if (!skipHandler) {
+                for (sleep in sleepDataList) {
+                    val ycDataEvent = YuchengSleepDataEvent(sleep)
+                    onSleepData(ycDataEvent)
                 }
-                sleepDataCompleter.complete(sleepDataList)
-                onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
             }
+            sleepDataCompleter.complete(sleepDataList)
+            onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
+
         }
 
         try {
@@ -386,21 +381,23 @@ class YuchengApiImpl(
             }
         } catch (e: Exception) {
             Log.e(GET_HEALTH_DATA, e.toString())
-            healthDataCompleter.completeExceptionally(e)
+            if (!healthDataCompleter.isCompleted) {
+                healthDataCompleter.completeExceptionally(e)
+            }
         }
 
         GlobalScope.launch {
             delay(1000 * TIME_TO_TIMEOUT)
-            if (!healthDataCompleter.isCompleted) {
-                if (!skipHandler) {
-                    for (health in healthDataList) {
-                        val ycDataEvent = YuchengHealthDataEvent(health)
-                        onHealthData(ycDataEvent)
-                    }
+            if (healthDataCompleter.isCompleted) return@launch
+            if (!skipHandler) {
+                for (health in healthDataList) {
+                    val ycDataEvent = YuchengHealthDataEvent(health)
+                    onHealthData(ycDataEvent)
                 }
-                healthDataCompleter.complete(healthDataList)
-                onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
             }
+            healthDataCompleter.complete(healthDataList)
+            onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
+
         }
 
         try {
@@ -471,11 +468,10 @@ class YuchengApiImpl(
         }
         GlobalScope.launch {
             delay(1000 * (TIME_TO_TIMEOUT + 1))
-            if (!sleepHealthDataCompleter.isCompleted) {
-                onSleepHealthData(YuchengSleepHealthDataEvent(empty))
-                sleepHealthDataCompleter.complete(empty)
-                onSleepHealthData(YuchengSleepHealthTimeOutEvent(isTimeout = true))
-            }
+            if (sleepHealthDataCompleter.isCompleted) return@launch
+            onSleepHealthData(YuchengSleepHealthDataEvent(empty))
+            sleepHealthDataCompleter.complete(empty)
+            onSleepHealthData(YuchengSleepHealthTimeOutEvent(isTimeout = true))
         }
 
         GlobalScope.launch {
@@ -488,21 +484,49 @@ class YuchengApiImpl(
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override fun getDeviceSettings(callback: (Result<YuchengDeviceSettings?>) -> Unit) {
         Log.d(YUCHENG_API, "Get device settings")
+        val completer = CompletableDeferred<YuchengDeviceSettings?>()
+
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
             Log.d(YUCHENG_API, "Device not connected")
-            callback(Result.success(null))
-            return
+            completer.complete(null)
         }
-        try {
-            val batteryValue = YCBTClient.getDeviceBatteryValue()
-            val settings = YuchengDeviceSettings(batteryValue = batteryValue.toLong())
-            callback(Result.success(settings))
-            Log.d(YUCHENG_API, "Settings = $settings")
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-            Log.e(YUCHENG_API, "Get device settings error = $e")
+        GlobalScope.launch {
+            try {
+                YCBTClient.getDeviceInfo { code, ratio, data ->
+                    if (code == 0) {
+                        val dataMap = data["data"] as Map<*, *>
+                        val batteryLevel = dataMap["deviceBatteryValue"].toString().toLong()
+                        val settings = YuchengDeviceSettings(batteryValue = batteryLevel)
+                        if (!completer.isCompleted) {
+                            completer.complete(settings)
+                            Log.d(YUCHENG_API, "Settings = $settings")
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                if (!completer.isCompleted) {
+                    completer.completeExceptionally(e)
+                }
+                Log.e(YUCHENG_API, "Get device settings error = $e")
+            }
+        }
+
+        GlobalScope.launch {
+            try {
+                val settings = completer.await()
+                callback(Result.success(settings))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+
+        GlobalScope.launch {
+            delay(1000 * TIME_TO_TIMEOUT)
+            if (completer.isCompleted) return@launch
+            completer.complete(null)
         }
     }
 
