@@ -8,6 +8,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
+class YuchengServiceException implements Exception {
+  final String message;
+  const YuchengServiceException(this.message);
+}
+
 /// Must call init() before use
 /// Must call dispose() after use
 final class YuchengService {
@@ -102,6 +107,7 @@ final class YuchengService {
           final isSupported = await isBluetoothSupported();
           if (!isSupported) {
             isDeviceScanningNotifier.value = false;
+            isReconnectingNotifier.value = false;
             onBluetoothNotSupported?.call();
             return;
           }
@@ -109,6 +115,7 @@ final class YuchengService {
           final isGranted = await requestPermissions();
           if (!isGranted) {
             isDeviceScanningNotifier.value = false;
+            isReconnectingNotifier.value = false;
             onPermissionsNotGranted?.call();
             return;
           }
@@ -122,6 +129,7 @@ final class YuchengService {
         } else if (event == BluetoothAdapterState.off) {
           onBluetoothOff?.call();
           isDeviceScanningNotifier.value = false;
+          isReconnectingNotifier.value = false;
         }
       },
     );
@@ -159,7 +167,6 @@ final class YuchengService {
     final isSupported = await isBluetoothSupported();
     if (!isSupported) {
       isReconnectedNotifier.value = false;
-      isDeviceScanningNotifier.value = false;
       isReconnectingNotifier.value = false;
       onBluetoothNotSupported?.call();
       return false;
@@ -168,7 +175,6 @@ final class YuchengService {
     final isGranted = await requestPermissions();
     if (!isGranted) {
       isReconnectedNotifier.value = false;
-      isDeviceScanningNotifier.value = false;
       isReconnectingNotifier.value = false;
       onPermissionsNotGranted?.call();
       return false;
@@ -180,7 +186,17 @@ final class YuchengService {
       isReconnectingNotifier.value = false;
       return false;
     }
+    if (isAnyDeviceConnected || isReconnected) {
+      isReconnectedNotifier.value = false;
+      isReconnectingNotifier.value = false;
+      return false;
+    }
     final isBleReconnected = await _ble.reconnect();
+    if (isAnyDeviceConnected || isReconnected) {
+      isReconnectedNotifier.value = false;
+      isReconnectingNotifier.value = false;
+      return false;
+    }
     isReconnectedNotifier.value = isBleReconnected;
     isDeviceConnectedNotifier.value = isBleReconnected;
     isReconnectingNotifier.value = false;
@@ -233,8 +249,12 @@ final class YuchengService {
     }
   }
 
-  Future<bool> tryConnectToDevice(YuchengDevice device) async {
+  Future<bool> tryConnectToDevice(YuchengDevice? device) async {
     try {
+      final deviceToConnect = device ?? selectedDeviceNotifier.value;
+      if (deviceToConnect == null) {
+        throw YuchengServiceException('No device selected');
+      }
       selectedDeviceNotifier.value = device;
       isDeviceConnectedNotifier.value =
           await _ble.connect(selectedDeviceNotifier.value!);

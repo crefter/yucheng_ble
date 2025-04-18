@@ -467,7 +467,7 @@ class YuchengApiImpl(
             }
         }
         GlobalScope.launch {
-            delay(1000 * (TIME_TO_TIMEOUT + 1))
+            delay(1000 * (TIME_TO_TIMEOUT + 5))
             if (sleepHealthDataCompleter.isCompleted) return@launch
             onSleepHealthData(YuchengSleepHealthDataEvent(empty))
             sleepHealthDataCompleter.complete(empty)
