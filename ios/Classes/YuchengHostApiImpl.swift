@@ -303,6 +303,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         startComponents.weekOfYear = -1
         startComponents.day = -1
         var endComponents = DateComponents()
+        endComponents.day = 1
         let date = Date().localDate()
         let currentDate = Calendar.current.startOfDay(for: date).localDate()
         let startDate = Calendar.current.date(byAdding: startComponents, to: currentDate)
