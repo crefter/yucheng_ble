@@ -301,7 +301,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) {
         var startComponents = DateComponents()
         startComponents.weekOfYear = -1
-        startComponents.day = -2
+        startComponents.day = -1
         var endComponents = DateComponents()
         let date = Date().localDate()
         let currentDate = Calendar.current.startOfDay(for: date).localDate()
