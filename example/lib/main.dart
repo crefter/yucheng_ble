@@ -70,9 +70,6 @@ class YuchengSdkScreen extends StatefulWidget {
 
 class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   final _service = YuchengService();
-  late final StreamSubscription<YuchengDeviceEvent> devicesSub;
-  late final StreamSubscription<YuchengSleepEvent> sleepDataSub;
-  late final StreamSubscription<YuchengDeviceStateEvent> deviceStateSub;
   final List<YuchengDevice> devices = [];
   final List<YuchengSleepData> sleepData = [];
   final List<YuchengHealthData> healthData = [];
@@ -118,9 +115,6 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
 
   @override
   void dispose() {
-    devicesSub.cancel();
-    sleepDataSub.cancel();
-    deviceStateSub.cancel();
     _service.dispose();
     super.dispose();
   }

@@ -289,7 +289,6 @@ class YuchengApiImpl(
             }
             sleepDataCompleter.complete(sleepDataList)
             onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
-
         }
 
         try {
