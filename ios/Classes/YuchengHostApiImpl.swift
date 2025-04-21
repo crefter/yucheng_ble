@@ -103,33 +103,30 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                         print("UUID DEVICE = " + device.identifier.uuidString)
                         let isReconnected = lastConnectedDevice?.macAddress == device.macAddress;
                         self.currentDevice = isReconnected ? device : nil;
-                        let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
-                        self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isReconnected: ycDevice.isReconnected, deviceName: device.name ?? device.deviceModel))
-                        self.index += 1
-                        ycDevices.append(ycDevice)
-                        print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
+                        if (!ycDevices.contains(where: { dev in
+                            dev.uuid == device.macAddress
+                        })) {
+                            let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
+                            self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isReconnected: ycDevice.isReconnected, deviceName: device.name ?? device.deviceModel))
+                            self.index += 1
+                            ycDevices.append(ycDevice)
+                            print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
+                        }
                     }
-                    self.onDevice(YuchengDeviceCompleteEvent(completed: true))
-                    completion(.success(ycDevices))
-                    isCompleted = true
                 }
             }
         } catch (let e) {
             self.onDevice(YuchengDeviceCompleteEvent(completed: false))
             completion(.failure(e))
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT + 5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
             if (isCompleted) {
                 return;
             }
             if (ycDevices.isEmpty) {
                 self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
             } else {
-                for ycDevice in ycDevices {
-                    self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
-                    self.index += 1
-                }
-                self.onDevice(YuchengDeviceTimeOutEvent(isTimeout: true))
+                self.onDevice(YuchengDeviceCompleteEvent(completed: true))
             }
             completion(.success(ycDevices))
         }
