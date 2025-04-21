@@ -362,6 +362,15 @@ abstract class YuchengHostApi {
 
   @async
   YuchengDeviceSettings? getDeviceSettings();
+
+  @async
+  bool deleteSleepData();
+
+  @async
+  bool deleteHealthData();
+
+  @async
+  bool deleteSleepHealthData();
 }
 
 @EventChannelApi()

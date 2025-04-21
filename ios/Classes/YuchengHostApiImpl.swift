@@ -440,13 +440,13 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 let ycSleepHealth = try await completer.awaitResult()
                 DispatchQueue.main.async {
                     completion(.success(ycSleepHealth))
-                    timeoutTask.cancel()
                 }
+                timeoutTask.cancel()
             } catch {
                 DispatchQueue.main.async {
                     completion(.failure(error))
-                    timeoutTask.cancel()
                 }
+                timeoutTask.cancel()
             }
         }
         
@@ -500,6 +500,93 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+    }
+    
+    func deleteData(dataType: YCDeleteHealthDataType) async throws -> Bool {
+        let completer = Completer<Bool>()
+        
+        let timeoutTask = DispatchWorkItem {
+            guard !completer.isCompleted() else { return }
+            DispatchQueue.main.async {
+                completer.complete(.success(false))
+            }
+        }
+        
+        Task {
+            do {
+                let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+                YCProduct.deleteHealthData(selectedDevice, dataType: dataType) { state, response in
+                    let isDeleted = state == YCProductState.succeed
+                    DispatchQueue.main.async {
+                        completer.complete(Result.success(isDeleted))
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completer.complete(.failure(error))
+                }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+        
+        do {
+            let result = try await completer.awaitResult()
+            timeoutTask.cancel()
+            return result
+        } catch {
+            timeoutTask.cancel()
+            throw error
+        }
+    }
+    
+    func deleteSleepData( completion: @escaping (Result<Bool, any Error>) -> Void) {
+        Task {
+            do {
+                let isDeleted = try await deleteData(dataType: YCDeleteHealthDataType.sleep)
+                DispatchQueue.main.async {
+                    completion(.success(isDeleted))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+    
+    func deleteHealthData(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        Task {
+            do {
+                let isDeleted = try await deleteData(dataType: YCDeleteHealthDataType.combinedData)
+                DispatchQueue.main.async {
+                    completion(.success(isDeleted))
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+    
+    func deleteSleepHealthData(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        Task {
+            do {
+                let isSleepDeleted = try await deleteData(dataType: YCDeleteHealthDataType.sleep)
+                let isHealthDeleted = try await deleteData(dataType: YCDeleteHealthDataType.combinedData)
+                let isDeleted = isSleepDeleted && isHealthDeleted
+                DispatchQueue.main.async {
+                    completion(.success(isDeleted))
+                    if (isDeleted) {
+                        self.onSleepHealth(YuchengSleepHealthDataEvent(data: YuchengSleepHealthData(sleepData: [], healthData: [])))
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
     }
 }
 

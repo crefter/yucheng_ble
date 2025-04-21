@@ -346,6 +346,30 @@ final class YuchengService {
     }
   }
 
+  Future<bool> deleteSleepData() async {
+    try {
+      return await _ble.deleteSleepData();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> deleteHealthData() async {
+    try {
+      return await _ble.deleteHealthData();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> deleteSleepHealthData() async {
+    try {
+      return await _ble.deleteSleepHealthData();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<String> getDeviceId() async {
     _deviceId ??= (Platform.isAndroid
         ? (await _deviceInfo.androidInfo).id

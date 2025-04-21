@@ -77,4 +77,13 @@ class YuchengBle {
 
   Future<YuchengDeviceSettings?> getDeviceSettings() =>
       YuchengBlePlatform.instance.getDeviceSettings();
+
+  Future<bool> deleteSleepData() =>
+      YuchengBlePlatform.instance.deleteSleepData();
+
+  Future<bool> deleteHealthData() =>
+      YuchengBlePlatform.instance.deleteHealthData();
+
+  Future<bool> deleteSleepHealthData() =>
+      YuchengBlePlatform.instance.deleteSleepHealthData();
 }

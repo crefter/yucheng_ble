@@ -1090,6 +1090,9 @@ interface YuchengHostApi {
   fun getHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengHealthData>>) -> Unit)
   fun getSleepHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<YuchengSleepHealthData>) -> Unit)
   fun getDeviceSettings(callback: (Result<YuchengDeviceSettings?>) -> Unit)
+  fun deleteSleepData(callback: (Result<Boolean>) -> Unit)
+  fun deleteHealthData(callback: (Result<Boolean>) -> Unit)
+  fun deleteSleepHealthData(callback: (Result<Boolean>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1281,6 +1284,60 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.getDeviceSettings{ result: Result<YuchengDeviceSettings?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteSleepData$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.deleteSleepData{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteHealthData$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.deleteHealthData{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteSleepHealthData$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.deleteSleepHealthData{ result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))

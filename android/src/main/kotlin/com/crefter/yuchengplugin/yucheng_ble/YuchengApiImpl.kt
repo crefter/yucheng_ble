@@ -530,6 +530,97 @@ class YuchengApiImpl(
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
+    private suspend fun deleteData(healthType: Int): Boolean {
+        Log.d(YUCHENG_API, "Delete sleep data")
+        val completer = CompletableDeferred<Boolean>()
+
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            Log.d(YUCHENG_API, "Device not connected")
+            completer.complete(false)
+        }
+
+        try {
+            YCBTClient.deleteHealthHistoryData(healthType) { code, ratio, data ->
+                if (!completer.isCompleted) {
+                    completer.complete(code == 0)
+                }
+            }
+        } catch (e: Exception) {
+            if (!completer.isCompleted) {
+                completer.completeExceptionally(e)
+            }
+            Log.e(YUCHENG_API, "Delete data error = $e")
+        }
+
+        try {
+            val result = completer.await()
+            return result
+        } catch (e: Exception) {
+            throw e
+        }
+
+        GlobalScope.launch {
+            delay(1000 * TIME_TO_TIMEOUT)
+            if (completer.isCompleted) return@launch
+            completer.complete(false)
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun deleteSleepData(
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        GlobalScope.launch {
+            try {
+                val isDeleted = deleteData(Constants.DATATYPE.Health_DeleteSleep)
+                callback(Result.success(isDeleted))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun deleteHealthData(
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        GlobalScope.launch {
+            try {
+                val isDeleted = deleteData(Constants.DATATYPE.Health_DeleteAll)
+                callback(Result.success(isDeleted))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun deleteSleepHealthData(
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        GlobalScope.launch {
+            try {
+                val isSleepDeleted = deleteData(Constants.DATATYPE.Health_DeleteSleep)
+                val isHealthDeleted = deleteData(Constants.DATATYPE.Health_DeleteAll)
+                val isDeleted = isSleepDeleted && isHealthDeleted
+                callback(Result.success(isDeleted))
+                if (isDeleted) {
+                    onSleepHealthData(
+                        YuchengSleepHealthDataEvent(
+                            YuchengSleepHealthData(
+                                listOf(),
+                                listOf()
+                            )
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
 
     companion object {
         private const val YUCHENG_API = "YUCH_API"

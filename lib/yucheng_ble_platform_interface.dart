@@ -93,4 +93,16 @@ abstract class YuchengBlePlatform extends PlatformInterface {
   Future<YuchengDeviceSettings?> getDeviceSettings() {
     throw UnimplementedError('getDeviceSettings has not been implemented.');
   }
+
+  Future<bool> deleteSleepData() {
+    throw UnimplementedError('deleteSleepData has not been implemented.');
+  }
+
+  Future<bool> deleteHealthData() {
+    throw UnimplementedError('deleteHealthData has not been implemented.');
+  }
+
+  Future<bool> deleteSleepHealthData() {
+    throw UnimplementedError('deleteSleepHealthData has not been implemented.');
+  }
 }

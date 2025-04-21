@@ -107,6 +107,24 @@ class MockYuchengBlePlatform
     // TODO: implement getDeviceSettings
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> deleteHealthData() {
+    // TODO: implement deleteHealthData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> deleteSleepData() {
+    // TODO: implement deleteSleepData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> deleteSleepHealthData() {
+    // TODO: implement deleteSleepHealthData
+    throw UnimplementedError();
+  }
 }
 
 void main() {

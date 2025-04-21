@@ -1026,6 +1026,9 @@ protocol YuchengHostApi {
   func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], Error>) -> Void)
   func getSleepHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengSleepHealthData, Error>) -> Void)
   func getDeviceSettings(completion: @escaping (Result<YuchengDeviceSettings?, Error>) -> Void)
+  func deleteSleepData(completion: @escaping (Result<Bool, Error>) -> Void)
+  func deleteHealthData(completion: @escaping (Result<Bool, Error>) -> Void)
+  func deleteSleepHealthData(completion: @escaping (Result<Bool, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1211,6 +1214,51 @@ class YuchengHostApiSetup {
       }
     } else {
       getDeviceSettingsChannel.setMessageHandler(nil)
+    }
+    let deleteSleepDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteSleepData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      deleteSleepDataChannel.setMessageHandler { _, reply in
+        api.deleteSleepData { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      deleteSleepDataChannel.setMessageHandler(nil)
+    }
+    let deleteHealthDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteHealthData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      deleteHealthDataChannel.setMessageHandler { _, reply in
+        api.deleteHealthData { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      deleteHealthDataChannel.setMessageHandler(nil)
+    }
+    let deleteSleepHealthDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteSleepHealthData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      deleteSleepHealthDataChannel.setMessageHandler { _, reply in
+        api.deleteSleepHealthData { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      deleteSleepHealthDataChannel.setMessageHandler(nil)
     }
   }
 }

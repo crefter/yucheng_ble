@@ -423,8 +423,33 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           ElevatedButton(
                             onPressed: tryConnectToDevice,
                             child: const Text(
-                                'Попробовать подключиться к девайkсу'),
+                              'Попробовать подключиться к девайсу',
+                            ),
+                          )
+                        else
+                          ElevatedButton(
+                            onPressed: _service.disconnect,
+                            child: const Text(
+                              'Отключиться от девайса',
+                            ),
                           ),
+                        const SizedBox(height: 8),
+                        if (_service.isAnyDeviceConnected) ...[
+                          ElevatedButton(
+                            onPressed: _service.deleteSleepData,
+                            child: Text('Удалить данные о сне'),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: _service.deleteHealthData,
+                            child: Text('Удалить данные о здоровье'),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: _service.deleteSleepHealthData,
+                            child: Text('Удалить данные о сне и здоровье'),
+                          ),
+                        ],
                       ],
                     );
                   },

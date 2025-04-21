@@ -40,6 +40,7 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
 
   @override
   Stream<YuchengDeviceStateEvent> deviceStateStream() => deviceState();
+
   @override
   Future<bool> reconnect() => _api.reconnect();
 
@@ -68,4 +69,13 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   @override
   Future<YuchengDeviceSettings?> getDeviceSettings() =>
       _api.getDeviceSettings();
+
+  @override
+  Future<bool> deleteSleepData() => _api.deleteSleepData();
+
+  @override
+  Future<bool> deleteHealthData() => _api.deleteHealthData();
+
+  @override
+  Future<bool> deleteSleepHealthData() => _api.deleteSleepHealthData();
 }
