@@ -82,9 +82,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   @override
   void initState() {
     super.initState();
-
     _service
-      ..updateUiOnNotifiersChanges(() => setState(() {}))
+      ..listenAll(() => setState(() {}))
       ..init(
         shouldTryReconnect: () async => true,
         onBluetoothNotSupported: () {
