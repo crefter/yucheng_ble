@@ -106,7 +106,6 @@ final class YuchengService
           onPermissionsNotGranted: onPermissionsNotGranted,
           onBluetoothNotSupported: onBluetoothNotSupported,
           onDeviceConnectedYet: onDeviceConnectedYet,
-          onSuccessfulReconnect: onSuccessfulReconnect,
           onFailedReconnect: onFailedReconnect,
           onBluetoothOff: onBluetoothOff,
         );
