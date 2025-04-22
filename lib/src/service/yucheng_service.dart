@@ -67,6 +67,8 @@ final class YuchengService
         if (event is YuchengDeviceDataEvent) {
           final isReconnected = event.isReconnected;
           if (isReconnected) {
+            setReconnecting(false);
+            setReconnected(isReconnected);
             setSelectedDevice(YuchengDevice(
               index: event.index,
               deviceName: event.deviceName,
@@ -74,8 +76,6 @@ final class YuchengService
               isReconnected: isReconnected,
             ));
             setDeviceConnected(isReconnected);
-            setReconnecting(false);
-            setReconnected(isReconnected);
           }
         }
       },
@@ -136,44 +136,44 @@ final class YuchengService
     setReconnecting(true);
     final isSupported = await isBluetoothSupported();
     if (!isSupported) {
-      setReconnected(false);
       setReconnecting(false);
+      setReconnected(false);
       onBluetoothNotSupported?.call();
       return false;
     }
 
     final isBleOn = await isBluetoothOnWithTimer();
     if (!isBleOn) {
-      setReconnected(false);
       setReconnecting(false);
+      setReconnected(false);
       onBluetoothOff?.call();
       return false;
     }
 
     final isGranted = await requestPermissions();
     if (!isGranted) {
-      setReconnected(false);
       setReconnecting(false);
+      setReconnected(false);
       onPermissionsNotGranted?.call();
       return false;
     }
 
     if (isReconnected || isAnyDeviceConnected) {
       onDeviceConnectedYet?.call();
-      setReconnected(false);
       setReconnecting(false);
+      setReconnected(false);
       return false;
     }
 
     final isBleReconnected = await _ble.reconnect();
     if (isAnyDeviceConnected || isReconnected) {
-      setReconnected(false);
       setReconnecting(false);
+      setReconnected(false);
       return false;
     }
+    setReconnecting(false);
     setReconnected(isBleReconnected);
     setDeviceConnected(isBleReconnected);
-    setReconnecting(false);
     switch (isBleReconnected) {
       case true:
         onSuccessfulReconnect?.call();
@@ -292,9 +292,9 @@ final class YuchengService
   Future<void> disconnect() async {
     try {
       await _ble.disconnect();
+      setReconnected(false);
       setSelectedDevice(null);
       setDeviceConnected(false);
-      setReconnected(false);
     } catch (e) {
       rethrow;
     }
