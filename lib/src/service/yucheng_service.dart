@@ -76,6 +76,7 @@ final class YuchengService
               isReconnected: isReconnected,
             ));
             setDeviceConnected(isReconnected);
+            onSuccessfulReconnect?.call();
           }
         }
       },

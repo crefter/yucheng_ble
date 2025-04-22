@@ -215,7 +215,7 @@ class YuchengApiImpl(
             }
         }
         GlobalScope.launch {
-            delay(1000 * TIME_TO_TIMEOUT * 2)
+            delay(1000 * TIME_TO_TIMEOUT * 4)
             if (completer.isCompleted) return@launch
             onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
             completer.complete(false)
