@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 
 base mixin YuchengServiceNotifiersMixin {
+  bool wasDisposed = false;
   final ValueNotifier<YuchengDevice?> selectedDeviceNotifier =
       ValueNotifier(null);
   final ValueNotifier<YuchengDeviceSettings?> deviceSettingsNotifier =
@@ -59,20 +60,35 @@ base mixin YuchengServiceNotifiersMixin {
   void cancelListenDeviceSettings(VoidCallback callback) =>
       deviceSettingsNotifier.removeListener(callback);
 
-  void setDeviceScanning(bool value) => isDeviceScanningNotifier.value = value;
+  void setDeviceScanning(bool value) {
+    if (wasDisposed) return;
+    isDeviceScanningNotifier.value = value;
+  }
 
-  void setDeviceConnected(bool value) =>
-      isDeviceConnectedNotifier.value = value;
+  void setDeviceConnected(bool value) {
+    if (wasDisposed) return;
+    isDeviceConnectedNotifier.value = value;
+  }
 
-  void setReconnected(bool value) => isReconnectedNotifier.value = value;
+  void setReconnected(bool value) {
+    if (wasDisposed) return;
+    isReconnectedNotifier.value = value;
+  }
 
-  void setReconnecting(bool value) => isReconnectingNotifier.value = value;
+  void setReconnecting(bool value) {
+    if (wasDisposed) return;
+    isReconnectingNotifier.value = value;
+  }
 
-  void setSelectedDevice(YuchengDevice? value) =>
-      selectedDeviceNotifier.value = value;
+  void setSelectedDevice(YuchengDevice? value) {
+    if (wasDisposed) return;
+    selectedDeviceNotifier.value = value;
+  }
 
-  void setDeviceSettings(YuchengDeviceSettings? value) =>
-      deviceSettingsNotifier.value = value;
+  void setDeviceSettings(YuchengDeviceSettings? value) {
+    if (wasDisposed) return;
+    deviceSettingsNotifier.value = value;
+  }
 
   void listenAll(VoidCallback callback) {
     isDeviceScanningNotifier.addListener(callback);
@@ -93,6 +109,7 @@ base mixin YuchengServiceNotifiersMixin {
   }
 
   void disposeNotifiers() {
+    wasDisposed = true;
     isDeviceScanningNotifier.dispose();
     isReconnectedNotifier.dispose();
     isDeviceConnectedNotifier.dispose();
