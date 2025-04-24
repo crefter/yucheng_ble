@@ -5,12 +5,13 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 base mixin YuchengServiceBluetoothMixin {
-  late final StreamSubscription<BluetoothAdapterState> _bluetoothStateSub;
+  late final StreamSubscription<BluetoothAdapterState>? _bluetoothStateSub;
 
   void listenBluetoothState(
     VoidCallback bleOn,
     VoidCallback bleOff,
   ) {
+    _bluetoothStateSub?.cancel();
     _bluetoothStateSub = FlutterBluePlus.adapterState.listen(
       (event) async {
         if (event == BluetoothAdapterState.on) {
@@ -22,7 +23,7 @@ base mixin YuchengServiceBluetoothMixin {
     );
   }
 
-  void cancelListenBluetoothState() => _bluetoothStateSub.cancel();
+  void cancelListenBluetoothState() => _bluetoothStateSub?.cancel();
 
   Future<bool> isBluetoothSupported() async {
     final isSupported = await FlutterBluePlus.isSupported;

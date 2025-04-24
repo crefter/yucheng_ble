@@ -24,8 +24,8 @@ final class YuchengService
 
   YuchengService();
 
-  late final StreamSubscription<YuchengDeviceStateEvent> _deviceStateSub;
-  late final StreamSubscription<YuchengDeviceEvent> _devicesSub;
+  StreamSubscription<YuchengDeviceStateEvent>? _deviceStateSub;
+  StreamSubscription<YuchengDeviceEvent>? _devicesSub;
 
   String? _deviceId;
 
@@ -50,6 +50,9 @@ final class YuchengService
     VoidCallback? onSuccessfulReconnect,
     VoidCallback? onFailedReconnect,
   }) async {
+    _deviceStateSub?.cancel();
+    _devicesSub?.cancel();
+
     _deviceStateSub = deviceStateStream.listen(
       (event) {
         if (event is YuchengDeviceStateDataEvent) {
@@ -120,8 +123,8 @@ final class YuchengService
 
   void dispose() {
     cancelListenBluetoothState();
-    _deviceStateSub.cancel();
-    _devicesSub.cancel();
+    _deviceStateSub?.cancel();
+    _devicesSub?.cancel();
     disposeNotifiers();
   }
 
