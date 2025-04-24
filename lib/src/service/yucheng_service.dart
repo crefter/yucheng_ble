@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
@@ -20,14 +19,10 @@ class YuchengServiceException implements Exception {
 final class YuchengService
     with YuchengServiceNotifiersMixin, YuchengServiceBluetoothMixin {
   final YuchengBle _ble = const YuchengBle();
-  final _deviceInfo = DeviceInfoPlugin();
-
   YuchengService();
 
   StreamSubscription<YuchengDeviceStateEvent>? _deviceStateSub;
   StreamSubscription<YuchengDeviceEvent>? _devicesSub;
-
-  String? _deviceId;
 
   Stream<YuchengDeviceStateEvent> get deviceStateStream =>
       _ble.deviceStateStream();
@@ -343,12 +338,5 @@ final class YuchengService
     } catch (e) {
       rethrow;
     }
-  }
-
-  Future<String> getDeviceId() async {
-    _deviceId ??= (Platform.isAndroid
-        ? (await _deviceInfo.androidInfo).id
-        : (await _deviceInfo.iosInfo).identifierForVendor);
-    return _deviceId ?? '';
   }
 }

@@ -1,11 +1,28 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 base mixin YuchengServiceBluetoothMixin {
+  final _deviceInfo = DeviceInfoPlugin();
   StreamSubscription<BluetoothAdapterState>? _bluetoothStateSub;
+  String? _deviceId;
+
+  Future<List<Permission>> get _permissions async {
+    final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
+    return [
+      Permission.location,
+      if (Platform.isIOS || (Platform.isAndroid && androidVersion < 33))
+        Permission.storage,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
+      Permission.bluetoothAdvertise,
+      Permission.bluetooth,
+    ];
+  }
 
   void listenBluetoothState(
     VoidCallback bleOn,
@@ -33,18 +50,6 @@ base mixin YuchengServiceBluetoothMixin {
   Future<bool> isBluetoothOn() async {
     final isOn = await FlutterBluePlus.adapterState.last;
     return isOn == BluetoothAdapterState.on;
-  }
-
-  Future<bool> isPermissionsGranted() async {
-    return (await [
-      Permission.location.isGranted,
-      Permission.storage.isGranted,
-      Permission.bluetoothConnect.isGranted,
-      Permission.bluetoothScan.isGranted,
-      Permission.bluetoothAdvertise.isGranted,
-      Permission.bluetooth.isGranted,
-    ].wait)
-        .every((isGranted) => isGranted);
   }
 
   Future<void> tryTurnOnBluetooth() async {
@@ -82,17 +87,24 @@ base mixin YuchengServiceBluetoothMixin {
   }
 
   Future<bool> requestPermissions() async {
-    final granted = (await [
-      Permission.location,
-      Permission.storage,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.bluetoothAdvertise,
-      Permission.bluetooth,
-    ].request())
-        .values
-        .any((e) => e.isGranted);
+    final permissions = await _permissions;
+    final granted =
+        (await permissions.request()).values.any((e) => e.isGranted);
 
     return granted;
+  }
+
+  Future<bool> isPermissionsGranted() async {
+    final permissions = await _permissions;
+    final permissionsGranted =
+        await [for (final permission in permissions) permission.isGranted].wait;
+    return permissionsGranted.every((isGranted) => isGranted);
+  }
+
+  Future<String> getDeviceId() async {
+    _deviceId ??= (Platform.isAndroid
+        ? (await _deviceInfo.androidInfo).id
+        : (await _deviceInfo.iosInfo).identifierForVendor);
+    return _deviceId ?? '';
   }
 }
