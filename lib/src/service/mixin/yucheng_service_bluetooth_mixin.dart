@@ -5,7 +5,7 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 base mixin YuchengServiceBluetoothMixin {
-  late final StreamSubscription<BluetoothAdapterState>? _bluetoothStateSub;
+  StreamSubscription<BluetoothAdapterState>? _bluetoothStateSub;
 
   void listenBluetoothState(
     VoidCallback bleOn,
