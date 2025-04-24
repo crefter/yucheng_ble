@@ -160,6 +160,10 @@ class YuchengApiImpl(
     override fun connect(device: YuchengDevice, callback: (Result<Boolean>) -> Unit) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start connect")
         val macAddress = device.uuid
+        if (selectedDevice?.uuid == macAddress) {
+            callback(Result.success(true))
+            return
+        }
         selectedDevice = device
         val completer = CompletableDeferred<Boolean>()
         YCBTClient.connectBle(macAddress) { code ->
