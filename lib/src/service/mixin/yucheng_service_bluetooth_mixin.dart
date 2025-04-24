@@ -35,6 +35,18 @@ base mixin YuchengServiceBluetoothMixin {
     return isOn == BluetoothAdapterState.on;
   }
 
+  Future<bool> isPermissionsGranted() async {
+    return (await [
+      Permission.location.isGranted,
+      Permission.storage.isGranted,
+      Permission.bluetoothConnect.isGranted,
+      Permission.bluetoothScan.isGranted,
+      Permission.bluetoothAdvertise.isGranted,
+      Permission.bluetooth.isGranted,
+    ].wait)
+        .every((isGranted) => isGranted);
+  }
+
   Future<void> tryTurnOnBluetooth() async {
     await FlutterBluePlus.turnOn();
   }
