@@ -463,21 +463,19 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             }
         }
         
-        Task {
-            do {
-                YCProduct.queryDeviceBasicInfo(completion: {state, response in
-                    if state == .succeed, let data = response as? YCDeviceBasicInfo {
-                        let batteryValue = data.batteryPower
-                        let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue))
-                        if (!completer.isCompleted()) {
-                            completer.complete(.success(settings))
-                        }
+        do {
+            YCProduct.queryDeviceBasicInfo(completion: {state, response in
+                if state == .succeed, let data = response as? YCDeviceBasicInfo {
+                    let batteryValue = data.batteryPower
+                    let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue))
+                    if (!completer.isCompleted()) {
+                        completer.complete(.success(settings))
                     }
-                })
-            } catch {
-                if (!completer.isCompleted()) {
-                    completer.complete(.failure(error))
                 }
+            })
+        } catch {
+            if (!completer.isCompleted()) {
+                completer.complete(.failure(error))
             }
         }
         
