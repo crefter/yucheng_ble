@@ -12,16 +12,22 @@ base mixin YuchengServiceBluetoothMixin {
   String? _deviceId;
 
   Future<List<Permission>> get _permissions async {
-    final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
-    return [
+    final p = [
       Permission.location,
-      if (Platform.isIOS || (Platform.isAndroid && androidVersion < 33))
-        Permission.storage,
       Permission.bluetoothConnect,
       Permission.bluetoothScan,
       Permission.bluetoothAdvertise,
       Permission.bluetooth,
     ];
+    if (Platform.isAndroid) {
+      final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
+      if (androidVersion < 33) {
+        p.add(Permission.storage);
+      }
+    } else if (Platform.isIOS) {
+      p.add(Permission.storage);
+    }
+    return p;
   }
 
   void listenBluetoothState(
