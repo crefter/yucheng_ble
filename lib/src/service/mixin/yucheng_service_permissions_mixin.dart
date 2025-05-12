@@ -15,21 +15,20 @@ base mixin YuchengServicePermissionsMixin {
   }
 
   Future<List<Permission>> get _permissions async {
-    final p = [
+    final isAndroid = Platform.isAndroid;
+    final isIos = Platform.isIOS;
+    final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
+
+    final List<Permission> p = [
+      if (isAndroid) ...[
+        Permission.bluetoothConnect,
+        Permission.bluetoothScan,
+        Permission.bluetoothAdvertise,
+      ],
+      if ((isAndroid && androidVersion < 33) || isIos) Permission.storage,
       Permission.location,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.bluetoothAdvertise,
       Permission.bluetooth,
     ];
-    if (Platform.isAndroid) {
-      final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
-      if (androidVersion < 33) {
-        p.add(Permission.storage);
-      }
-    } else if (Platform.isIOS) {
-      p.add(Permission.storage);
-    }
     return p;
   }
 
@@ -57,21 +56,17 @@ base mixin YuchengServicePermissionsMixin {
 
   Future<bool> isBluetoothPermanentlyDenied() async {
     final permissions = [
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.bluetoothAdvertise,
+      if (Platform.isAndroid) ...[
+        Permission.bluetoothConnect,
+        Permission.bluetoothScan,
+        Permission.bluetoothAdvertise,
+      ],
       Permission.bluetooth,
     ];
-    if (Platform.isIOS) {
-      final isAllDenied = await [for (final p in permissions) p.request()].wait;
-      final isDenied = isAllDenied.any((e) => e.isPermanentlyDenied);
-      return isDenied;
-    } else {
-      final isAllDenied =
-          await [for (final p in permissions) p.isPermanentlyDenied].wait;
-      final isDenied = isAllDenied.any((e) => e);
-      return isDenied;
-    }
+    final isAllDenied =
+        await [for (final p in permissions) p.isPermanentlyDenied].wait;
+    final isDenied = isAllDenied.any((e) => e);
+    return isDenied;
   }
 
   Future<bool> isPermissionsPermanentlyDenied() async {
