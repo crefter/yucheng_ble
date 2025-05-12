@@ -16,8 +16,6 @@ base mixin YuchengServicePermissionsMixin {
 
   Future<List<Permission>> get _permissions async {
     final isAndroid = Platform.isAndroid;
-    final isIos = Platform.isIOS;
-    final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
 
     final List<Permission> p = [
       if (isAndroid) ...[
@@ -25,10 +23,19 @@ base mixin YuchengServicePermissionsMixin {
         Permission.bluetoothScan,
         Permission.bluetoothAdvertise,
       ],
-      if ((isAndroid && androidVersion < 33) || isIos) Permission.storage,
       Permission.location,
       Permission.bluetooth,
     ];
+
+    if (isAndroid) {
+      final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
+      if (androidVersion < 33) {
+        p.add(Permission.storage);
+      }
+    } else {
+      p.add(Permission.storage);
+    }
+
     return p;
   }
 
