@@ -66,7 +66,7 @@ base mixin YuchengServicePermissionsMixin {
   }
 
   Future<bool> isPermissionsPermanentlyDenied() async {
-    return await isLocationPermanentlyDenied() ||
+    return await isLocationPermanentlyDenied() &&
         await isBluetoothPermanentlyDenied();
   }
 
