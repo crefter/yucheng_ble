@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
 import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
@@ -17,7 +18,10 @@ class YuchengServiceException implements Exception {
 /// If you need call init() before use
 /// Must call dispose() after use (ex. in State.dispose())
 final class YuchengService
-    with YuchengServiceNotifiersMixin, YuchengServiceBluetoothMixin {
+    with
+        YuchengServiceNotifiersMixin,
+        YuchengServiceBluetoothMixin,
+        YuchengServicePermissionsMixin {
   final YuchengBle _ble = const YuchengBle();
   YuchengService();
 

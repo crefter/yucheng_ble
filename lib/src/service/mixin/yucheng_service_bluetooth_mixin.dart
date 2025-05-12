@@ -1,34 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 base mixin YuchengServiceBluetoothMixin {
-  final _deviceInfo = DeviceInfoPlugin();
   StreamSubscription<BluetoothAdapterState>? _bluetoothStateSub;
-  String? _deviceId;
-
-  Future<List<Permission>> get _permissions async {
-    final p = [
-      Permission.location,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.bluetoothAdvertise,
-      Permission.bluetooth,
-    ];
-    if (Platform.isAndroid) {
-      final androidVersion = (await _deviceInfo.androidInfo).version.sdkInt;
-      if (androidVersion < 33) {
-        p.add(Permission.storage);
-      }
-    } else if (Platform.isIOS) {
-      p.add(Permission.storage);
-    }
-    return p;
-  }
 
   void listenBluetoothState(
     VoidCallback bleOn,
@@ -90,27 +66,5 @@ base mixin YuchengServiceBluetoothMixin {
     await sub.cancel();
 
     return isBluetoothOn;
-  }
-
-  Future<bool> requestPermissions() async {
-    final permissions = await _permissions;
-    final granted =
-        (await permissions.request()).values.any((e) => e.isGranted);
-
-    return granted;
-  }
-
-  Future<bool> isPermissionsGranted() async {
-    final permissions = await _permissions;
-    final permissionsGranted =
-        await [for (final permission in permissions) permission.isGranted].wait;
-    return permissionsGranted.every((isGranted) => isGranted);
-  }
-
-  Future<String> getDeviceId() async {
-    _deviceId ??= (Platform.isAndroid
-        ? (await _deviceInfo.androidInfo).id
-        : (await _deviceInfo.iosInfo).identifierForVendor);
-    return _deviceId ?? '';
   }
 }
