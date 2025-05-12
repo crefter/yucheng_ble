@@ -45,12 +45,14 @@ base mixin YuchengServicePermissionsMixin {
     final permissions = await _permissions;
     final permissionsGranted =
         await [for (final p in permissions) p.isGranted].wait;
-    return permissionsGranted.every((isGranted) => isGranted);
+    final isGranted = permissionsGranted.every((isGranted) => isGranted);
+    return isGranted;
   }
 
   Future<bool> isLocationPermanentlyDenied() async {
     final permission = Permission.location;
-    return await permission.isPermanentlyDenied;
+    final isDenied = await permission.isPermanentlyDenied;
+    return isDenied;
   }
 
   Future<bool> isBluetoothPermanentlyDenied() async {
@@ -62,12 +64,14 @@ base mixin YuchengServicePermissionsMixin {
     ];
     final isAllDenied =
         await [for (final p in permissions) p.isPermanentlyDenied].wait;
-    return isAllDenied.any((e) => e);
+    final isDenied = isAllDenied.any((e) => e);
+    return isDenied;
   }
 
   Future<bool> isPermissionsPermanentlyDenied() async {
-    return await isLocationPermanentlyDenied() &&
-        await isBluetoothPermanentlyDenied();
+    final isLocationDenied = await isLocationPermanentlyDenied();
+    final isBluetoothDenied = await isBluetoothPermanentlyDenied();
+    return isLocationDenied || isBluetoothDenied;
   }
 
   Future<bool> openSettings() => openAppSettings();
