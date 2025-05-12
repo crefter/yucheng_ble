@@ -35,8 +35,8 @@ base mixin YuchengServicePermissionsMixin {
 
   Future<bool> requestPermissions() async {
     final permissions = await _permissions;
-    final granted =
-        (await permissions.request()).values.every((e) => e.isGranted);
+    final requested = await permissions.request();
+    final granted = requested.values.every((granted) => granted.isGranted);
 
     return granted;
   }
