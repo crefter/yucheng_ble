@@ -62,10 +62,16 @@ base mixin YuchengServicePermissionsMixin {
       Permission.bluetoothAdvertise,
       Permission.bluetooth,
     ];
-    final isAllDenied =
-        await [for (final p in permissions) p.isPermanentlyDenied].wait;
-    final isDenied = isAllDenied.any((e) => e);
-    return isDenied;
+    if (Platform.isIOS) {
+      final isAllDenied = await [for (final p in permissions) p.request()].wait;
+      final isDenied = isAllDenied.any((e) => e.isPermanentlyDenied);
+      return isDenied;
+    } else {
+      final isAllDenied =
+          await [for (final p in permissions) p.isPermanentlyDenied].wait;
+      final isDenied = isAllDenied.any((e) => e);
+      return isDenied;
+    }
   }
 
   Future<bool> isPermissionsPermanentlyDenied() async {
