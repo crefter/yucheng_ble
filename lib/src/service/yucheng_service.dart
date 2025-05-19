@@ -163,15 +163,15 @@ final class YuchengService
     if (isReconnected || isAnyDeviceConnected) {
       onDeviceConnectedYet?.call();
       setReconnecting(false);
-      setReconnected(false);
-      return false;
+      setReconnected(true);
+      return true;
     }
 
     final isBleReconnected = await _ble.reconnect();
     if (isAnyDeviceConnected || isReconnected) {
       setReconnecting(false);
-      setReconnected(false);
-      return false;
+      setReconnected(true);
+      return true;
     }
     setReconnecting(false);
     setReconnected(isBleReconnected);
