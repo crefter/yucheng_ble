@@ -146,7 +146,8 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
     }
     
-    func connect(device: YuchengDevice, completion: @escaping (Result<Bool, any Error>) -> Void) {
+    func connect(device: YuchengDevice, connectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        let timeout = Double(connectTimeInSeconds ?? Int64((TIME_TO_TIMEOUT + 10)))
         if (currentDevice != nil) {
             if (device.deviceName == currentDevice?.name || device.uuid == currentDevice?.macAddress) {
                 completion(.success(true))
@@ -181,7 +182,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 isCompleted = true
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + (TIME_TO_TIMEOUT + 10)) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
             if (isCompleted) {
                 return;
             }
@@ -190,7 +191,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
     }
     
-    func reconnect(completion: @escaping (Result<Bool, any Error>) -> Void) {
+    func reconnect(reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
         do {
             YCProduct.shared.reconnectedDevice()
             currentDevice = YCProduct.shared.currentPeripheral

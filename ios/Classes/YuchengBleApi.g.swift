@@ -1014,8 +1014,8 @@ protocol YuchengHostApi {
   /// Проверяет, подключен ли данный девайс
   func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Подключить девайс к сдк
-  func connect(device: YuchengDevice, completion: @escaping (Result<Bool, Error>) -> Void)
-  func reconnect(completion: @escaping (Result<Bool, Error>) -> Void)
+  func connect(device: YuchengDevice, connectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, Error>) -> Void)
+  func reconnect(reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Отключить девайс от сдк
   func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
   /// Запрос на получение данных о сне
@@ -1085,7 +1085,8 @@ class YuchengHostApiSetup {
       connectChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let deviceArg = args[0] as! YuchengDevice
-        api.connect(device: deviceArg) { result in
+        let connectTimeInSecondsArg: Int64? = nilOrValue(args[1])
+        api.connect(device: deviceArg, connectTimeInSeconds: connectTimeInSecondsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1099,8 +1100,10 @@ class YuchengHostApiSetup {
     }
     let reconnectChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.reconnect\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      reconnectChannel.setMessageHandler { _, reply in
-        api.reconnect { result in
+      reconnectChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let reconnectTimeInSecondsArg: Int64? = nilOrValue(args[0])
+        api.reconnect(reconnectTimeInSeconds: reconnectTimeInSecondsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

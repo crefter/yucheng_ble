@@ -128,6 +128,7 @@ final class YuchengService
   }
 
   Future<bool> tryReconnect({
+    int reconnectTimeInSeconds = 30,
     VoidCallback? onBluetoothNotSupported,
     VoidCallback? onBluetoothOff,
     VoidCallback? onPermissionsNotGranted,
@@ -167,7 +168,7 @@ final class YuchengService
       return true;
     }
 
-    final isBleReconnected = await _ble.reconnect();
+    final isBleReconnected = await _ble.reconnect(reconnectTimeInSeconds);
     if (isAnyDeviceConnected || isReconnected) {
       setReconnecting(false);
       setReconnected(true);
@@ -224,14 +225,16 @@ final class YuchengService
     }
   }
 
-  Future<bool> tryConnectToDevice([YuchengDevice? device]) async {
+  Future<bool> tryConnectToDevice(
+      [YuchengDevice? device, int connectTimeInSeconds = 30]) async {
     try {
       final deviceToConnect = device ?? selectedDevice;
       if (deviceToConnect == null) {
         throw YuchengServiceException('No device selected');
       }
       setSelectedDevice(device);
-      setDeviceConnected(await _ble.connect(selectedDevice!));
+      setDeviceConnected(
+          await _ble.connect(selectedDevice!, connectTimeInSeconds));
       return isAnyDeviceConnected;
     } catch (e) {
       rethrow;

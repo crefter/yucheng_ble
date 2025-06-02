@@ -32,7 +32,7 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('isDeviceConnected has not been implemented.');
   }
 
-  Future<bool> connect(YuchengDevice device) {
+  Future<bool> connect(YuchengDevice device, int? connectTimeInSeconds) {
     throw UnimplementedError('connect has not been implemented.');
   }
 
@@ -86,7 +86,7 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('sleepHealthData has not been implemented.');
   }
 
-  Future<bool> reconnect() {
+  Future<bool> reconnect(int? reconnectTimeInSeconds) {
     throw UnimplementedError('reconnect has not been implemented.');
   }
 

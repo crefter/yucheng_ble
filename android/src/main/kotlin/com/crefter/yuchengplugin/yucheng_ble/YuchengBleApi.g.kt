@@ -1076,8 +1076,8 @@ interface YuchengHostApi {
    */
   fun isDeviceConnected(device: YuchengDevice?, callback: (Result<Boolean>) -> Unit)
   /** Подключить девайс к сдк */
-  fun connect(device: YuchengDevice, callback: (Result<Boolean>) -> Unit)
-  fun reconnect(callback: (Result<Boolean>) -> Unit)
+  fun connect(device: YuchengDevice, connectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit)
+  fun reconnect(reconnectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit)
   /** Отключить девайс от сдк */
   fun disconnect(callback: (Result<Unit>) -> Unit)
   /**
@@ -1149,7 +1149,8 @@ interface YuchengHostApi {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val deviceArg = args[0] as YuchengDevice
-            api.connect(deviceArg) { result: Result<Boolean> ->
+            val connectTimeInSecondsArg = args[1] as Long?
+            api.connect(deviceArg, connectTimeInSecondsArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))
@@ -1166,8 +1167,10 @@ interface YuchengHostApi {
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.reconnect$separatedMessageChannelSuffix", codec)
         if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            api.reconnect{ result: Result<Boolean> ->
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val reconnectTimeInSecondsArg = args[0] as Long?
+            api.reconnect(reconnectTimeInSecondsArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(wrapError(error))

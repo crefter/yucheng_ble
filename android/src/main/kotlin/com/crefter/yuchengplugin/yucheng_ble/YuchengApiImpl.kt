@@ -157,7 +157,11 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun connect(device: YuchengDevice, callback: (Result<Boolean>) -> Unit) {
+    override fun connect(
+        device: YuchengDevice,
+        connectTimeInSeconds: Long?,
+        callback: (Result<Boolean>) -> Unit
+    ) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start connect")
         val macAddress = device.uuid
         if (selectedDevice?.uuid == macAddress) {
@@ -177,7 +181,8 @@ class YuchengApiImpl(
             callback(Result.success(completer.await()))
         }
         GlobalScope.launch {
-            delay(1000 * (TIME_TO_TIMEOUT + 10))
+            val timeout = (connectTimeInSeconds ?: (TIME_TO_TIMEOUT + 10))
+            delay(1000 * timeout)
             if (completer.isCompleted) return@launch
             onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
             completer.complete(false)
@@ -185,7 +190,7 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun reconnect(callback: (Result<Boolean>) -> Unit) {
+    override fun reconnect(reconnectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit) {
         val completer = CompletableDeferred<Boolean>()
         try {
             YCBTClient.reconnectBle { code ->
@@ -219,7 +224,8 @@ class YuchengApiImpl(
             }
         }
         GlobalScope.launch {
-            delay(1000 * TIME_TO_TIMEOUT * 4)
+            val timeout = (reconnectTimeInSeconds ?: (TIME_TO_TIMEOUT * 3))
+            delay(1000 * timeout)
             if (completer.isCompleted) return@launch
             onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
             completer.complete(false)

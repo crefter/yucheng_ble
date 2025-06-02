@@ -11,8 +11,8 @@ class YuchengBle {
   Future<bool> isDeviceConnected(YuchengDevice? device) =>
       YuchengBlePlatform.instance.isDeviceConnected(device);
 
-  Future<bool> connect(YuchengDevice device) =>
-      YuchengBlePlatform.instance.connect(device);
+  Future<bool> connect(YuchengDevice device, int? connectTimeInSeconds) =>
+      YuchengBlePlatform.instance.connect(device, connectTimeInSeconds);
 
   Future<void> disconnect() => YuchengBlePlatform.instance.disconnect();
 
@@ -73,7 +73,8 @@ class YuchengBle {
   Stream<YuchengSleepHealthEvent> sleepHealthDataStream() =>
       YuchengBlePlatform.instance.sleepHealthDataStream();
 
-  Future<bool> reconnect() => YuchengBlePlatform.instance.reconnect();
+  Future<bool> reconnect(int? reconnectTimeInSeconds) =>
+      YuchengBlePlatform.instance.reconnect(reconnectTimeInSeconds);
 
   Future<YuchengDeviceSettings?> getDeviceSettings() =>
       YuchengBlePlatform.instance.getDeviceSettings();

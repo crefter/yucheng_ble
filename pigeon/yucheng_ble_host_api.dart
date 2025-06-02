@@ -327,10 +327,10 @@ abstract class YuchengHostApi {
 
   /// Подключить девайс к сдк
   @async
-  bool connect(YuchengDevice device);
+  bool connect(YuchengDevice device, int? connectTimeInSeconds);
 
   @async
-  bool reconnect();
+  bool reconnect(int? reconnectTimeInSeconds);
 
   /// Отключить девайс от сдк
   @async

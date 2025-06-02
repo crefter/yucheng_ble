@@ -9,7 +9,7 @@ class MockYuchengBlePlatform
     with MockPlatformInterfaceMixin
     implements YuchengBlePlatform {
   @override
-  Future<bool> connect(YuchengDevice device) {
+  Future<bool> connect(YuchengDevice device, int? arg) {
     // TODO: implement connect
     throw UnimplementedError();
   }
@@ -67,7 +67,7 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<bool> reconnect() {
+  Future<bool> reconnect(int? arg) {
     // TODO: implement reconnect
     throw UnimplementedError();
   }
