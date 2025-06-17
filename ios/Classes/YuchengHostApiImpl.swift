@@ -70,6 +70,8 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     private var index: Int = 0;
     private let TIME_TO_TIMEOUT = 15.0;
     private let TIME_TO_SCAN = 15.0;
+    private let TIME_TO_RECONNECT = 20;
+    private let TIME_TO_QUERY_MAC_ADDR = 10;
     
     init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter) {
         self.onDevice = onDevice
@@ -192,22 +194,41 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     }
     
     func reconnect(reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isCompleted = false;
         do {
-            let a = YCProduct.shared.reconnectedDevice()
-            currentDevice = YCProduct.shared.currentPeripheral
-            let conn = YCProduct.shared.connectedPeripherals
-            let isDevice = currentDevice != nil
-            if (isDevice) {
-                let ycDevice = YuchengDevice(index: Int64(index), deviceName: currentDevice?.name ?? "", uuid: currentDevice?.macAddress ?? "", isReconnected: true)
-                DispatchQueue.main.async {
-                    self.onDevice(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
+            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(TIME_TO_QUERY_MAC_ADDR)) {
+                YCProduct.queryDeviceMacAddress { state, response in
+                    if state == YCProductState.succeed,
+                       let macAddress = response as? String {
+                        self.currentDevice = YCProduct.shared.currentPeripheral
+                        let device = self.currentDevice
+                        let deviceMacAddress = device?.macAddress
+                        let isReconnected = deviceMacAddress != nil
+                        let isDevice = device != nil
+                        if (isDevice) {
+                            let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device?.name ?? "", uuid: deviceMacAddress ?? macAddress, isReconnected: isReconnected)
+                            DispatchQueue.main.async {
+                                self.onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
+                                self.onDevice(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
+                            }
+                        }
+                        completion(.success(isDevice))
+                        self.index += 1
+                        isCompleted = true
+                    }
                 }
             }
-            completion(.success(isDevice))
-            index += 1
         } catch {
+            isCompleted = true
             completion(.failure(error))
         }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(TIME_TO_RECONNECT), execute: {
+            if (isCompleted) {
+                return
+            }
+            completion(.success(false))
+        })
     }
     
     func disconnect(completion: @escaping (Result<Void, any Error>) -> Void) {
