@@ -23,6 +23,7 @@ final class YuchengService
         YuchengServiceBluetoothMixin,
         YuchengServicePermissionsMixin {
   final YuchengBle _ble = const YuchengBle();
+
   YuchengService();
 
   StreamSubscription<YuchengDeviceStateEvent>? _deviceStateSub;
@@ -55,7 +56,8 @@ final class YuchengService
     _deviceStateSub = deviceStateStream.listen(
       (event) {
         if (event is YuchengDeviceStateDataEvent) {
-          if (event.state == YuchengDeviceState.readWriteOK) {
+          if (event.state == YuchengDeviceState.readWriteOK ||
+              (Platform.isIOS && event.state == YuchengDeviceState.connected)) {
             setDeviceConnected(true);
           }
         } else if (event is YuchengDeviceStateErrorEvent) {
