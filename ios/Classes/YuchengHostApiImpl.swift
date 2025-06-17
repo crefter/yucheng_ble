@@ -38,7 +38,7 @@ final class Completer<T> : @unchecked Sendable {
     }
     
     func isCompleted() -> Bool {
-        return queue.sync { isResumed }
+        return queue.sync { self.isResumed }
     }
 }
 
@@ -193,8 +193,9 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     
     func reconnect(reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
         do {
-            YCProduct.shared.reconnectedDevice()
+            let a = YCProduct.shared.reconnectedDevice()
             currentDevice = YCProduct.shared.currentPeripheral
+            let conn = YCProduct.shared.connectedPeripherals
             let isDevice = currentDevice != nil
             if (isDevice) {
                 let ycDevice = YuchengDevice(index: Int64(index), deviceName: currentDevice?.name ?? "", uuid: currentDevice?.macAddress ?? "", isReconnected: true)
