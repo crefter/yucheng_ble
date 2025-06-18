@@ -8,40 +8,6 @@ import YCProductSDK
 import CoreBluetooth
 import Flutter
 
-import Combine
-
-final class Completer<T> : @unchecked Sendable {
-    private let queue = DispatchQueue(label: "com.crefter.yuchengble.yucheng_ble", attributes: .concurrent)
-    private var continuation: CheckedContinuation<T, Error>?
-    private var isResumed = false
-    
-    func complete(_ result: Result<T, Error>) {
-        queue.async(flags: .barrier) { [weak self] in
-            guard let self = self, !self.isResumed else { return }
-            switch result {
-            case .success(let value):
-                self.continuation?.resume(returning: value)
-            case .failure(let error):
-                self.continuation?.resume(throwing: error)
-            }
-            self.continuation = nil
-            self.isResumed = true
-        }
-    }
-    
-    func awaitResult() async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
-            queue.async(flags: .barrier) { [weak self] in
-                self?.continuation = continuation
-            }
-        }
-    }
-    
-    func isCompleted() -> Bool {
-        return queue.sync { self.isResumed }
-    }
-}
-
 
 enum UnimplementedError : Error {
     case notImplemented(String)
@@ -264,60 +230,6 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
     }
     
-    private func getSleepData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async throws -> [YuchengSleepData] {
-        if (startTimestamp >= endTimestamp) {
-            onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
-            return []
-        }
-        let completer: Completer<[YuchengSleepData]> = Completer()
-        var sleepDataList: [YuchengSleepData] = []
-        let timeoutTask = DispatchWorkItem {
-            guard !completer.isCompleted() else { return }
-            if (!skipHandler) {
-                for sleepData in sleepDataList {
-                    let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
-                    DispatchQueue.main.async {
-                        self.onSleepData(ycSleepEvent)
-                    }
-                }
-            }
-            completer.complete(.success(sleepDataList))
-            DispatchQueue.main.async {
-                self.onSleepData(YuchengSleepTimeOutEvent(isTimeout: true))
-            }
-        }
-        
-        YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
-            if state == .succeed, let datas = response as? [YCHealthDataSleep] {
-                for info in datas {
-                    let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
-                    let isInRange = sleepData.startTimeStamp >= startTimestamp && sleepData.endTimeStamp <= endTimestamp
-                    if (!isInRange) { continue }
-                    sleepDataList.append(sleepData)
-                    if (skipHandler) { continue }
-                    let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
-                    DispatchQueue.main.async {
-                        self.onSleepData(ycSleepEvent)
-                    }
-                }
-            } else {
-                print("No data")
-            }
-            if (!completer.isCompleted()) {
-                completer.complete(.success(sleepDataList))
-            }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
-        
-        do {
-            let data = try await completer.awaitResult()
-            timeoutTask.cancel()
-            return data
-        } catch {
-            throw error
-        }
-    }
-    
     func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) {
         var startComponents = DateComponents()
         startComponents.weekOfYear = -1
@@ -334,277 +246,348 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     }
     
     func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[(YuchengSleepData)], any Error>) -> Void) {
-        Task {
-            let defaultDate = getDefaultStartAndEndDate()
-            let start = startTimestamp ?? defaultDate.start
-            let end = endTimestamp ?? defaultDate.end
-            do {
-                let sleepData = try await getSleepData(startTimestamp: start, endTimestamp: end)
-                DispatchQueue.main.async {
-                    completion(.success(sleepData))
+        let defaultDate = getDefaultStartAndEndDate()
+        let start = startTimestamp ?? defaultDate.start
+        let end = endTimestamp ?? defaultDate.end
+        var isCompleted = false
+        do {
+            if (start >= end) {
+                onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
+                completion(.success([]))
+            }
+            var sleepDataList: [YuchengSleepData] = []
+            
+            YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
+                if state == .succeed, let datas = response as? [YCHealthDataSleep] {
+                    for info in datas {
+                        let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
+                        let isInRange = sleepData.startTimeStamp >= start && sleepData.endTimeStamp <= end
+                        if (!isInRange) { continue }
+                        sleepDataList.append(sleepData)
+                        let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
+                        DispatchQueue.main.async {
+                            self.onSleepData(ycSleepEvent)
+                        }
+                    }
+                } else {
+                    print("No data")
                 }
-            } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
+                if (!isCompleted) {
+                    DispatchQueue.main.async {
+                        completion(.success(sleepDataList))
+                    }
                 }
+                isCompleted = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+                if (isCompleted) {
+                    return;
+                }
+                for sleepData in sleepDataList {
+                    let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
+                    DispatchQueue.main.async {
+                        self.onSleepData(ycSleepEvent)
+                    }
+                }
+                DispatchQueue.main.async {
+                    self.onSleepData(YuchengSleepTimeOutEvent(isTimeout: true))
+                }
+            }
+        } catch {
+            isCompleted = true
+            DispatchQueue.main.async {
+                completion(.failure(error))
             }
         }
     }
     
-    func getHealthData(skipHandler: Bool = false, startTimestamp: Int64, endTimestamp: Int64) async throws -> [YuchengHealthData] {
-        if (startTimestamp >= endTimestamp) {
-            onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
-            return []
-        }
-        
-        let completer: Completer<[YuchengHealthData]> = Completer()
-        var healthDataList: [YuchengHealthData] = []
-        
-        let timeoutTask = DispatchWorkItem {
-            guard !completer.isCompleted() else { return }
-            if (!skipHandler) {
+    
+    func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], any Error>) -> Void) {
+        let defaultDate = getDefaultStartAndEndDate()
+        let start = startTimestamp ?? defaultDate.start
+        let end = endTimestamp ?? defaultDate.end
+        var isCompleted = false
+        do {
+            if (start >= end) {
+                onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
+                completion(.success([]))
+            }
+            
+            var healthDataList: [YuchengHealthData] = []
+            
+            YCProduct.queryHealthData(dataType: YCQueryHealthDataType.combinedData) { state, response in
+                if (isCompleted) {
+                    return
+                }
+                
+                if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
+                    for info in datas {
+                        let healthData = self.healdConverter.convert(healthDataFromDevice: info)
+                        let isInRange = healthData.startTimestamp >= start && healthData.startTimestamp <= end
+                        if (!isInRange) { continue }
+                        healthDataList.append(healthData)
+                        let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
+                        DispatchQueue.main.async {
+                            self.onHealth(ycHealthEvent)
+                        }
+                    }
+                } else {
+                    print("No data")
+                }
+                if (!isCompleted) {
+                    DispatchQueue.main.async {
+                        completion(.success(healthDataList))
+                    }
+                }
+                isCompleted = true
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+                if (isCompleted) {
+                    return;
+                }
                 for healthData in healthDataList {
                     let event = YuchengHealthDataEvent(healthData: healthData)
                     DispatchQueue.main.async { self.onHealth(event) }
                 }
+                DispatchQueue.main.async { self.onHealth(YuchengHealthTimeOutEvent(isTimeout: true)) }
             }
-            completer.complete(.success(healthDataList))
-            DispatchQueue.main.async { self.onHealth(YuchengHealthTimeOutEvent(isTimeout: true)) }
-        }
-        
-        YCProduct.queryHealthData(dataType: YCQueryHealthDataType.combinedData) { state, response in
-            guard !completer.isCompleted() else { return }
-            
-            if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
-                for info in datas {
-                    let healthData = self.healdConverter.convert(healthDataFromDevice: info)
-                    let isInRange = healthData.startTimestamp >= startTimestamp && healthData.startTimestamp <= endTimestamp
-                    if (!isInRange) { continue }
-                    healthDataList.append(healthData)
-                    if (skipHandler) { continue }
-                    let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
-                    DispatchQueue.main.async {
-                        self.onHealth(ycHealthEvent)
-                    }
-                }
-            } else {
-                print("No data")
-            }
-            if (!completer.isCompleted()) {
-                completer.complete(.success(healthDataList))
-            }
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
-        
-        do {
-            let data = try await completer.awaitResult()
-            timeoutTask.cancel()
-            return data
         } catch {
-            throw error
-        }
-    }
-    
-    func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], any Error>) -> Void) {
-        Task {
-            let defaultDate = getDefaultStartAndEndDate()
-            let start = startTimestamp ?? defaultDate.start
-            let end = endTimestamp ?? defaultDate.end
-            do {
-                let healthData = try await getHealthData(startTimestamp: start, endTimestamp: end)
-                DispatchQueue.main.async {
-                    completion(.success(healthData))
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
-                }
+            isCompleted = true
+            DispatchQueue.main.async {
+                completion(.failure(error))
             }
         }
     }
     
     func getSleepHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengSleepHealthData, any Error>) -> Void) {
-        let completer: Completer<YuchengSleepHealthData> = Completer()
         let empty = YuchengSleepHealthData(sleepData: [], healthData: [])
-        let timeoutTask = DispatchWorkItem {
-            guard !completer.isCompleted() else { return }
-            DispatchQueue.main.async {
-                self.onSleepHealth(YuchengSleepHealthDataEvent(data: empty))
-                completer.complete(.success(empty))
-                self.onSleepHealth(YuchengSleepHealthTimeOutEvent(isTimeout: true))
+        let defaultDate = getDefaultStartAndEndDate()
+        let start = startTimestamp ?? defaultDate.start
+        let end = endTimestamp ?? defaultDate.end
+        var isHealthCompleted = false;
+        var isSleepCompleted = false;
+        var healthDataList: [YuchengHealthData] = []
+        var sleepDataList: [YuchengSleepData] = []
+        do {
+            if (start >= end) {
+                onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
+                completion(.success(empty))
             }
-        }
-        Task {
-            let defaultDate = getDefaultStartAndEndDate()
-            let start = startTimestamp ?? defaultDate.start
-            let end = endTimestamp ?? defaultDate.end
             do {
-                let healthData = try await getHealthData(skipHandler: true, startTimestamp: start, endTimestamp: end)
-                let sleepData = try await getSleepData(skipHandler: true, startTimestamp: start, endTimestamp: end)
-                let ycData = YuchengSleepHealthData(sleepData: sleepData, healthData: healthData)
-                DispatchQueue.main.async {
-                    self.onSleepHealth(YuchengSleepHealthDataEvent(data: ycData))
-                    if (!completer.isCompleted()) {
-                        completer.complete(.success(ycData))
+                YCProduct.queryHealthData(dataType: YCQueryHealthDataType.combinedData) { state, response in
+                    if (isHealthCompleted) {
+                        return
                     }
+                    
+                    if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
+                        for info in datas {
+                            let healthData = self.healdConverter.convert(healthDataFromDevice: info)
+                            let isInRange = healthData.startTimestamp >= start && healthData.startTimestamp <= end
+                            if (!isInRange) { continue }
+                            healthDataList.append(healthData)
+                            let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
+                            DispatchQueue.main.async {
+                                self.onHealth(ycHealthEvent)
+                            }
+                        }
+                    } else {
+                        print("No data")
+                    }
+                    if (!isHealthCompleted && isSleepCompleted) {
+                        DispatchQueue.main.async {
+                            let data = YuchengSleepHealthData(sleepData: sleepDataList, healthData: healthDataList)
+                            completion(.success(data))
+                            self.onSleepHealth(YuchengSleepHealthDataEvent(data: data))
+                        }
+                    }
+                    isHealthCompleted = true
                 }
-            } catch {
-                if (!completer.isCompleted()) {
-                    completer.complete(.failure(error))
-                }
-            }
-        }
-        Task {
-            do {
-                let ycSleepHealth = try await completer.awaitResult()
-                DispatchQueue.main.async {
-                    completion(.success(ycSleepHealth))
-                }
-                timeoutTask.cancel()
             } catch {
                 DispatchQueue.main.async {
                     completion(.failure(error))
                 }
-                timeoutTask.cancel()
+                isHealthCompleted = true
             }
+            do {
+                YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
+                    if state == .succeed, let datas = response as? [YCHealthDataSleep] {
+                        if (isSleepCompleted) {
+                            return
+                        }
+                        for info in datas {
+                            let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
+                            let isInRange = sleepData.startTimeStamp >= start && sleepData.endTimeStamp <= end
+                            if (!isInRange) { continue }
+                            sleepDataList.append(sleepData)
+                            let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
+                            DispatchQueue.main.async {
+                                self.onSleepData(ycSleepEvent)
+                            }
+                        }
+                    } else {
+                        print("No data")
+                    }
+                    if (!isSleepCompleted && isHealthCompleted) {
+                        DispatchQueue.main.async {
+                            let data = YuchengSleepHealthData(sleepData: sleepDataList, healthData: healthDataList)
+                            completion(.success(data))
+                            self.onSleepHealth(YuchengSleepHealthDataEvent(data: data))
+                        }
+                    }
+                    isSleepCompleted = true
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+                isSleepCompleted = true
+            }
+        } catch {
+            DispatchQueue.main.async {
+                completion(.failure(error))
+            }
+            isHealthCompleted = true
+            isSleepCompleted = true
         }
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if (isHealthCompleted && isSleepCompleted) {
+                return
+            }
+            DispatchQueue.main.async {
+                self.onSleepHealth(YuchengSleepHealthDataEvent(data: empty))
+                self.onSleepHealth(YuchengSleepHealthTimeOutEvent(isTimeout: true))
+                completion(.success(empty))
+            }
+        })
     }
     
     func getDeviceSettings(completion: @escaping (Result<YuchengDeviceSettings?, any Error>) -> Void) {
-        let completer: Completer<YuchengDeviceSettings?> = Completer();
-        
         if (currentDevice == nil) {
-            completer.complete(Result.success(nil))
+            completion(.success(nil))
         }
-        let timeoutTask = DispatchWorkItem {
-            guard !completer.isCompleted() else { return }
-            DispatchQueue.main.async {
-                completer.complete(.success(nil))
-            }
-        }
+        
+        var isCompleted = false
         
         do {
             YCProduct.queryDeviceBasicInfo(completion: {state, response in
                 if state == .succeed, let data = response as? YCDeviceBasicInfo {
                     let batteryValue = data.batteryPower
                     let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue))
-                    if (!completer.isCompleted()) {
-                        completer.complete(.success(settings))
+                    if (isCompleted) {
+                        return
+                    }
+                    isCompleted = true
+                    DispatchQueue.main.async{
+                        completion(.success(settings))
                     }
                 }
-            })
+            }
+            )
         } catch {
-            if (!completer.isCompleted()) {
-                completer.complete(.failure(error))
+            if (isCompleted) {
+                return
             }
-        }
-        
-        Task {
-            do {
-                let settings = try await completer.awaitResult()
-                DispatchQueue.main.async {
-                    completion(.success(settings))
-                }
-                timeoutTask.cancel()
-            } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
-                }
-                timeoutTask.cancel()
-            }
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
-    }
-    
-    func deleteData(dataType: YCDeleteHealthDataType) async throws -> Bool {
-        let completer = Completer<Bool>()
-        
-        let timeoutTask = DispatchWorkItem {
-            guard !completer.isCompleted() else { return }
             DispatchQueue.main.async {
-                completer.complete(.success(false))
+                completion(.failure(error))
             }
         }
         
-        Task {
-            do {
-                let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
-                YCProduct.deleteHealthData(selectedDevice, dataType: dataType) { state, response in
-                    let isDeleted = state == YCProductState.succeed
-                    DispatchQueue.main.async {
-                        completer.complete(Result.success(isDeleted))
-                    }
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    completer.complete(.failure(error))
-                }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if (isCompleted) {
+                return
             }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: timeoutTask)
-        
-        do {
-            let result = try await completer.awaitResult()
-            timeoutTask.cancel()
-            return result
-        } catch {
-            timeoutTask.cancel()
-            throw error
-        }
+            DispatchQueue.main.async {
+                completion(.success(nil))
+            }
+        })
     }
     
     func deleteSleepData( completion: @escaping (Result<Bool, any Error>) -> Void) {
-        Task {
-            do {
-                let isDeleted = try await deleteData(dataType: YCDeleteHealthDataType.sleep)
+        var isCompleted = false
+        do {
+            let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.sleep) { state, response in
+                let isDeleted = state == YCProductState.succeed
                 DispatchQueue.main.async {
                     completion(.success(isDeleted))
                 }
-            } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
-                }
+            }
+        } catch {
+            DispatchQueue.main.async {
+                completion(.failure(error))
             }
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if (isCompleted) {
+                return
+            }
+            DispatchQueue.main.async {
+                completion(.success(false))
+            }
+        })
     }
     
     func deleteHealthData(completion: @escaping (Result<Bool, any Error>) -> Void) {
-        Task {
-            do {
-                let isDeleted = try await deleteData(dataType: YCDeleteHealthDataType.combinedData)
+        var isCompleted = false
+        do {
+            let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.combinedData) { state, response in
+                let isDeleted = state == YCProductState.succeed
                 DispatchQueue.main.async {
                     completion(.success(isDeleted))
                 }
-            } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
-                }
+            }
+        } catch {
+            DispatchQueue.main.async {
+                completion(.failure(error))
             }
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if (isCompleted) {
+                return
+            }
+            DispatchQueue.main.async {
+                completion(.success(false))
+            }
+        })
     }
     
     func deleteSleepHealthData(completion: @escaping (Result<Bool, any Error>) -> Void) {
-        Task {
-            do {
-                let isSleepDeleted = try await deleteData(dataType: YCDeleteHealthDataType.sleep)
-                let isHealthDeleted = try await deleteData(dataType: YCDeleteHealthDataType.combinedData)
-                let isDeleted = isSleepDeleted && isHealthDeleted
-                DispatchQueue.main.async {
-                    completion(.success(isDeleted))
-                    if (isDeleted) {
-                        self.onSleepHealth(YuchengSleepHealthDataEvent(data: YuchengSleepHealthData(sleepData: [], healthData: [])))
+        var isHealthCompleted = false
+        var isSleepCompleted = false
+        do {
+            let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.sleep) { state, response in
+                isSleepCompleted = state == YCProductState.succeed
+                if (isSleepCompleted && isHealthCompleted) {
+                    DispatchQueue.main.async {
+                        completion(.success(isSleepCompleted && isHealthCompleted))
                     }
                 }
-            } catch {
-                DispatchQueue.main.async {
-                    completion(.failure(error))
+            }
+            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.combinedData) { state, response in
+                isHealthCompleted = state == YCProductState.succeed
+                if (isSleepCompleted && isHealthCompleted) {
+                    DispatchQueue.main.async {
+                        completion(.success(isSleepCompleted && isHealthCompleted))
+                    }
                 }
             }
+        } catch {
+            DispatchQueue.main.async {
+                completion(.failure(error))
+            }
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if (isHealthCompleted && isSleepCompleted) {
+                return
+            }
+            DispatchQueue.main.async {
+                completion(.success(false))
+            }
+        })
     }
 }
 
