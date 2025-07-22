@@ -41,6 +41,7 @@ import java.time.ZoneOffset
 
 private const val SCAN_PERIOD: Int = 15
 private const val TIME_TO_TIMEOUT: Long = 15
+private const val TIME_TO_TIMEOUT_RESET: Long = 30
 
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
@@ -61,7 +62,7 @@ class YuchengApiImpl(
         callback: (Result<List<YuchengDevice>>) -> Unit
     ) {
         if (YCBTClient.isScaning()) {
-            YCBTClient.stopScanBle();
+            YCBTClient.stopScanBle()
         }
         val devices: MutableList<YuchengDevice> = mutableListOf()
         val completer = CompletableDeferred<List<YuchengDevice>>()
@@ -172,7 +173,7 @@ class YuchengApiImpl(
         val completer = CompletableDeferred<Boolean>()
         YCBTClient.connectBle(macAddress) { code ->
             if (code == 0) {
-                Log.d("AAAAAAAAAAAAAAAAA", code.toString())
+                Log.d("AAAAAAAAAAAAAAAAA", 0.toString())
                 val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
                 if (!completer.isCompleted) completer.complete(isConnected)
             }
@@ -235,6 +236,7 @@ class YuchengApiImpl(
     override fun disconnect(callback: (Result<Unit>) -> Unit) {
         try {
             YCBTClient.disconnectBle()
+            selectedDevice = null
             callback(Result.success(Unit))
         } catch (e: Exception) {
             Log.e(DISCONNECT, e.toString())
@@ -627,6 +629,45 @@ class YuchengApiImpl(
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun resetToFactory(callback: (Result<Boolean>) -> Unit) {
+        Log.d(YUCHENG_API, "Reset to factory")
+        val completer = CompletableDeferred<Boolean>()
+
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            Log.d(YUCHENG_API, "Device not connected")
+            completer.complete(false)
+        }
+
+        try {
+            YCBTClient.settingRestoreFactory { code, ratio, data ->
+                if (!completer.isCompleted) {
+                    completer.complete(code == 0)
+                }
+            }
+        } catch (e: Exception) {
+            if (!completer.isCompleted) {
+                completer.completeExceptionally(e)
+            }
+            Log.e(YUCHENG_API, "Reset to factory error = $e")
+        }
+
+        GlobalScope.launch {
+            try {
+                val result = completer.await()
+                callback(Result.success(result))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+
+        GlobalScope.launch {
+            delay(1000 * TIME_TO_TIMEOUT_RESET)
+            if (completer.isCompleted) return@launch
+            completer.complete(false)
         }
     }
 

@@ -12,7 +12,6 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
-import com.yucheng.ycbtsdk.gatt.Reconnect
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 
 

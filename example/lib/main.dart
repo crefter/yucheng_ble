@@ -177,12 +177,19 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     healthData
       ..clear()
       ..addAll(data.healthData);
-    print(data.toJson());
     setState(() {});
   }
 
   Future<void> getDeviceSettings() async {
     await _service.getDeviceSettings();
+  }
+
+  Future<bool> tryReconnect() async {
+    return await _service.tryReconnect();
+  }
+
+  Future<bool> resetToFactory() async {
+    return await _service.resetToFactory();
   }
 
   @override
@@ -199,6 +206,38 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 'Hello, dear!',
                 textAlign: TextAlign.center,
               ),
+            ),
+            SliverToBoxAdapter(
+              child: ValueListenableBuilder(
+                  valueListenable: _service.isDeviceConnectedNotifier,
+                  builder: (context, isDeviceConnected, _) {
+                    return ValueListenableBuilder(
+                      valueListenable: _service.isReconnectedNotifier,
+                      builder: (context, isReconnected, child) {
+                        if (isReconnected || isDeviceConnected) {
+                          return child!;
+                        }
+
+                        return const SizedBox.shrink();
+                      },
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final isReset = await resetToFactory();
+                          if (isReset) {
+                            sleepData.clear();
+                            healthData.clear();
+                            sleepHealthData.clear();
+                          }
+                          if (!context.mounted) return;
+                          final text = isReset
+                              ? 'Сброс ввыполнен! Попробуй переподключиться'
+                              : 'Сброс не выполнен! ';
+                          _showSnackBar(context, text);
+                        },
+                        child: Text('Сбросить настройки'),
+                      ),
+                    );
+                  }),
             ),
             SliverToBoxAdapter(
               child: ValueListenableBuilder(
@@ -224,7 +263,12 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                         ],
                       );
                     } else {
-                      return const SizedBox.shrink();
+                      return ElevatedButton(
+                        onPressed: tryReconnect,
+                        child: Text(
+                          'Переподключиться',
+                        ),
+                      );
                     }
                   },
                 ),
@@ -421,7 +465,13 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           )
                         else
                           ElevatedButton(
-                            onPressed: _service.disconnect,
+                            onPressed: () async {
+                              await _service.disconnect();
+                              healthData.clear();
+                              sleepData.clear();
+                              sleepHealthData.clear();
+                              setState(() {});
+                            },
                             child: const Text(
                               'Отключиться от девайса',
                             ),

@@ -80,4 +80,6 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
 
   @override
   Future<bool> deleteSleepHealthData() => _api.deleteSleepHealthData();
+
+  Future<bool> resetToFactory() => _api.resetToFactory();
 }

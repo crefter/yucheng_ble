@@ -371,6 +371,9 @@ abstract class YuchengHostApi {
 
   @async
   bool deleteSleepHealthData();
+
+  @async
+  bool resetToFactory();
 }
 
 @EventChannelApi()
