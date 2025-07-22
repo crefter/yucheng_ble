@@ -162,19 +162,7 @@ final class YuchengService
       return false;
     }
 
-    if (isReconnected || isAnyDeviceConnected) {
-      onDeviceConnectedYet?.call();
-      setReconnecting(false);
-      setReconnected(true);
-      return true;
-    }
-
     final isBleReconnected = await _ble.reconnect(reconnectTimeInSeconds);
-    if (isAnyDeviceConnected || isReconnected) {
-      setReconnecting(false);
-      setReconnected(true);
-      return true;
-    }
     setReconnecting(false);
     setReconnected(isBleReconnected);
     setDeviceConnected(isBleReconnected);
@@ -343,6 +331,21 @@ final class YuchengService
   Future<bool> deleteSleepHealthData() async {
     try {
       return await _ble.deleteSleepHealthData();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> resetToFactory() async {
+    try {
+      final isReset = await _ble.resetToFactory();
+      if (isReset) {
+        setReconnecting(false);
+        setReconnected(false);
+        setSelectedDevice(null);
+        setDeviceConnected(false);
+      }
+      return isReset;
     } catch (e) {
       rethrow;
     }

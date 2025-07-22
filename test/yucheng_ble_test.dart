@@ -125,6 +125,12 @@ class MockYuchengBlePlatform
     // TODO: implement deleteSleepHealthData
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> resetToFactory() {
+    // TODO: implement resetToFactory
+    throw UnimplementedError();
+  }
 }
 
 void main() {

@@ -17,13 +17,12 @@ enum NoDeviceError : Error {
     case noDevice(String)
 }
 
-
-final class YuchengHostApiImpl : YuchengHostApi, Sendable {
-    typealias DeviceHandler = @Sendable (any YuchengDeviceEvent) -> Void
-    typealias StateHandler = @Sendable (any YuchengDeviceStateEvent) -> Void
-    typealias SleepHandler = @Sendable (any YuchengSleepEvent) -> Void
-    typealias HealthHandler = @Sendable (any YuchengHealthEvent) -> Void
-    typealias SleepHealthHandler = @Sendable (any YuchengSleepHealthEvent) -> Void
+final class YuchengHostApiImpl : YuchengHostApi {
+    typealias DeviceHandler = (any YuchengDeviceEvent) -> Void
+    typealias StateHandler = (any YuchengDeviceStateEvent) -> Void
+    typealias SleepHandler = (any YuchengSleepEvent) -> Void
+    typealias HealthHandler = (any YuchengHealthEvent) -> Void
+    typealias SleepHealthHandler = (any YuchengSleepHealthEvent) -> Void
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
     private let onState: StateHandler;
@@ -35,6 +34,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     private var currentDevice: CBPeripheral? = nil;
     private var index: Int = 0;
     private let TIME_TO_TIMEOUT = 15.0;
+    private let TIME_TO_TIMEOUT_RESET = 30.0;
     private let TIME_TO_SCAN = 15.0;
     private let TIME_TO_RECONNECT = 20;
     private let TIME_TO_QUERY_MAC_ADDR = 10;
@@ -205,6 +205,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 isCompleted = true
             } else {
                 completion(.success(()))
+                self.currentDevice = nil
                 isCompleted = true
             }
         }
@@ -582,6 +583,31 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
             if (isHealthCompleted && isSleepCompleted) {
+                return
+            }
+            DispatchQueue.main.async {
+                completion(.success(false))
+            }
+        })
+    }
+    
+    func resetToFactory(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isResetCompleted = false
+        do {
+            YCProduct.setDeviceReset { state, response in
+                isResetCompleted = true
+                DispatchQueue.main.async {
+                    completion(Result.success(state == .succeed))
+                }
+            }
+        } catch {
+            DispatchQueue.main.async {
+                completion(.failure(error))
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT_RESET, execute: {
+            if (isResetCompleted) {
                 return
             }
             DispatchQueue.main.async {
