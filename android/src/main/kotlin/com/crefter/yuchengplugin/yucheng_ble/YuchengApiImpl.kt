@@ -514,7 +514,8 @@ class YuchengApiImpl(
                     if (code == 0) {
                         val dataMap = data["data"] as Map<*, *>
                         val batteryLevel = dataMap["deviceBatteryValue"].toString().toLong()
-                        val settings = YuchengDeviceSettings(batteryValue = batteryLevel)
+                        val firmwareVersion = dataMap["deviceVersion"].toString()
+                        val settings = YuchengDeviceSettings(batteryValue = batteryLevel, firmwareVersion = firmwareVersion)
                         if (!completer.isCompleted) {
                             completer.complete(settings)
                             Log.d(YUCHENG_API, "Settings = $settings")

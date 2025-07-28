@@ -50,13 +50,17 @@ enum YuchengDeviceState {
 class YuchengDeviceSettings {
   YuchengDeviceSettings({
     required this.batteryValue,
+    required this.firmwareVersion,
   });
 
   int batteryValue;
 
+  String firmwareVersion;
+
   List<Object?> _toList() {
     return <Object?>[
       batteryValue,
+      firmwareVersion,
     ];
   }
 
@@ -67,6 +71,7 @@ class YuchengDeviceSettings {
     result as List<Object?>;
     return YuchengDeviceSettings(
       batteryValue: result[0]! as int,
+      firmwareVersion: result[1]! as String,
     );
   }
 

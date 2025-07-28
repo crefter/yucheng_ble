@@ -277,6 +277,27 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 ),
               ),
             ),
+            SliverToBoxAdapter(
+              child: ValueListenableBuilder(
+                valueListenable: _service.deviceSettingsNotifier,
+                builder: (context, value, child) {
+                  if (value == null) {
+                    return const Text(
+                      'Настроек нет',
+                      textAlign: TextAlign.center,
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        Text('Настройки:'),
+                        Text('Заряд = ${value.batteryValue}'),
+                        Text('Версия прошивки = ${value.firmwareVersion}'),
+                      ],
+                    );
+                  }
+                },
+              ),
+            ),
             if (_service.isReconnected || _service.isAnyDeviceConnected)
               SliverToBoxAdapter(
                 child: TextButton(

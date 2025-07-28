@@ -109,18 +109,21 @@ enum class YuchengDeviceState(val raw: Int) {
 
 /** Generated class from Pigeon that represents data sent in messages. */
 data class YuchengDeviceSettings (
-  val batteryValue: Long
+  val batteryValue: Long,
+  val firmwareVersion: String
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): YuchengDeviceSettings {
       val batteryValue = pigeonVar_list[0] as Long
-      return YuchengDeviceSettings(batteryValue)
+      val firmwareVersion = pigeonVar_list[1] as String
+      return YuchengDeviceSettings(batteryValue, firmwareVersion)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       batteryValue,
+      firmwareVersion,
     )
   }
   override fun equals(other: Any?): Boolean {

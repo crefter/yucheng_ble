@@ -149,19 +149,23 @@ enum YuchengDeviceState: Int {
 /// Generated class from Pigeon that represents data sent in messages.
 struct YuchengDeviceSettings: Hashable {
   var batteryValue: Int64
+  var firmwareVersion: String
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> YuchengDeviceSettings? {
     let batteryValue = pigeonVar_list[0] as! Int64
+    let firmwareVersion = pigeonVar_list[1] as! String
 
     return YuchengDeviceSettings(
-      batteryValue: batteryValue
+      batteryValue: batteryValue,
+      firmwareVersion: firmwareVersion
     )
   }
   func toList() -> [Any?] {
     return [
-      batteryValue
+      batteryValue,
+      firmwareVersion,
     ]
   }
   static func == (lhs: YuchengDeviceSettings, rhs: YuchengDeviceSettings) -> Bool {

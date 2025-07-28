@@ -15,9 +15,11 @@ import 'package:pigeon/pigeon.dart';
 
 class YuchengDeviceSettings {
   final int batteryValue;
+  final String firmwareVersion;
 
   const YuchengDeviceSettings({
     required this.batteryValue,
+    required this.firmwareVersion,
   });
 }
 

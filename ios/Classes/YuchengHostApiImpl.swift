@@ -240,7 +240,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 isCompleted = true
             }
         } catch (let e) {
-            completion(.failure(e))
+            DispatchQueue.main.async {
+                completion(.failure(e))
+            }
             isCompleted = true
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
@@ -495,7 +497,8 @@ final class YuchengHostApiImpl : YuchengHostApi {
             YCProduct.queryDeviceBasicInfo(completion: {state, response in
                 if state == .succeed, let data = response as? YCDeviceBasicInfo {
                     let batteryValue = data.batteryPower
-                    let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue))
+                    let firmwareVersion = data.mcuFirmware.version
+                    let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue), firmwareVersion: firmwareVersion)
                     if (isCompleted) {
                         return
                     }

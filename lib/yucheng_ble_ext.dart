@@ -66,6 +66,7 @@ extension YuchengDeviceSettingsJson on YuchengDeviceSettings {
   Map<String, dynamic> toJson() {
     return {
       "battery_value": batteryValue,
+      "firmware_version": firmwareVersion,
     };
   }
 }
