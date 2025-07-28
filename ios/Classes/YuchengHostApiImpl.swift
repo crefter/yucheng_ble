@@ -218,16 +218,36 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, any Error>) -> Void) {
+        let timeoutForGetDevice = 5.0
+        let timeout = timeoutForGetDevice * 2
+        
+        if (currentDevice != nil) {
+            completion(.success(YuchengDevice(index: 0, deviceName: currentDevice!.name ?? currentDevice!.deviceModel, uuid: currentDevice!.macAddress, isReconnected: true)))
+            return
+        }
+        
+        var isCompleted = false
         do {
-            currentDevice = YCProduct.shared.currentPeripheral
-            let device = currentDevice
-            if device == nil {
-                completion(.success(nil))
-                return
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeoutForGetDevice) {
+                self.currentDevice = YCProduct.shared.currentPeripheral
+                let device = self.currentDevice
+                if device == nil {
+                    completion(.success(nil))
+                    return
+                }
+                completion(.success(YuchengDevice(index: Int64(self.index), deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isReconnected: true)))
+                self.index += 1
+                isCompleted = true
             }
-            completion(.success(YuchengDevice(index: 0, deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isReconnected: true)))
         } catch (let e) {
             completion(.failure(e))
+            isCompleted = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+            if (isCompleted) {
+                return
+            }
+            completion(.success(nil))
         }
     }
     

@@ -83,6 +83,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
       ..listenAll(() => setState(() {}))
       ..init(
         shouldTryReconnect: () async => true,
+        macAddress: '1B:5D:E3:91:4F:76',
         onBluetoothNotSupported: () {
           if (!context.mounted) return;
           _showSnackBar(context, 'Блютуз не поддерживается!');
@@ -185,7 +186,9 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   }
 
   Future<bool> tryReconnect() async {
-    return await _service.tryReconnect();
+    return await _service.tryReconnect(
+      macAddress: '1B:5D:E3:91:4F:76',
+    );
   }
 
   Future<bool> resetToFactory() async {
@@ -632,6 +635,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           Text(
                             'Awake: ${item.awakeInSeconds ~/ 60} мин.',
                           ),
+                          Text('Количество просыпаний: ${item.awakeCount}'),
                         ],
                       ),
                       children: item.details

@@ -340,6 +340,10 @@ class YuchengApiImpl(
             }
             val macAddress = YCBTClient.getBindDeviceMac()
             val deviceName = YCBTClient.getBindDeviceName()
+            if (macAddress.isEmpty()) {
+                callback(Result.success(null))
+                return
+            }
             val ycDevice =
                 YuchengDevice(index++, deviceName, macAddress, false)
             selectedDevice = ycDevice
