@@ -122,6 +122,9 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   }
 
   Future<void> scanDevices() async {
+    setState(() {
+      devices.clear();
+    });
     final scannedDevices = await _service.scanDevices(
       onBluetoothNotSupported: () {
         if (!context.mounted) return;
