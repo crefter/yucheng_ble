@@ -84,6 +84,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
       ..init(
         shouldTryReconnect: () async => true,
         macAddress: '1B:5D:E3:91:4F:76',
+        deviceName: 'YC093 0AA8',
         onBluetoothNotSupported: () {
           if (!context.mounted) return;
           _showSnackBar(context, 'Блютуз не поддерживается!');
@@ -427,6 +428,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 final mac = event.uuid;
 
                 return Material(
+                  key: ValueKey(deviceName),
                   type: MaterialType.transparency,
                   child: InkWell(
                     onTap: () {

@@ -36,6 +36,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private let TIME_TO_TIMEOUT = 15.0;
     private let TIME_TO_TIMEOUT_RESET = 30.0;
     private let TIME_TO_SCAN = 15.0;
+    private let TIME_TO_SCAN_TIMEOUT = 20.0;
     private let TIME_TO_RECONNECT = 20;
     private let TIME_TO_QUERY_MAC_ADDR = 10;
     
@@ -68,17 +69,21 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 } else {
                     self.scannedDevices = devices;
                     for device in devices {
-                        print("UUID DEVICE = " + device.identifier.uuidString)
-                        let isReconnected = lastConnectedDevice?.macAddress == device.macAddress;
-                        self.currentDevice = isReconnected ? device : nil;
-                        if (!ycDevices.contains(where: { dev in
-                            dev.uuid == device.macAddress
-                        })) {
-                            let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
-                            self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isReconnected: ycDevice.isReconnected, deviceName: device.name ?? device.deviceModel))
-                            self.index += 1
-                            ycDevices.append(ycDevice)
-                            print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
+                        DispatchQueue.main.async {
+                            print("UUID DEVICE = " + device.identifier.uuidString)
+                            let deviceMac = device.macAddress
+                            let deviceName = device.name
+                            let isReconnected = lastConnectedDevice?.macAddress == deviceMac;
+                            self.currentDevice = isReconnected ? device : nil;
+                            if (!ycDevices.contains(where: { dev in
+                                 dev.deviceName == deviceName
+                            })) {
+                                let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
+                                self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: deviceMac, isReconnected: ycDevice.isReconnected, deviceName: deviceName ?? device.deviceModel))
+                                self.index += 1
+                                ycDevices.append(ycDevice)
+                                print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
+                            }
                         }
                     }
                 }
@@ -87,7 +92,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             self.onDevice(YuchengDeviceCompleteEvent(completed: false))
             completion(.failure(e))
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_SCAN_TIMEOUT) {
             if (isCompleted) {
                 return;
             }
@@ -124,7 +129,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
         
         currentDevice = scannedDevices.first(where: { scannedDevice in
-            scannedDevice.name == device.deviceName || scannedDevice.macAddress == device.uuid
+            scannedDevice.name == device.deviceName
         })
         
         if (currentDevice == nil) {

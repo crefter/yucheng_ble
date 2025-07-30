@@ -182,8 +182,8 @@ final class YuchengService
         setReconnected(false);
         return false;
       }
-      final device = scannedDevices.firstWhereOrNull(
-          (d) => d.uuid == macAddress || d.deviceName == deviceName);
+      final device =
+          scannedDevices.firstWhereOrNull((d) => d.deviceName == deviceName);
       if (device == null) {
         setReconnecting(false);
         setReconnected(false);
