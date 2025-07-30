@@ -50,6 +50,7 @@ final class YuchengService
     VoidCallback? onSuccessfulReconnect,
     VoidCallback? onFailedReconnect,
     String? macAddress,
+    String? deviceName,
   }) async {
     _deviceStateSub?.cancel();
     _devicesSub?.cancel();
@@ -113,6 +114,7 @@ final class YuchengService
           onFailedReconnect: onFailedReconnect,
           onBluetoothOff: onBluetoothOff,
           macAddress: macAddress,
+          deviceName: deviceName,
         );
       },
       () async {
@@ -133,6 +135,7 @@ final class YuchengService
   Future<bool> tryReconnect({
     int reconnectTimeInSeconds = 30,
     String? macAddress,
+    String? deviceName,
     VoidCallback? onBluetoothNotSupported,
     VoidCallback? onBluetoothOff,
     VoidCallback? onPermissionsNotGranted,
@@ -167,7 +170,7 @@ final class YuchengService
 
     final lastConnectedDevice = await _ble.getCurrentConnectedDevice();
     if ((lastConnectedDevice == null || lastConnectedDevice.uuid.isEmpty) &&
-        macAddress != null) {
+        (macAddress != null || deviceName != null)) {
       final scannedDevices = await scanDevices(
         onBluetoothNotSupported: onBluetoothNotSupported,
         onPermissionsNotGranted: onPermissionsNotGranted,
@@ -179,8 +182,8 @@ final class YuchengService
         setReconnected(false);
         return false;
       }
-      final device =
-          scannedDevices.firstWhereOrNull((d) => d.uuid == macAddress);
+      final device = scannedDevices.firstWhereOrNull(
+          (d) => d.uuid == macAddress || d.deviceName == deviceName);
       if (device == null) {
         setReconnecting(false);
         setReconnected(false);
