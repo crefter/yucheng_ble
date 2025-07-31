@@ -202,7 +202,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   Future<bool> updateFirmware() async {
     if (selectedDevice == null) return false;
     return await _service.updateFirmware(
-        'assets/update_firmware/YC093-APP-DFU-KEY1-V2.29.zip', selectedDevice!);
+        'assets/update_firmware/update.ufw', selectedDevice!);
   }
 
   @override

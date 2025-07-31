@@ -33,3 +33,4 @@ flutter:
     - assets/
     - assets/update_firmware/
     - assets/update_firmware/YC093-APP-DFU-KEY1-V2.29.zip
+    - assets/update_firmware/update.ufw

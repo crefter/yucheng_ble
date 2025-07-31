@@ -89,7 +89,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
                     var path = flutterPluginBinding.flutterAssets.getAssetFilePathByName(pathToFile)
                     val tempFileName =
                         (getExternalAppCachePath(flutterPluginBinding.applicationContext)
-                                + UUID.randomUUID().toString()) + ".zip"
+                                + UUID.randomUUID().toString()) + path.takeLast(4)
                     copyFileFromAssets(path, tempFileName, flutterPluginBinding.applicationContext)
                     path = tempFileName
                     return@YuchengApiImpl path

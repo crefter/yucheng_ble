@@ -706,7 +706,7 @@ class YuchengApiImpl(
         val deviceName = device.deviceName
         Log.d(UPDATE_FIRMWARE, "MacAddress = $macAddress, DeviceName = $deviceName")
         YCBTClient.upgradeFirmware(
-            activity, macAddress, deviceName, path,
+            activity, macAddress, "", path,
             object : DfuCallBack {
                 override fun progress(p0: Int) {
                     Log.d(UPDATE_FIRMWARE, "Progress = $p0")

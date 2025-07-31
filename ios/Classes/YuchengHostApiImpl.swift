@@ -7,6 +7,8 @@
 import YCProductSDK
 import CoreBluetooth
 import Flutter
+import JLDialUnit
+import JL_BLEKit
 
 
 enum UnimplementedError : Error {
@@ -38,6 +40,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private let healdConverter: YuchengHealthDataConverter;
     private let assetPathHandler: AssetPathHandler;
     private var scannedDevices: [CBPeripheral] = [];
+    private var scannedDevicesToUpdate: [CBPeripheral] = [];
     private var currentDevice: CBPeripheral? = nil;
     private var index: Int = 0;
     private let TIME_TO_TIMEOUT = 15.0;
@@ -46,6 +49,13 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private let TIME_TO_SCAN_TIMEOUT = 20.0;
     private let TIME_TO_RECONNECT = 20;
     private let TIME_TO_QUERY_MAC_ADDR = 10;
+    /// Limit on number of repeated scans
+    private let REPEAT_SCAN_JL_FORCE_OTA_COUNT = 10
+    /// Number of repeated scans
+    private var repeatScanJLCount: Int = 0
+    /// Connect back to device address
+    private var reconnectMacAddress: String = ""
+    private var filePathToUpdate: String = ""
     
     init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter, assetPathHandler: @Sendable @escaping (_: String) -> String) {
         self.onDevice = onDevice
@@ -84,7 +94,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                             let isReconnected = lastConnectedDevice?.macAddress == deviceMac;
                             self.currentDevice = isReconnected ? device : nil;
                             if (!ycDevices.contains(where: { dev in
-                                 dev.deviceName == deviceName
+                                dev.deviceName == deviceName
                             })) {
                                 let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
                                 self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: deviceMac, isReconnected: ycDevice.isReconnected, deviceName: deviceName ?? device.deviceModel))
@@ -157,6 +167,12 @@ final class YuchengHostApiImpl : YuchengHostApi {
             } else {
                 if state == .connected {
                     completion(.success(true));
+                    let device = YCProduct.shared.currentPeripheral
+                    if (device != nil) {
+                        self.currentDevice = device
+                        self.scannedDevices.removeAll(where: { $0.name == device?.name })
+                        self.scannedDevices.append(device!)
+                    }
                 } else {
                     completion(.success(false))
                 }
@@ -659,8 +675,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
             return
         }
         let path: String = assetPathHandler(pathToFile)
+        self.filePathToUpdate = path
+        self.reconnectMacAddress = curDevice!.macAddress
         var isCompleted = false;
-
+        
         YCProduct.jlDeviceUpgradeFirmware(curDevice!, filePath: path) { state, progress, didSend in
             print("UPGRADE PROGRESS = " + String(progress))
             print("UPGRADE DID SEND = " + didSend.description)
@@ -675,6 +693,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 print("UPGRADE UI UPDATING")
             case .updateUIFinished:
                 print("UPGRADE UI FINISHED")
+                self.reconnectWithMacAddr()
             case .upgrading:
                 print("UPGRADE UPGRADING")
             case .success:
@@ -697,6 +716,54 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 }
             }
         }
+    }
+    /// Connecting devices back
+    func reconnectWithMacAddr() {
+        usleep(2_500_000)
+        repeatScanJLCount = 0
+        scanJLForceOtaDevice()
+    }
+    /// scan devices
+    private func scanJLForceOtaDevice() {
+        repeatScanJLCount += 1
+        if repeatScanJLCount >= REPEAT_SCAN_JL_FORCE_OTA_COUNT {
+            // Device not found, upgrade failed.
+            return
+        }
+        // Search Device
+        YCProduct.scanningDevice(delayTime: 4.0) { devices, error in
+            for device in devices where self.scannedDevicesToUpdate.contains(device) ==
+            false {
+                self.scannedDevicesToUpdate.append(device)
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(5), execute: {
+            self.connectForceOtaDevice()
+        })
+    }
+    /// Reconnect equipment
+    private func connectForceOtaDevice() {
+        // Find devices
+        for device in scannedDevicesToUpdate {
+            if device.macAddress.uppercased() == self.reconnectMacAddress.uppercased() {
+                YCProduct.connectDevice(device) { [weak self] state, error
+                    in
+                    if state == .connected {
+                        // Successfully reconnected, preparing for upgrade
+                        YCProduct.jlDeviceUpgradeFirmware(device, filePath: self?.filePathToUpdate ?? "") { state, progress, didSend in
+                            
+                        }
+                    } else {
+                        // Reconnect failed, search again.
+                        self?.scanJLForceOtaDevice()
+                    }
+                }
+                return
+            }
+        }
+        // No device found, search again.
+        scanJLForceOtaDevice()
     }
 }
 
