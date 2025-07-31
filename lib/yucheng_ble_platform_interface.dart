@@ -109,4 +109,8 @@ abstract class YuchengBlePlatform extends PlatformInterface {
   Future<bool> resetToFactory() {
     throw UnimplementedError('resetToFactory has not been implemented.');
   }
+
+  Future<bool> updateFirmware(YuchengDevice device, String pathToFile) {
+    throw UnimplementedError('updateFirmware has not been implemented.');
+  }
 }

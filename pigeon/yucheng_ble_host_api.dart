@@ -376,6 +376,9 @@ abstract class YuchengHostApi {
 
   @async
   bool resetToFactory();
+
+  @async
+  bool updateFirmware(YuchengDevice device, String pathToFile);
 }
 
 @EventChannelApi()

@@ -29,3 +29,7 @@ dev_dependencies:
 flutter:
 
   uses-material-design: true
+  assets:
+    - assets/
+    - assets/update_firmware/
+    - assets/update_firmware/YC093-APP-DFU-KEY1-V2.29.zip

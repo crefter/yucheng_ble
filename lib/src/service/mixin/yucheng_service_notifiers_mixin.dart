@@ -12,6 +12,7 @@ base mixin YuchengServiceNotifiersMixin {
   final ValueNotifier<bool> isReconnectedNotifier = ValueNotifier(false);
   final ValueNotifier<bool> isReconnectingNotifier = ValueNotifier(false);
   final ValueNotifier<bool> resetNotifier = ValueNotifier(false);
+  final ValueNotifier<bool> updatingFirmwareNotifier = ValueNotifier(false);
 
   bool get isDeviceScanning => isDeviceScanningNotifier.value;
 
@@ -21,10 +22,16 @@ base mixin YuchengServiceNotifiersMixin {
 
   bool get isReconnecting => isReconnectingNotifier.value;
   bool get isReset => resetNotifier.value;
+  bool get isUpgradingFirmware => updatingFirmwareNotifier.value;
 
   YuchengDevice? get selectedDevice => selectedDeviceNotifier.value;
 
   YuchengDeviceSettings? get deviceSettings => deviceSettingsNotifier.value;
+
+  void listenUpdatingFirmware(VoidCallback callback) =>
+      updatingFirmwareNotifier.addListener(callback);
+  void cancelListenUpdatingFirmware(VoidCallback callback) =>
+      updatingFirmwareNotifier.removeListener(callback);
 
   void listenDeviceScanning(VoidCallback callback) =>
       isDeviceScanningNotifier.addListener(callback);
@@ -101,6 +108,11 @@ base mixin YuchengServiceNotifiersMixin {
     resetNotifier.value = value;
   }
 
+  void setUpdatingFirmware(bool value) {
+    if (wasDisposed) return;
+    updatingFirmwareNotifier.value = value;
+  }
+
   void listenAll(VoidCallback callback) {
     isDeviceScanningNotifier.addListener(callback);
     isReconnectedNotifier.addListener(callback);
@@ -109,6 +121,7 @@ base mixin YuchengServiceNotifiersMixin {
     isReconnectingNotifier.addListener(callback);
     deviceSettingsNotifier.addListener(callback);
     resetNotifier.addListener(callback);
+    updatingFirmwareNotifier.addListener(callback);
   }
 
   void cancelListenAll(VoidCallback callback) {
@@ -119,6 +132,7 @@ base mixin YuchengServiceNotifiersMixin {
     isReconnectingNotifier.removeListener(callback);
     deviceSettingsNotifier.removeListener(callback);
     resetNotifier.removeListener(callback);
+    updatingFirmwareNotifier.removeListener(callback);
   }
 
   void disposeNotifiers() {
@@ -130,5 +144,6 @@ base mixin YuchengServiceNotifiersMixin {
     isReconnectingNotifier.dispose();
     deviceSettingsNotifier.dispose();
     resetNotifier.dispose();
+    updatingFirmwareNotifier.dispose();
   }
 }

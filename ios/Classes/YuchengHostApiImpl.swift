@@ -17,12 +17,18 @@ enum NoDeviceError : Error {
     case noDevice(String)
 }
 
+enum UpgradeFirmwareError: Error {
+    case failed(String)
+    case unknown(String)
+}
+
 final class YuchengHostApiImpl : YuchengHostApi {
     typealias DeviceHandler = (any YuchengDeviceEvent) -> Void
     typealias StateHandler = (any YuchengDeviceStateEvent) -> Void
     typealias SleepHandler = (any YuchengSleepEvent) -> Void
     typealias HealthHandler = (any YuchengHealthEvent) -> Void
     typealias SleepHealthHandler = (any YuchengSleepHealthEvent) -> Void
+    typealias AssetPathHandler = (String) -> String;
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
     private let onState: StateHandler;
@@ -30,6 +36,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private let onSleepHealth: SleepHealthHandler;
     private let sleepConverter: YuchengSleepDataConverter;
     private let healdConverter: YuchengHealthDataConverter;
+    private let assetPathHandler: AssetPathHandler;
     private var scannedDevices: [CBPeripheral] = [];
     private var currentDevice: CBPeripheral? = nil;
     private var index: Int = 0;
@@ -40,7 +47,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private let TIME_TO_RECONNECT = 20;
     private let TIME_TO_QUERY_MAC_ADDR = 10;
     
-    init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter) {
+    init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter, assetPathHandler: @Sendable @escaping (_: String) -> String) {
         self.onDevice = onDevice
         self.onSleepData = onSleepData
         self.sleepConverter = sleepConverter
@@ -48,6 +55,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         self.onState = onState
         self.onHealth = onHealth
         self.onSleepHealth = onSleepHealth
+        self.assetPathHandler = assetPathHandler
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: {
             let currentDevice = YCProduct.shared.currentPeripheral;
             if (currentDevice != nil) {
@@ -642,6 +650,53 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.success(false))
             }
         })
+    }
+    
+    func updateFirmware(device: YuchengDevice, pathToFile: String, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        let curDevice = self.currentDevice
+        if (curDevice == nil) {
+            print("Device is nil")
+            return
+        }
+        let path: String = assetPathHandler(pathToFile)
+        var isCompleted = false;
+
+        YCProduct.jlDeviceUpgradeFirmware(curDevice!, filePath: path) { state, progress, didSend in
+            print("UPGRADE PROGRESS = " + String(progress))
+            print("UPGRADE DID SEND = " + didSend.description)
+            switch (state) {
+            case .start:
+                print("UPGRADE START")
+            case .resourceUpdating:
+                print("UPGRADE RESOURCE UPDATING")
+            case .updateResourceFinished:
+                print("UPGRADE RESOURCE FINISHED")
+            case .uiUpdating:
+                print("UPGRADE UI UPDATING")
+            case .updateUIFinished:
+                print("UPGRADE UI FINISHED")
+            case .upgrading:
+                print("UPGRADE UPGRADING")
+            case .success:
+                print("UPGRADE SUCCESS")
+                if (!isCompleted) {
+                    completion(Result.success(true))
+                    isCompleted = true
+                }
+            case .failed:
+                print("UPGRADE FAILED")
+                if (!isCompleted) {
+                    completion(.failure(UpgradeFirmwareError.failed("Failed to upgrade!")))
+                    isCompleted = true
+                }
+            @unknown default:
+                print ("UPGRADE UNKNOWN")
+                if (!isCompleted) {
+                    completion(.failure(UpgradeFirmwareError.failed("Unknown state")))
+                    isCompleted = true
+                }
+            }
+        }
     }
 }
 

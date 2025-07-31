@@ -1099,6 +1099,7 @@ interface YuchengHostApi {
   fun deleteHealthData(callback: (Result<Boolean>) -> Unit)
   fun deleteSleepHealthData(callback: (Result<Boolean>) -> Unit)
   fun resetToFactory(callback: (Result<Boolean>) -> Unit)
+  fun updateFirmware(device: YuchengDevice, pathToFile: String, callback: (Result<Boolean>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1365,6 +1366,27 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.resetToFactory{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.updateFirmware$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val deviceArg = args[0] as YuchengDevice
+            val pathToFileArg = args[1] as String
+            api.updateFirmware(deviceArg, pathToFileArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(YuchengBleApiPigeonUtils.wrapError(error))

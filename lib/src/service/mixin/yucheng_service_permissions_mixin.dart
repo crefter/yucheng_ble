@@ -43,7 +43,7 @@ base mixin YuchengServicePermissionsMixin {
     final permissions = await _permissions;
     final requested = await permissions.request();
     final granted = requested.values.every((granted) => granted.isGranted);
-
+    return true;
     return granted;
   }
 

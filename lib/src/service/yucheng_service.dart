@@ -391,6 +391,23 @@ final class YuchengService
       rethrow;
     }
   }
+
+  Future<bool> updateFirmware(String pathToFile,
+      [YuchengDevice? device]) async {
+    try {
+      final deviceToConnect = device ?? selectedDevice;
+      if (deviceToConnect == null) {
+        throw YuchengServiceException('No device selected');
+      }
+      setUpdatingFirmware(true);
+      final result = await _ble.updateFirmware(deviceToConnect, pathToFile);
+      setUpdatingFirmware(false);
+      return result;
+    } catch (e) {
+      setUpdatingFirmware(false);
+      rethrow;
+    }
+  }
 }
 
 extension FirstWhereOrNullX<T> on Iterable<T> {

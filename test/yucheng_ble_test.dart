@@ -131,6 +131,12 @@ class MockYuchengBlePlatform
     // TODO: implement resetToFactory
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> updateFirmware(YuchengDevice device, String pathToFile) {
+    // TODO: implement updateFirmware
+    throw UnimplementedError();
+  }
 }
 
 void main() {

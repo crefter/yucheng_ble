@@ -89,4 +89,7 @@ class YuchengBle {
       YuchengBlePlatform.instance.deleteSleepHealthData();
 
   Future<bool> resetToFactory() => YuchengBlePlatform.instance.resetToFactory();
+
+  Future<bool> updateFirmware(YuchengDevice device, String pathToFile) =>
+      YuchengBlePlatform.instance.updateFirmware(device, pathToFile);
 }

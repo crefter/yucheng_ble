@@ -199,6 +199,12 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     return await _service.resetToFactory();
   }
 
+  Future<bool> updateFirmware() async {
+    if (selectedDevice == null) return false;
+    return await _service.updateFirmware(
+        'assets/update_firmware/YC093-APP-DFU-KEY1-V2.29.zip', selectedDevice!);
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -312,6 +318,43 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                   child: const Text('Получить данные о текущем девайсе'),
                 ),
               ),
+            SliverToBoxAdapter(
+              child: ValueListenableBuilder(
+                valueListenable: _service.isReconnectedNotifier,
+                builder: (context, isReconnected, child) {
+                  return ValueListenableBuilder(
+                    valueListenable: _service.isDeviceConnectedNotifier,
+                    builder: (context, isConnected, child) {
+                      if (isReconnected || isConnected) {
+                        return child!;
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    },
+                    child: ValueListenableBuilder(
+                      valueListenable: _service.updatingFirmwareNotifier,
+                      builder: (context, isUpgrading, child) {
+                        if (!isUpgrading) {
+                          return ElevatedButton(
+                            onPressed: () async {
+                              try {
+                                final isUpdated = await updateFirmware();
+                                print(isUpdated);
+                              } catch (e) {
+                                print(e);
+                              }
+                            },
+                            child: const Text('Обновить прошивку'),
+                          );
+                        } else {
+                          return const CircularProgressIndicator();
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
             if (sleepHealthData.isNotEmpty)
               SliverToBoxAdapter(
                 child: TextButton(

@@ -15,7 +15,6 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
     private static let healthConverter = YuchengHealthDataConverter()
     
     public static func register(with registrar: FlutterPluginRegistrar) {
-        
         if (devicesHandler == nil) {
             devicesHandler = DeviceStreamHandlerImpl();
         }
@@ -50,7 +49,13 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
                 onHealth: {event in healthDataHandler?.onHealth(event)},
                 onSleepHealth: {event in sleepHealthDataHandler?.onSleepDataChanged(event)},
                 sleepConverter: sleepConverter,
-                healthConverter: healthConverter)
+                healthConverter: healthConverter,
+                assetPathHandler: { pathToFile in
+                    let key = registrar.lookupKey(forAsset: pathToFile)
+                    let mainBundle = Bundle.main
+                    let path = mainBundle.path(forResource: key, ofType: nil)
+                    return path ?? ""
+                })
         }
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)

@@ -1034,6 +1034,7 @@ protocol YuchengHostApi {
   func deleteHealthData(completion: @escaping (Result<Bool, Error>) -> Void)
   func deleteSleepHealthData(completion: @escaping (Result<Bool, Error>) -> Void)
   func resetToFactory(completion: @escaping (Result<Bool, Error>) -> Void)
+  func updateFirmware(device: YuchengDevice, pathToFile: String, completion: @escaping (Result<Bool, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1282,6 +1283,24 @@ class YuchengHostApiSetup {
       }
     } else {
       resetToFactoryChannel.setMessageHandler(nil)
+    }
+    let updateFirmwareChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.updateFirmware\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      updateFirmwareChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let deviceArg = args[0] as! YuchengDevice
+        let pathToFileArg = args[1] as! String
+        api.updateFirmware(device: deviceArg, pathToFile: pathToFileArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      updateFirmwareChannel.setMessageHandler(nil)
     }
   }
 }

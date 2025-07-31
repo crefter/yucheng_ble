@@ -23,12 +23,17 @@ import YuchengSleepHealthErrorEvent
 import YuchengSleepHealthEvent
 import YuchengSleepHealthTimeOutEvent
 import YuchengSleepTimeOutEvent
+import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.crefter.yuchengplugin.yucheng_ble.PathUtils.getExternalAppCachePath
+import com.crefter.yuchengplugin.yucheng_ble.ResourceUtils.copyFileFromAssets
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.response.BleScanResponse
+import com.yucheng.ycbtsdk.upgrade.DfuCallBack
+import io.flutter.embedding.engine.plugins.FlutterPlugin
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -37,6 +42,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.UUID
 
 
 private const val SCAN_PERIOD: Int = 15
@@ -51,10 +57,12 @@ class YuchengApiImpl(
     private val onState: (state: YuchengDeviceStateEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
     private val healthDataConverter: YuchengHealthDataConverter,
+    private val assetPathHandler: (String) -> String,
 ) : YuchengHostApi {
 
     private var index: Long = 0
     private var selectedDevice: YuchengDevice? = null
+    var activity: Context? = null
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startScanDevices(
@@ -515,7 +523,10 @@ class YuchengApiImpl(
                         val dataMap = data["data"] as Map<*, *>
                         val batteryLevel = dataMap["deviceBatteryValue"].toString().toLong()
                         val firmwareVersion = dataMap["deviceVersion"].toString()
-                        val settings = YuchengDeviceSettings(batteryValue = batteryLevel, firmwareVersion = firmwareVersion)
+                        val settings = YuchengDeviceSettings(
+                            batteryValue = batteryLevel,
+                            firmwareVersion = firmwareVersion
+                        )
                         if (!completer.isCompleted) {
                             completer.complete(settings)
                             Log.d(YUCHENG_API, "Settings = $settings")
@@ -676,6 +687,98 @@ class YuchengApiImpl(
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun updateFirmware(
+        device: YuchengDevice,
+        pathToFile: String,
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        var isCompleted = false;
+        if (activity == null) {
+            Log.e(UPDATE_FIRMWARE, "Activity is null")
+            callback(Result.failure(Exception("Activity is null")))
+            return
+        }
+        Log.d(UPDATE_FIRMWARE, "activity = $activity")
+        val path = assetPathHandler(pathToFile)
+        Log.d(UPDATE_FIRMWARE, "Key = $path")
+        val macAddress = device.uuid
+        val deviceName = device.deviceName
+        Log.d(UPDATE_FIRMWARE, "MacAddress = $macAddress, DeviceName = $deviceName")
+        YCBTClient.upgradeFirmware(
+            activity, macAddress, deviceName, path,
+            object : DfuCallBack {
+                override fun progress(p0: Int) {
+                    Log.d(UPDATE_FIRMWARE, "Progress = $p0")
+                }
+
+                override fun success() {
+                    Log.d(UPDATE_FIRMWARE, "Success")
+                }
+
+                override fun failed(p0: String?) {
+                    Log.d(UPDATE_FIRMWARE, "Failed = $p0")
+                    if (!isCompleted) {
+                        callback(Result.failure(Exception(p0)))
+                        isCompleted = true
+                    }
+                }
+
+                override fun disconnect() {
+                    Log.d(UPDATE_FIRMWARE, "Disconnect")
+                }
+
+                override fun connecting() {
+                    Log.d(UPDATE_FIRMWARE, "Connecting")
+                }
+
+                override fun connected() {
+                    Log.d(UPDATE_FIRMWARE, "Connected")
+                }
+
+                override fun latest() {
+                    Log.d(UPDATE_FIRMWARE, "Latest")
+                }
+
+                override fun error(p0: String?) {
+                    Log.d(UPDATE_FIRMWARE, "Error = $p0")
+                    if (!isCompleted) {
+                        callback(Result.failure(Exception(p0)))
+                        isCompleted = true
+                    }
+                }
+            },
+        )
+        YCBTClient.watchUiUpgrade(path) { code, ratio, map ->
+            Log.d(UPDATE_FIRMWARE, "Map = $map")
+            Log.d(UPDATE_FIRMWARE, "Code = $code")
+            Log.d(UPDATE_FIRMWARE, "Ratio = $ratio")
+            if (map != null) {
+                val progress = map["progress"]
+                val data = map["data"]
+                Log.d(UPDATE_FIRMWARE, "Progress = $progress")
+                Log.d(UPDATE_FIRMWARE, "Data = $data")
+                if (progress != null) {
+                    Log.d(UPDATE_FIRMWARE, "Progress = $progress")
+                } else if (data != null) {
+                    if (data == 0) {
+                        Log.d(UPDATE_FIRMWARE, "Success")
+                        if (!isCompleted) {
+                            callback(Result.success(true))
+                            isCompleted = true
+                        }
+                    } else {
+                        Log.d(UPDATE_FIRMWARE, "Failed")
+                        if (!isCompleted) {
+                            callback(Result.success(false))
+                            isCompleted = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
     companion object {
         private const val YUCHENG_API = "YUCH_API"
@@ -685,6 +788,7 @@ class YuchengApiImpl(
         private const val DISCONNECT = "$YUCHENG_API DISCONNECT"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"
+        private const val UPDATE_FIRMWARE = "$YUCHENG_API UPDATE_FIRM"
     }
 }
 
