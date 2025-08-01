@@ -94,7 +94,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                             let isReconnected = lastConnectedDevice?.macAddress == deviceMac;
                             self.currentDevice = isReconnected ? device : nil;
                             if (!ycDevices.contains(where: { dev in
-                                dev.deviceName == deviceName
+                                dev.uuid == deviceMac || dev.deviceName == deviceName
                             })) {
                                 let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
                                 self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: deviceMac, isReconnected: ycDevice.isReconnected, deviceName: deviceName ?? device.deviceModel))
@@ -138,7 +138,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func connect(device: YuchengDevice, connectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
-        let timeout = Double(connectTimeInSeconds ?? Int64((TIME_TO_TIMEOUT + 10)))
+        let timeout = connectTimeInSeconds ?? Int64((TIME_TO_TIMEOUT + 10))
         if (currentDevice != nil) {
             if (device.deviceName == currentDevice?.name || device.uuid == currentDevice?.macAddress) {
                 completion(.success(true))
@@ -166,25 +166,32 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.failure(error));
             } else {
                 if state == .connected {
+                    let device = YCProduct.shared.currentPeripheral;
+                    let mac = device?.macAddress ?? "";
+                    let name = device?.name ?? "";
+                    isCompleted = true
                     completion(.success(true));
-                    let device = YCProduct.shared.currentPeripheral
                     if (device != nil) {
                         self.currentDevice = device
-                        self.scannedDevices.removeAll(where: { $0.name == device?.name })
-                        self.scannedDevices.append(device!)
+                        DispatchQueue.main.async(execute:  {
+                            self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: mac, isReconnected: false, deviceName: name))
+                        })
                     }
                 } else {
-                    completion(.success(false))
+                    if (!isCompleted) {
+                        isCompleted = true
+                        completion(.success(false))
+                    }
                 }
-                isCompleted = true
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(Int(timeout))) {
             if (isCompleted) {
                 return;
             }
             self.onState(YuchengDeviceStateTimeOutEvent(isTimeout: true))
             completion(.success(false))
+            isCompleted = true
         }
     }
     
@@ -234,9 +241,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 isCompleted = true
             } else {
                 completion(.success(()))
-                self.currentDevice = nil
                 isCompleted = true
             }
+            self.currentDevice = nil
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             if (isCompleted) {
@@ -308,8 +315,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.success([]))
             }
             var sleepDataList: [YuchengSleepData] = []
+            let device = YCProduct.shared.currentPeripheral;
+            let mac = device?.macAddress
+            let name = device?.name
             
-            YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
+            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.sleep) { state, response in
                 if state == .succeed, let datas = response as? [YCHealthDataSleep] {
                     for info in datas {
                         let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
@@ -366,8 +376,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
             
             var healthDataList: [YuchengHealthData] = []
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let mac = device?.macAddress
+            let name = device?.name
             
-            YCProduct.queryHealthData(dataType: YCQueryHealthDataType.combinedData) { state, response in
+            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.combinedData) { state, response in
                 if (isCompleted) {
                     return
                 }
@@ -421,13 +434,16 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var isSleepCompleted = false;
         var healthDataList: [YuchengHealthData] = []
         var sleepDataList: [YuchengSleepData] = []
+        let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+        let mac = device?.macAddress
+        let name = device?.name
         do {
             if (start >= end) {
                 onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
                 completion(.success(empty))
             }
             do {
-                YCProduct.queryHealthData(dataType: YCQueryHealthDataType.combinedData) { state, response in
+                YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.combinedData) { state, response in
                     if (isHealthCompleted) {
                         return
                     }
@@ -462,7 +478,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 isHealthCompleted = true
             }
             do {
-                YCProduct.queryHealthData(dataType: YCQueryHealthDataType.sleep) { state, response in
+                YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.sleep) { state, response in
                     if state == .succeed, let datas = response as? [YCHealthDataSleep] {
                         if (isSleepCompleted) {
                             return
@@ -523,7 +539,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var isCompleted = false
         
         do {
-            YCProduct.queryDeviceBasicInfo(completion: {state, response in
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let mac = device?.macAddress
+            let name = device?.name
+            YCProduct.queryDeviceBasicInfo(device, completion: {state, response in
                 if state == .succeed, let data = response as? YCDeviceBasicInfo {
                     let batteryValue = data.batteryPower
                     let firmwareVersion = data.mcuFirmware.version
@@ -561,6 +580,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var isCompleted = false
         do {
             let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+            let mac = selectedDevice?.macAddress
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.sleep) { state, response in
                 let isDeleted = state == YCProductState.succeed
                 DispatchQueue.main.async {
@@ -586,6 +606,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var isCompleted = false
         do {
             let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+            let mac = selectedDevice?.macAddress
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.combinedData) { state, response in
                 let isDeleted = state == YCProductState.succeed
                 DispatchQueue.main.async {
@@ -612,6 +633,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var isSleepCompleted = false
         do {
             let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+            let mac = selectedDevice?.macAddress
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.sleep) { state, response in
                 isSleepCompleted = state == YCProductState.succeed
                 if (isSleepCompleted && isHealthCompleted) {
@@ -646,7 +668,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
     func resetToFactory(completion: @escaping (Result<Bool, any Error>) -> Void) {
         var isResetCompleted = false
         do {
-            YCProduct.setDeviceReset { state, response in
+            let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
+            let mac = selectedDevice?.macAddress
+            YCProduct.setDeviceReset(selectedDevice) { state, response in
                 isResetCompleted = true
                 DispatchQueue.main.async {
                     completion(Result.success(state == .succeed))
@@ -675,9 +699,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
             return
         }
         let path: String = assetPathHandler(pathToFile)
+        self.scannedDevicesToUpdate.removeAll()
         self.filePathToUpdate = path
         self.reconnectMacAddress = curDevice!.macAddress
         var isCompleted = false;
+        var isUiUpdated = false;
         
         YCProduct.jlDeviceUpgradeFirmware(curDevice!, filePath: path) { state, progress, didSend in
             print("UPGRADE PROGRESS = " + String(progress))
@@ -692,7 +718,12 @@ final class YuchengHostApiImpl : YuchengHostApi {
             case .uiUpdating:
                 print("UPGRADE UI UPDATING")
             case .updateUIFinished:
+                if (isUiUpdated) {
+                    return
+                }
+                isUiUpdated = true
                 print("UPGRADE UI FINISHED")
+                YCProduct.disconnectDevice(completion: {state, error in})
                 self.reconnectWithMacAddr()
             case .upgrading:
                 print("UPGRADE UPGRADING")
@@ -731,20 +762,59 @@ final class YuchengHostApiImpl : YuchengHostApi {
             return
         }
         // Search Device
-        YCProduct.scanningDevice(delayTime: 4.0) { devices, error in
+        YCProduct.scanningDevice() { devices, error in
+            if (devices.isEmpty) {
+                self.connectForceOtaDevice()
+            }
             for device in devices where self.scannedDevicesToUpdate.contains(device) ==
             false {
                 self.scannedDevicesToUpdate.append(device)
+                self.connectForceOtaDevice()
             }
         }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(5), execute: {
-            self.connectForceOtaDevice()
-        })
     }
     /// Reconnect equipment
     private func connectForceOtaDevice() {
-        // Find devices
+        if scannedDevicesToUpdate.isEmpty {
+            if (currentDevice != nil && currentDevice?.macAddress != self.reconnectMacAddress) {
+                scanJLForceOtaDevice()
+            }
+            YCProduct.connectDevice(currentDevice!) { [weak self] state, error
+                in
+                if state == .connected {
+                    // Successfully reconnected, preparing for upgrade
+                    YCProduct.jlDeviceUpgradeFirmware(self!.currentDevice!, filePath: self?.filePathToUpdate ?? "") { state, progress, didSend in
+                        print("UPGRADE PROGRESS = " + String(progress))
+                        print("UPGRADE DID SEND = " + didSend.description)
+                        switch (state) {
+                        case .start:
+                            print("UPGRADE START")
+                        case .resourceUpdating:
+                            print("UPGRADE RESOURCE UPDATING")
+                        case .updateResourceFinished:
+                            print("UPGRADE RESOURCE FINISHED")
+                        case .uiUpdating:
+                            print("UPGRADE UI UPDATING")
+                        case .updateUIFinished:
+                            print("UPGRADE UI FINISHED")
+                            YCProduct.disconnectDevice(completion: {state, error in})
+                        case .upgrading:
+                            print("UPGRADE UPGRADING")
+                        case .success:
+                            print("UPGRADE SUCCESS")
+                        case .failed:
+                            print("UPGRADE FAILED")
+                        @unknown default:
+                            print ("UPGRADE UNKNOWN")
+                        }
+                    }
+                } else {
+                    // Reconnect failed, search again.
+                    self?.scanJLForceOtaDevice()
+                }
+            }
+            return
+        }
         for device in scannedDevicesToUpdate {
             if device.macAddress.uppercased() == self.reconnectMacAddress.uppercased() {
                 YCProduct.connectDevice(device) { [weak self] state, error

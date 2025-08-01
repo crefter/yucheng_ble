@@ -25,15 +25,14 @@ import YuchengSleepHealthTimeOutEvent
 import YuchengSleepTimeOutEvent
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
-import com.crefter.yuchengplugin.yucheng_ble.PathUtils.getExternalAppCachePath
-import com.crefter.yuchengplugin.yucheng_ble.ResourceUtils.copyFileFromAssets
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.response.BleScanResponse
 import com.yucheng.ycbtsdk.upgrade.DfuCallBack
-import io.flutter.embedding.engine.plugins.FlutterPlugin
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -42,7 +41,6 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.util.UUID
 
 
 private const val SCAN_PERIOD: Int = 15
@@ -63,6 +61,9 @@ class YuchengApiImpl(
     private var index: Long = 0
     private var selectedDevice: YuchengDevice? = null
     var activity: Context? = null
+    private var deviceToUpdate: YuchengDevice? = null
+    private var pathToUpdate: String = ""
+    private var errorUpdateCount = 0
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startScanDevices(
@@ -693,7 +694,6 @@ class YuchengApiImpl(
         pathToFile: String,
         callback: (Result<Boolean>) -> Unit
     ) {
-        var isCompleted = false;
         if (activity == null) {
             Log.e(UPDATE_FIRMWARE, "Activity is null")
             callback(Result.failure(Exception("Activity is null")))
@@ -701,45 +701,79 @@ class YuchengApiImpl(
         }
         Log.d(UPDATE_FIRMWARE, "activity = $activity")
         val path = assetPathHandler(pathToFile)
+        pathToUpdate = path
         Log.d(UPDATE_FIRMWARE, "Key = $path")
         val macAddress = device.uuid
         val deviceName = device.deviceName
+        deviceToUpdate = YuchengDevice(
+            device.index,
+            device.deviceName,
+            device.uuid,
+            device.isReconnected
+        )
         Log.d(UPDATE_FIRMWARE, "MacAddress = $macAddress, DeviceName = $deviceName")
+        upgrade(callback)
+    }
+
+    private fun upgrade(callback: (Result<Boolean>) -> Unit) {
+        var isCompleted = false
+        if (activity == null) {
+            Log.e(UPDATE_FIRMWARE, "Activity is null")
+            callback(Result.failure(Exception("Activity is null")))
+            return
+        }
+        if (pathToUpdate.isEmpty()) {
+            Log.e(UPDATE_FIRMWARE, "Path is empty")
+            callback(Result.failure(Exception("Path is empty")))
+            return
+        }
+        if (deviceToUpdate == null) {
+            Log.e(UPDATE_FIRMWARE, "Device is null")
+            callback(Result.failure(Exception("Device is null")))
+            return
+        }
+
+        YCBTClient.setOta(true)
         YCBTClient.upgradeFirmware(
-            activity, macAddress, "", path,
+            activity, deviceToUpdate!!.uuid, deviceToUpdate!!.deviceName, pathToUpdate,
             object : DfuCallBack {
                 override fun progress(p0: Int) {
                     Log.d(UPDATE_FIRMWARE, "Progress = $p0")
                 }
-
                 override fun success() {
                     Log.d(UPDATE_FIRMWARE, "Success")
+                    YCBTClient.setOta(false)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        YCBTClient.disconnectBle()
+                    }, 1500)
+                    errorUpdateCount = 0
                 }
-
                 override fun failed(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Failed = $p0")
-                    if (!isCompleted) {
+                    errorUpdateCount++
+                    if (!isCompleted && errorUpdateCount > 3) {
                         callback(Result.failure(Exception(p0)))
                         isCompleted = true
+                        errorUpdateCount = 0
+                    } else {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            upgrade(callback)
+                        }, 2000)
                     }
                 }
-
                 override fun disconnect() {
                     Log.d(UPDATE_FIRMWARE, "Disconnect")
                 }
-
                 override fun connecting() {
                     Log.d(UPDATE_FIRMWARE, "Connecting")
                 }
-
                 override fun connected() {
                     Log.d(UPDATE_FIRMWARE, "Connected")
                 }
-
                 override fun latest() {
                     Log.d(UPDATE_FIRMWARE, "Latest")
+                    errorUpdateCount = 0
                 }
-
                 override fun error(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Error = $p0")
                     if (!isCompleted) {
@@ -749,7 +783,7 @@ class YuchengApiImpl(
                 }
             },
         )
-        YCBTClient.watchUiUpgrade(path) { code, ratio, map ->
+        YCBTClient.watchUiUpgrade(pathToUpdate) { code, ratio, map ->
             Log.d(UPDATE_FIRMWARE, "Map = $map")
             Log.d(UPDATE_FIRMWARE, "Code = $code")
             Log.d(UPDATE_FIRMWARE, "Ratio = $ratio")
@@ -777,7 +811,7 @@ class YuchengApiImpl(
                 }
             }
         }
-    }
+        }
 
 
     companion object {

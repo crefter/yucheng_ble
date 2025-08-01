@@ -169,7 +169,7 @@ final class YuchengService
     }
 
     final lastConnectedDevice = await _ble.getCurrentConnectedDevice();
-    if ((lastConnectedDevice == null || lastConnectedDevice.uuid.isEmpty) &&
+    if ((lastConnectedDevice == null) &&
         (macAddress != null || deviceName != null)) {
       final scannedDevices = await scanDevices(
         onBluetoothNotSupported: onBluetoothNotSupported,
@@ -182,8 +182,8 @@ final class YuchengService
         setReconnected(false);
         return false;
       }
-      final device =
-          scannedDevices.firstWhereOrNull((d) => d.deviceName == deviceName);
+      final device = scannedDevices.firstWhereOrNull(
+          (d) => d.uuid == macAddress || d.deviceName == deviceName);
       if (device == null) {
         setReconnecting(false);
         setReconnected(false);

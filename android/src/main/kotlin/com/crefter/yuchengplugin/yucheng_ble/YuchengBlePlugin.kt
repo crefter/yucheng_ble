@@ -87,8 +87,12 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
                 healthDataConverter = YuchengHealthDataConverter(gson!!),
                 assetPathHandler = { pathToFile ->
                     var path = flutterPluginBinding.flutterAssets.getAssetFilePathByName(pathToFile)
+                    val cachePath = getExternalAppCachePath(flutterPluginBinding.applicationContext)
+                    if (cachePath == null) {
+                        return@YuchengApiImpl ""
+                    }
                     val tempFileName =
-                        (getExternalAppCachePath(flutterPluginBinding.applicationContext)
+                        (cachePath + "/"
                                 + UUID.randomUUID().toString()) + path.takeLast(4)
                     copyFileFromAssets(path, tempFileName, flutterPluginBinding.applicationContext)
                     path = tempFileName
