@@ -747,6 +747,8 @@ class YuchengApiImpl(
                         YCBTClient.disconnectBle()
                     }, 1500)
                     errorUpdateCount = 0
+                    isCompleted = true
+                    callback(Result.success(true))
                 }
                 override fun failed(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Failed = $p0")
@@ -755,10 +757,6 @@ class YuchengApiImpl(
                         callback(Result.failure(Exception(p0)))
                         isCompleted = true
                         errorUpdateCount = 0
-                    } else {
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            upgrade(callback)
-                        }, 2000)
                     }
                 }
                 override fun disconnect() {
