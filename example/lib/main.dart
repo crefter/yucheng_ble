@@ -83,6 +83,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
       ..listenAll(() => setState(() {}))
       ..init(
         shouldTryReconnect: () async => true,
+        macAddress: '1B:5D:E3:91:4F:76',
+        deviceName: 'YC093 0AA8',
         onBluetoothNotSupported: () {
           if (!context.mounted) return;
           _showSnackBar(context, 'Блютуз не поддерживается!');
@@ -120,6 +122,9 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   }
 
   Future<void> scanDevices() async {
+    setState(() {
+      devices.clear();
+    });
     final scannedDevices = await _service.scanDevices(
       onBluetoothNotSupported: () {
         if (!context.mounted) return;
@@ -177,12 +182,21 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     healthData
       ..clear()
       ..addAll(data.healthData);
-    print(data.toJson());
     setState(() {});
   }
 
   Future<void> getDeviceSettings() async {
     await _service.getDeviceSettings();
+  }
+
+  Future<bool> tryReconnect() async {
+    return await _service.tryReconnect(
+      macAddress: '1B:5D:E3:91:4F:76',
+    );
+  }
+
+  Future<bool> resetToFactory() async {
+    return await _service.resetToFactory();
   }
 
   @override
@@ -199,6 +213,38 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 'Hello, dear!',
                 textAlign: TextAlign.center,
               ),
+            ),
+            SliverToBoxAdapter(
+              child: ValueListenableBuilder(
+                  valueListenable: _service.isDeviceConnectedNotifier,
+                  builder: (context, isDeviceConnected, _) {
+                    return ValueListenableBuilder(
+                      valueListenable: _service.isReconnectedNotifier,
+                      builder: (context, isReconnected, child) {
+                        if (isReconnected || isDeviceConnected) {
+                          return child!;
+                        }
+
+                        return const SizedBox.shrink();
+                      },
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final isReset = await resetToFactory();
+                          if (isReset) {
+                            sleepData.clear();
+                            healthData.clear();
+                            sleepHealthData.clear();
+                          }
+                          if (!context.mounted) return;
+                          final text = isReset
+                              ? 'Сброс ввыполнен! Попробуй переподключиться'
+                              : 'Сброс не выполнен! ';
+                          _showSnackBar(context, text);
+                        },
+                        child: Text('Сбросить настройки'),
+                      ),
+                    );
+                  }),
             ),
             SliverToBoxAdapter(
               child: ValueListenableBuilder(
@@ -224,10 +270,36 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                         ],
                       );
                     } else {
-                      return const SizedBox.shrink();
+                      return ElevatedButton(
+                        onPressed: tryReconnect,
+                        child: Text(
+                          'Переподключиться',
+                        ),
+                      );
                     }
                   },
                 ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: ValueListenableBuilder(
+                valueListenable: _service.deviceSettingsNotifier,
+                builder: (context, value, child) {
+                  if (value == null) {
+                    return const Text(
+                      'Настроек нет',
+                      textAlign: TextAlign.center,
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        Text('Настройки:'),
+                        Text('Заряд = ${value.batteryValue}'),
+                        Text('Версия прошивки = ${value.firmwareVersion}'),
+                      ],
+                    );
+                  }
+                },
               ),
             ),
             if (_service.isReconnected || _service.isAnyDeviceConnected)
@@ -359,6 +431,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 final mac = event.uuid;
 
                 return Material(
+                  key: ValueKey(deviceName),
                   type: MaterialType.transparency,
                   child: InkWell(
                     onTap: () {
@@ -421,7 +494,13 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           )
                         else
                           ElevatedButton(
-                            onPressed: _service.disconnect,
+                            onPressed: () async {
+                              await _service.disconnect();
+                              healthData.clear();
+                              sleepData.clear();
+                              sleepHealthData.clear();
+                              setState(() {});
+                            },
                             child: const Text(
                               'Отключиться от девайса',
                             ),
@@ -582,6 +661,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           Text(
                             'Awake: ${item.awakeInSeconds ~/ 60} мин.',
                           ),
+                          Text('Количество просыпаний: ${item.awakeCount}'),
                         ],
                       ),
                       children: item.details

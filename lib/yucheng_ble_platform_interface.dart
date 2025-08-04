@@ -105,4 +105,8 @@ abstract class YuchengBlePlatform extends PlatformInterface {
   Future<bool> deleteSleepHealthData() {
     throw UnimplementedError('deleteSleepHealthData has not been implemented.');
   }
+
+  Future<bool> resetToFactory() {
+    throw UnimplementedError('resetToFactory has not been implemented.');
+  }
 }

@@ -49,6 +49,8 @@ final class YuchengService
     VoidCallback? onBluetoothOff,
     VoidCallback? onSuccessfulReconnect,
     VoidCallback? onFailedReconnect,
+    String? macAddress,
+    String? deviceName,
   }) async {
     _deviceStateSub?.cancel();
     _devicesSub?.cancel();
@@ -111,6 +113,8 @@ final class YuchengService
           onDeviceConnectedYet: onDeviceConnectedYet,
           onFailedReconnect: onFailedReconnect,
           onBluetoothOff: onBluetoothOff,
+          macAddress: macAddress,
+          deviceName: deviceName,
         );
       },
       () async {
@@ -130,6 +134,8 @@ final class YuchengService
 
   Future<bool> tryReconnect({
     int reconnectTimeInSeconds = 30,
+    String? macAddress,
+    String? deviceName,
     VoidCallback? onBluetoothNotSupported,
     VoidCallback? onBluetoothOff,
     VoidCallback? onPermissionsNotGranted,
@@ -162,19 +168,42 @@ final class YuchengService
       return false;
     }
 
-    if (isReconnected || isAnyDeviceConnected) {
-      onDeviceConnectedYet?.call();
+    final lastConnectedDevice = await _ble.getCurrentConnectedDevice();
+    if ((lastConnectedDevice == null || lastConnectedDevice.uuid.isEmpty) &&
+        (macAddress != null || deviceName != null)) {
+      final scannedDevices = await scanDevices(
+        onBluetoothNotSupported: onBluetoothNotSupported,
+        onPermissionsNotGranted: onPermissionsNotGranted,
+        onBluetoothOffIos: onBluetoothOff,
+        onBluetoothOffAndroid: onBluetoothOff,
+      );
+      if (scannedDevices.isEmpty) {
+        setReconnecting(false);
+        setReconnected(false);
+        return false;
+      }
+      final device =
+          scannedDevices.firstWhereOrNull((d) => d.deviceName == deviceName);
+      if (device == null) {
+        setReconnecting(false);
+        setReconnected(false);
+        return false;
+      }
+      final isConnected = await tryConnectToDevice(device);
       setReconnecting(false);
-      setReconnected(true);
-      return true;
+      setReconnected(isConnected);
+      setDeviceConnected(isConnected);
+      switch (isConnected) {
+        case true:
+          onSuccessfulReconnect?.call();
+        case false:
+          onFailedReconnect?.call();
+      }
+
+      return isConnected;
     }
 
     final isBleReconnected = await _ble.reconnect(reconnectTimeInSeconds);
-    if (isAnyDeviceConnected || isReconnected) {
-      setReconnecting(false);
-      setReconnected(true);
-      return true;
-    }
     setReconnecting(false);
     setReconnected(isBleReconnected);
     setDeviceConnected(isBleReconnected);
@@ -346,5 +375,32 @@ final class YuchengService
     } catch (e) {
       rethrow;
     }
+  }
+
+  Future<bool> resetToFactory() async {
+    try {
+      final isReset = await _ble.resetToFactory();
+      if (isReset) {
+        setReconnecting(false);
+        setReconnected(false);
+        setSelectedDevice(null);
+        setDeviceConnected(false);
+      }
+      return isReset;
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
+
+extension FirstWhereOrNullX<T> on Iterable<T> {
+  /// returns first item to satisfy `test`, else null
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (var element in this) {
+      if (test(element)) {
+        return element;
+      }
+    }
+    return null;
   }
 }

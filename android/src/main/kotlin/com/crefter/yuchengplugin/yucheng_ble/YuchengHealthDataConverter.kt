@@ -1,8 +1,6 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
 import YuchengHealthData
-import YuchengSleepData
-import YuchengSleepDataDetail
 import com.google.gson.Gson
 
 private class AllDataBean(

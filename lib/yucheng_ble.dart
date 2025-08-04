@@ -87,4 +87,6 @@ class YuchengBle {
 
   Future<bool> deleteSleepHealthData() =>
       YuchengBlePlatform.instance.deleteSleepHealthData();
+
+  Future<bool> resetToFactory() => YuchengBlePlatform.instance.resetToFactory();
 }

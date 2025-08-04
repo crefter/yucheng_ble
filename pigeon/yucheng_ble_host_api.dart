@@ -15,9 +15,11 @@ import 'package:pigeon/pigeon.dart';
 
 class YuchengDeviceSettings {
   final int batteryValue;
+  final String firmwareVersion;
 
   const YuchengDeviceSettings({
     required this.batteryValue,
+    required this.firmwareVersion,
   });
 }
 
@@ -371,6 +373,9 @@ abstract class YuchengHostApi {
 
   @async
   bool deleteSleepHealthData();
+
+  @async
+  bool resetToFactory();
 }
 
 @EventChannelApi()

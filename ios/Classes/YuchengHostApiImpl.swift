@@ -17,13 +17,12 @@ enum NoDeviceError : Error {
     case noDevice(String)
 }
 
-
-final class YuchengHostApiImpl : YuchengHostApi, Sendable {
-    typealias DeviceHandler = @Sendable (any YuchengDeviceEvent) -> Void
-    typealias StateHandler = @Sendable (any YuchengDeviceStateEvent) -> Void
-    typealias SleepHandler = @Sendable (any YuchengSleepEvent) -> Void
-    typealias HealthHandler = @Sendable (any YuchengHealthEvent) -> Void
-    typealias SleepHealthHandler = @Sendable (any YuchengSleepHealthEvent) -> Void
+final class YuchengHostApiImpl : YuchengHostApi {
+    typealias DeviceHandler = (any YuchengDeviceEvent) -> Void
+    typealias StateHandler = (any YuchengDeviceStateEvent) -> Void
+    typealias SleepHandler = (any YuchengSleepEvent) -> Void
+    typealias HealthHandler = (any YuchengHealthEvent) -> Void
+    typealias SleepHealthHandler = (any YuchengSleepHealthEvent) -> Void
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
     private let onState: StateHandler;
@@ -35,7 +34,9 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     private var currentDevice: CBPeripheral? = nil;
     private var index: Int = 0;
     private let TIME_TO_TIMEOUT = 15.0;
+    private let TIME_TO_TIMEOUT_RESET = 30.0;
     private let TIME_TO_SCAN = 15.0;
+    private let TIME_TO_SCAN_TIMEOUT = 20.0;
     private let TIME_TO_RECONNECT = 20;
     private let TIME_TO_QUERY_MAC_ADDR = 10;
     
@@ -68,17 +69,21 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 } else {
                     self.scannedDevices = devices;
                     for device in devices {
-                        print("UUID DEVICE = " + device.identifier.uuidString)
-                        let isReconnected = lastConnectedDevice?.macAddress == device.macAddress;
-                        self.currentDevice = isReconnected ? device : nil;
-                        if (!ycDevices.contains(where: { dev in
-                            dev.uuid == device.macAddress
-                        })) {
-                            let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
-                            self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress, isReconnected: ycDevice.isReconnected, deviceName: device.name ?? device.deviceModel))
-                            self.index += 1
-                            ycDevices.append(ycDevice)
-                            print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
+                        DispatchQueue.main.async {
+                            print("UUID DEVICE = " + device.identifier.uuidString)
+                            let deviceMac = device.macAddress
+                            let deviceName = device.name
+                            let isReconnected = lastConnectedDevice?.macAddress == deviceMac;
+                            self.currentDevice = isReconnected ? device : nil;
+                            if (!ycDevices.contains(where: { dev in
+                                 dev.deviceName == deviceName
+                            })) {
+                                let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
+                                self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: deviceMac, isReconnected: ycDevice.isReconnected, deviceName: deviceName ?? device.deviceModel))
+                                self.index += 1
+                                ycDevices.append(ycDevice)
+                                print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
+                            }
                         }
                     }
                 }
@@ -87,7 +92,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             self.onDevice(YuchengDeviceCompleteEvent(completed: false))
             completion(.failure(e))
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_SCAN_TIMEOUT) {
             if (isCompleted) {
                 return;
             }
@@ -124,7 +129,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
         
         currentDevice = scannedDevices.first(where: { scannedDevice in
-            scannedDevice.name == device.deviceName || scannedDevice.macAddress == device.uuid
+            scannedDevice.name == device.deviceName
         })
         
         if (currentDevice == nil) {
@@ -205,6 +210,7 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
                 isCompleted = true
             } else {
                 completion(.success(()))
+                self.currentDevice = nil
                 isCompleted = true
             }
         }
@@ -217,16 +223,38 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
     }
     
     func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, any Error>) -> Void) {
+        let timeoutForGetDevice = 5.0
+        let timeout = timeoutForGetDevice * 2
+        
+        if (currentDevice != nil) {
+            completion(.success(YuchengDevice(index: 0, deviceName: currentDevice!.name ?? currentDevice!.deviceModel, uuid: currentDevice!.macAddress, isReconnected: true)))
+            return
+        }
+        
+        var isCompleted = false
         do {
-            currentDevice = YCProduct.shared.currentPeripheral
-            let device = currentDevice
-            if device == nil {
-                completion(.success(nil))
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeoutForGetDevice) {
+                self.currentDevice = YCProduct.shared.currentPeripheral
+                let device = self.currentDevice
+                if device == nil {
+                    completion(.success(nil))
+                    return
+                }
+                completion(.success(YuchengDevice(index: Int64(self.index), deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isReconnected: true)))
+                self.index += 1
+                isCompleted = true
+            }
+        } catch (let e) {
+            DispatchQueue.main.async {
+                completion(.failure(e))
+            }
+            isCompleted = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+            if (isCompleted) {
                 return
             }
-            completion(.success(YuchengDevice(index: 0, deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isReconnected: true)))
-        } catch (let e) {
-            completion(.failure(e))
+            completion(.success(nil))
         }
     }
     
@@ -474,7 +502,8 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
             YCProduct.queryDeviceBasicInfo(completion: {state, response in
                 if state == .succeed, let data = response as? YCDeviceBasicInfo {
                     let batteryValue = data.batteryPower
-                    let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue))
+                    let firmwareVersion = data.mcuFirmware.version
+                    let settings = YuchengDeviceSettings(batteryValue: Int64(batteryValue), firmwareVersion: firmwareVersion)
                     if (isCompleted) {
                         return
                     }
@@ -582,6 +611,31 @@ final class YuchengHostApiImpl : YuchengHostApi, Sendable {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
             if (isHealthCompleted && isSleepCompleted) {
+                return
+            }
+            DispatchQueue.main.async {
+                completion(.success(false))
+            }
+        })
+    }
+    
+    func resetToFactory(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isResetCompleted = false
+        do {
+            YCProduct.setDeviceReset { state, response in
+                isResetCompleted = true
+                DispatchQueue.main.async {
+                    completion(Result.success(state == .succeed))
+                }
+            }
+        } catch {
+            DispatchQueue.main.async {
+                completion(.failure(error))
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT_RESET, execute: {
+            if (isResetCompleted) {
                 return
             }
             DispatchQueue.main.async {
