@@ -41,6 +41,8 @@ final class YuchengService
   Stream<YuchengSleepHealthEvent> get sleepHealthDataStream =>
       _ble.sleepHealthDataStream();
 
+  Stream<YuchengUpdateEvent> get updateDataStream => _ble.updateDataStream();
+
   Future<void> init({
     required Future<bool> Function()? shouldTryReconnect,
     VoidCallback? onBluetoothNotSupported,

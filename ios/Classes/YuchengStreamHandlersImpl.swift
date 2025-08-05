@@ -119,3 +119,26 @@ class SleepHealthDataHandlerImpl : SleepHealthDataStreamHandler {
         eventSink = nil;
     }
 }
+
+class UpdateDataHandlerImpl : UpdateDataStreamHandler {
+    private var eventSink: PigeonEventSink<YuchengUpdateEvent>? = nil;
+    
+    
+    override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<YuchengUpdateEvent>) {
+        eventSink = sink;
+    }
+    
+    override func onCancel(withArguments arguments: Any?) {
+        eventSink = nil;
+    }
+    
+    func onUpdateChanged(_ event: YuchengUpdateEvent) {
+        print("onUpdateData = new event")
+        eventSink?.success(event);
+    }
+    
+    func detach() {
+        eventSink?.endOfStream()
+        eventSink = nil;
+    }
+}

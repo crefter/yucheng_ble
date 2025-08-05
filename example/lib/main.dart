@@ -83,8 +83,6 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
       ..listenAll(() => setState(() {}))
       ..init(
         shouldTryReconnect: () async => true,
-        macAddress: '1B:5D:E3:91:4F:76',
-        deviceName: 'YC093 0AA8',
         onBluetoothNotSupported: () {
           if (!context.mounted) return;
           _showSnackBar(context, 'Блютуз не поддерживается!');
@@ -113,6 +111,26 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     _service.selectedDeviceNotifier.addListener(() {
       selectedDevice = _service.selectedDevice;
     });
+    _service.updateDataStream.listen(
+      (event) {
+        switch (event) {
+          case YuchengUpdateStartEvent():
+            print(
+                "Обновление началось! Время начала: ${event.updateStartDate}");
+          case YuchengUpdateProgressEvent():
+            print("Обновление в процессе! Прогресс: ${event.progress}");
+          case YuchengUpdateCompleteEvent():
+            print(
+                "Обновление завершено! Время выполнения: ${event.updateCompleteDate}");
+          case YuchengUpdateErrorEvent():
+            print("Обновление завершено с ошибкой! Ошибка: ${event.error}");
+        }
+      },
+    );
+
+    _service.sleepDataStream.listen(
+      (event) {},
+    );
   }
 
   @override
@@ -190,9 +208,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   }
 
   Future<bool> tryReconnect() async {
-    return await _service.tryReconnect(
-      macAddress: '1B:5D:E3:91:4F:76',
-    );
+    return await _service.tryReconnect();
   }
 
   Future<bool> resetToFactory() async {

@@ -30,10 +30,12 @@ final class YuchengHostApiImpl : YuchengHostApi {
     typealias SleepHandler = (any YuchengSleepEvent) -> Void
     typealias HealthHandler = (any YuchengHealthEvent) -> Void
     typealias SleepHealthHandler = (any YuchengSleepHealthEvent) -> Void
+    typealias UpdateHandler = (any YuchengUpdateEvent) -> Void
     typealias AssetPathHandler = (String) -> String;
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
     private let onState: StateHandler;
+    private let onUpdate: UpdateHandler;
     private let onHealth: HealthHandler;
     private let onSleepHealth: SleepHealthHandler;
     private let sleepConverter: YuchengSleepDataConverter;
@@ -56,8 +58,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     /// Connect back to device address
     private var reconnectMacAddress: String = ""
     private var filePathToUpdate: String = ""
+    private var isUpgradeCompleted = false
+    private var isUiUpgradeCompleted = false
     
-    init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter, assetPathHandler: @Sendable @escaping (_: String) -> String) {
+    init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter, assetPathHandler: @Sendable @escaping (_: String) -> String, onUpdate: @Sendable @escaping  (_: YuchengUpdateEvent) -> Void) {
         self.onDevice = onDevice
         self.onSleepData = onSleepData
         self.sleepConverter = sleepConverter
@@ -66,6 +70,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         self.onHealth = onHealth
         self.onSleepHealth = onSleepHealth
         self.assetPathHandler = assetPathHandler
+        self.onUpdate = onUpdate
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: {
             let currentDevice = YCProduct.shared.currentPeripheral;
             if (currentDevice != nil) {
@@ -173,6 +178,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     completion(.success(true));
                     if (device != nil) {
                         self.currentDevice = device
+                        let isOtaForce = YCProduct.isJLDeviceForceOTA()
+                        if (isOtaForce) {
+                            self.reconnectMacAddress = mac
+                            self.connectForceOtaDevice { res in }
+                        }
                         DispatchQueue.main.async(execute:  {
                             self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: mac, isReconnected: false, deviceName: name))
                         })
@@ -198,6 +208,12 @@ final class YuchengHostApiImpl : YuchengHostApi {
     func reconnect(reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
         var isCompleted = false;
         do {
+            let isOtaForce = YCProduct.isJLDeviceForceOTA()
+            if (isOtaForce) {
+                self.currentDevice = YCProduct.shared.currentPeripheral
+                self.reconnectMacAddress = self.currentDevice?.macAddress ?? ""
+                self.connectForceOtaDevice { res in }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(TIME_TO_QUERY_MAC_ADDR)) {
                 YCProduct.queryDeviceMacAddress { state, response in
                     if state == YCProductState.succeed,
@@ -702,60 +718,89 @@ final class YuchengHostApiImpl : YuchengHostApi {
         self.scannedDevicesToUpdate.removeAll()
         self.filePathToUpdate = path
         self.reconnectMacAddress = curDevice!.macAddress
-        var isCompleted = false;
-        var isUiUpdated = false;
+        self.isUpgradeCompleted = false
+        self.isUiUpgradeCompleted = false
         
-        YCProduct.jlDeviceUpgradeFirmware(curDevice!, filePath: path) { state, progress, didSend in
+        otaUpdate(device: curDevice!, path: path, completion: completion)
+    }
+    
+    private func otaUpdate(device: CBPeripheral, path: String, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        YCProduct.jlDeviceUpgradeFirmware(device, filePath: path) { state, progress, didSend in
             print("UPGRADE PROGRESS = " + String(progress))
             print("UPGRADE DID SEND = " + didSend.description)
+            DispatchQueue.main.async {
+                self.onUpdate(YuchengUpdateProgressEvent(progress: Double(progress)))
+            }
             switch (state) {
             case .start:
                 print("UPGRADE START")
+                DispatchQueue.main.async {
+                    let timeStamp = Int64(Date().timeIntervalSince1970).toMilliseconds()
+                    self.onUpdate(YuchengUpdateStartEvent(startTimestamp: timeStamp))
+                }
+                break
             case .resourceUpdating:
                 print("UPGRADE RESOURCE UPDATING")
+                break
             case .updateResourceFinished:
                 print("UPGRADE RESOURCE FINISHED")
+                break
             case .uiUpdating:
                 print("UPGRADE UI UPDATING")
+                break
             case .updateUIFinished:
-                if (isUiUpdated) {
-                    return
+                if (self.isUiUpgradeCompleted) {
+                    break
                 }
-                isUiUpdated = true
+                self.isUiUpgradeCompleted = true
                 print("UPGRADE UI FINISHED")
-                YCProduct.disconnectDevice(completion: {state, error in})
-                self.reconnectWithMacAddr()
+                self.reconnectWithMacAddr(completion: completion)
+                break
             case .upgrading:
                 print("UPGRADE UPGRADING")
+                break
             case .success:
                 print("UPGRADE SUCCESS")
-                if (!isCompleted) {
+                if (!self.isUpgradeCompleted) {
                     completion(Result.success(true))
-                    isCompleted = true
+                    self.isUpgradeCompleted = true
+                    DispatchQueue.main.async {
+                        let timeStamp = Int64(Date().timeIntervalSince1970).toMilliseconds()
+                        self.onUpdate(YuchengUpdateCompleteEvent(completeTimestamp: timeStamp))
+                    }
                 }
+                break
             case .failed:
                 print("UPGRADE FAILED")
-                if (!isCompleted) {
+                if (!self.isUpgradeCompleted) {
                     completion(.failure(UpgradeFirmwareError.failed("Failed to upgrade!")))
-                    isCompleted = true
+                    DispatchQueue.main.async {
+                        self.onUpdate(YuchengUpdateErrorEvent(error: "Failed to upgrade!"))
+                    }
+                    self.isUpgradeCompleted = true
                 }
+                break
             @unknown default:
                 print ("UPGRADE UNKNOWN")
-                if (!isCompleted) {
+                if (!self.isUpgradeCompleted) {
                     completion(.failure(UpgradeFirmwareError.failed("Unknown state")))
-                    isCompleted = true
+                    DispatchQueue.main.async {
+                        self.onUpdate(YuchengUpdateErrorEvent(error: "Failed to upgrade!"))
+                    }
+                    self.isUpgradeCompleted = true
                 }
+                break
             }
         }
     }
     /// Connecting devices back
-    func reconnectWithMacAddr() {
+    func reconnectWithMacAddr(completion: @escaping (Result<Bool, any Error>) -> Void) {
         usleep(2_500_000)
         repeatScanJLCount = 0
-        scanJLForceOtaDevice()
+        scanJLForceOtaDevice(completion: completion)
     }
     /// scan devices
-    private func scanJLForceOtaDevice() {
+    private func scanJLForceOtaDevice(completion: @escaping (Result<Bool, any Error>) -> Void) {
         repeatScanJLCount += 1
         if repeatScanJLCount >= REPEAT_SCAN_JL_FORCE_OTA_COUNT {
             // Device not found, upgrade failed.
@@ -764,53 +809,27 @@ final class YuchengHostApiImpl : YuchengHostApi {
         // Search Device
         YCProduct.scanningDevice() { devices, error in
             if (devices.isEmpty) {
-                self.connectForceOtaDevice()
+                self.connectForceOtaDevice(completion: completion)
             }
             for device in devices where self.scannedDevicesToUpdate.contains(device) ==
             false {
                 self.scannedDevicesToUpdate.append(device)
-                self.connectForceOtaDevice()
+                self.connectForceOtaDevice(completion: completion)
             }
         }
     }
     /// Reconnect equipment
-    private func connectForceOtaDevice() {
+    private func connectForceOtaDevice(completion: @escaping (Result<Bool, any Error>) -> Void) {
         if scannedDevicesToUpdate.isEmpty {
             if (currentDevice != nil && currentDevice?.macAddress != self.reconnectMacAddress) {
-                scanJLForceOtaDevice()
+                scanJLForceOtaDevice(completion: completion)
             }
             YCProduct.connectDevice(currentDevice!) { [weak self] state, error
                 in
                 if state == .connected {
-                    // Successfully reconnected, preparing for upgrade
-                    YCProduct.jlDeviceUpgradeFirmware(self!.currentDevice!, filePath: self?.filePathToUpdate ?? "") { state, progress, didSend in
-                        print("UPGRADE PROGRESS = " + String(progress))
-                        print("UPGRADE DID SEND = " + didSend.description)
-                        switch (state) {
-                        case .start:
-                            print("UPGRADE START")
-                        case .resourceUpdating:
-                            print("UPGRADE RESOURCE UPDATING")
-                        case .updateResourceFinished:
-                            print("UPGRADE RESOURCE FINISHED")
-                        case .uiUpdating:
-                            print("UPGRADE UI UPDATING")
-                        case .updateUIFinished:
-                            print("UPGRADE UI FINISHED")
-                            YCProduct.disconnectDevice(completion: {state, error in})
-                        case .upgrading:
-                            print("UPGRADE UPGRADING")
-                        case .success:
-                            print("UPGRADE SUCCESS")
-                        case .failed:
-                            print("UPGRADE FAILED")
-                        @unknown default:
-                            print ("UPGRADE UNKNOWN")
-                        }
-                    }
+                    self?.otaUpdate(device: self!.currentDevice!, path: self?.filePathToUpdate ?? "", completion: completion)
                 } else {
-                    // Reconnect failed, search again.
-                    self?.scanJLForceOtaDevice()
+                    self?.scanJLForceOtaDevice(completion: completion)
                 }
             }
             return
@@ -820,20 +839,15 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 YCProduct.connectDevice(device) { [weak self] state, error
                     in
                     if state == .connected {
-                        // Successfully reconnected, preparing for upgrade
-                        YCProduct.jlDeviceUpgradeFirmware(device, filePath: self?.filePathToUpdate ?? "") { state, progress, didSend in
-                            
-                        }
+                        self?.otaUpdate(device: device, path: self?.filePathToUpdate ?? "", completion: completion)
                     } else {
-                        // Reconnect failed, search again.
-                        self?.scanJLForceOtaDevice()
+                        self?.scanJLForceOtaDevice(completion: completion)
                     }
                 }
                 return
             }
         }
-        // No device found, search again.
-        scanJLForceOtaDevice()
+        scanJLForceOtaDevice(completion: completion)
     }
 }
 

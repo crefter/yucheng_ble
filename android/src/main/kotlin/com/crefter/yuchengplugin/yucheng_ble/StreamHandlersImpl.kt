@@ -6,11 +6,13 @@ import HealthDataStreamHandler
 import PigeonEventSink
 import SleepDataStreamHandler
 import SleepHealthDataStreamHandler
+import UpdateDataStreamHandler
 import YuchengDeviceEvent
 import YuchengDeviceStateEvent
 import YuchengHealthEvent
 import YuchengSleepEvent
 import YuchengSleepHealthEvent
+import YuchengUpdateEvent
 import android.os.Handler
 import android.util.Log
 
@@ -158,5 +160,36 @@ class SleepHealthDataStreamHandlerImpl(private val uiThreadHandler: Handler) : S
         eventSink?.endOfStream()
         eventSink = null
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler detach")
+    }
+}
+
+class UpdateDataStreamHandlerImpl(private val uiThreadHandler: Handler) : UpdateDataStreamHandler() {
+    private var eventSink: PigeonEventSink<YuchengUpdateEvent>? = null
+
+    override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengUpdateEvent>) {
+        eventSink = sink
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Update data stream handler sink onListen = $this")
+        Log.d( YuchengBlePlugin.PLUGIN_TAG, "Update data handler onListen")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Update data handler sink = $sink")
+    }
+
+    override fun onCancel(p0: Any?) {
+        eventSink = null
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Update data handler onCancel")
+    }
+
+    fun onUpdate(state: YuchengUpdateEvent) {
+        uiThreadHandler.post {
+            eventSink?.success(state)
+        }
+        if (eventSink == null) {
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Update data EVENT SINK IS NULL!")
+        }
+    }
+
+    fun detach() {
+        eventSink?.endOfStream()
+        eventSink = null
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Update data handler detach")
     }
 }

@@ -23,12 +23,18 @@ import YuchengSleepHealthErrorEvent
 import YuchengSleepHealthEvent
 import YuchengSleepHealthTimeOutEvent
 import YuchengSleepTimeOutEvent
+import YuchengUpdateCompleteEvent
+import YuchengUpdateErrorEvent
+import YuchengUpdateEvent
+import YuchengUpdateProgressEvent
+import YuchengUpdateStartEvent
 import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.crefter.yuchengplugin.yucheng_ble.StartEndTimestamp.Companion.DEFAULT_START_DATE_OFFSET
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.response.BleScanResponse
@@ -53,6 +59,7 @@ class YuchengApiImpl(
     private val onHealthData: (healthData: YuchengHealthEvent) -> Unit,
     private val onSleepHealthData: (sleepHealthEvent: YuchengSleepHealthEvent) -> Unit,
     private val onState: (state: YuchengDeviceStateEvent) -> Unit,
+    private val onUpdate: (event: YuchengUpdateEvent) -> Unit,
     private val sleepDataConverter: YuchengSleepDataConverter,
     private val healthDataConverter: YuchengHealthDataConverter,
     private val assetPathHandler: (String) -> String,
@@ -688,6 +695,7 @@ class YuchengApiImpl(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(DelicateCoroutinesApi::class)
     override fun updateFirmware(
         device: YuchengDevice,
@@ -715,6 +723,7 @@ class YuchengApiImpl(
         upgrade(callback)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun upgrade(callback: (Result<Boolean>) -> Unit) {
         var isCompleted = false
         if (activity == null) {
@@ -734,12 +743,18 @@ class YuchengApiImpl(
         }
 
         YCBTClient.setOta(true)
+        val timestamp =
+            Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime().toEpochSecond(
+                ZoneOffset.UTC).toLong()
+        onUpdate(YuchengUpdateStartEvent(timestamp))
         YCBTClient.upgradeFirmware(
             activity, deviceToUpdate!!.uuid, deviceToUpdate!!.deviceName, pathToUpdate,
             object : DfuCallBack {
                 override fun progress(p0: Int) {
                     Log.d(UPDATE_FIRMWARE, "Progress = $p0")
+                    onUpdate(YuchengUpdateProgressEvent(p0 / 10000.0))
                 }
+                @RequiresApi(Build.VERSION_CODES.O)
                 override fun success() {
                     Log.d(UPDATE_FIRMWARE, "Success")
                     YCBTClient.setOta(false)
@@ -748,12 +763,17 @@ class YuchengApiImpl(
                     }, 1500)
                     errorUpdateCount = 0
                     isCompleted = true
+                    val date =
+                        Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime().toEpochSecond(
+                            ZoneOffset.UTC).toLong()
+                    onUpdate(YuchengUpdateCompleteEvent(date))
                     callback(Result.success(true))
                 }
                 override fun failed(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Failed = $p0")
                     errorUpdateCount++
                     if (!isCompleted && errorUpdateCount > 3) {
+                        onUpdate(YuchengUpdateErrorEvent(p0 ?: ""))
                         callback(Result.failure(Exception(p0)))
                         isCompleted = true
                         errorUpdateCount = 0
@@ -775,6 +795,7 @@ class YuchengApiImpl(
                 override fun error(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Error = $p0")
                     if (!isCompleted) {
+                        onUpdate(YuchengUpdateErrorEvent(p0 ?: ""))
                         callback(Result.failure(Exception(p0)))
                         isCompleted = true
                     }

@@ -10,6 +10,7 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
     private static var healthDataHandler: HealthDataHandlerImpl? = nil
     private static var sleepHealthDataHandler: SleepHealthDataHandlerImpl? = nil
     private static var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = nil
+    private static var updateStreamHandler: UpdateDataHandlerImpl? = nil
     
     private static let sleepConverter = YuchengSleepDataConverter()
     private static let healthConverter = YuchengHealthDataConverter()
@@ -30,12 +31,16 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         if (healthDataHandler == nil) {
             healthDataHandler = HealthDataHandlerImpl()
         }
+        if (updateStreamHandler == nil) {
+            updateStreamHandler = UpdateDataHandlerImpl()
+        }
         
         DevicesStreamHandler.register(with: registrar.messenger(), streamHandler: devicesHandler!)
         SleepDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepDataHandler!)
         DeviceStateStreamHandler.register(with: registrar.messenger(), streamHandler: deviceStateStreamHandler!)
         SleepHealthDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepHealthDataHandler!)
         HealthDataStreamHandler.register(with: registrar.messenger(), streamHandler: healthDataHandler!)
+        UpdateDataStreamHandler.register(with: registrar.messenger(), streamHandler: updateStreamHandler!)
         
         if (api == nil) {
             api = YuchengHostApiImpl(
@@ -55,7 +60,9 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
                     let mainBundle = Bundle.main
                     let path = mainBundle.path(forResource: key, ofType: nil)
                     return path ?? ""
-                })
+                },
+                onUpdate: { event in updateStreamHandler?.onUpdateChanged(event)}
+            )
         }
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)

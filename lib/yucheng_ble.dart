@@ -73,6 +73,9 @@ class YuchengBle {
   Stream<YuchengSleepHealthEvent> sleepHealthDataStream() =>
       YuchengBlePlatform.instance.sleepHealthDataStream();
 
+  Stream<YuchengUpdateEvent> updateDataStream() =>
+      YuchengBlePlatform.instance.updateDataStream();
+
   Future<bool> reconnect(int? reconnectTimeInSeconds) =>
       YuchengBlePlatform.instance.reconnect(reconnectTimeInSeconds);
 

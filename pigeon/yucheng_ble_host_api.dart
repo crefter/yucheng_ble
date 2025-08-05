@@ -311,6 +311,35 @@ class YuchengSleepHealthTimeOutEvent extends YuchengSleepHealthEvent {
   });
 }
 
+// UPDATE
+sealed class YuchengUpdateEvent {
+  const YuchengUpdateEvent();
+}
+
+class YuchengUpdateStartEvent extends YuchengUpdateEvent {
+  final int startTimestamp;
+  const YuchengUpdateStartEvent({required this.startTimestamp});
+}
+
+class YuchengUpdateProgressEvent extends YuchengUpdateEvent {
+  final double progress;
+  const YuchengUpdateProgressEvent({
+    required this.progress,
+  });
+}
+
+class YuchengUpdateCompleteEvent extends YuchengUpdateEvent {
+  final int completeTimestamp;
+  const YuchengUpdateCompleteEvent({required this.completeTimestamp});
+}
+
+class YuchengUpdateErrorEvent extends YuchengUpdateEvent {
+  final String error;
+  const YuchengUpdateErrorEvent({
+    required this.error,
+  });
+}
+
 @HostApi()
 abstract class YuchengHostApi {
   /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
@@ -350,33 +379,41 @@ abstract class YuchengHostApi {
   @async
   YuchengDevice? getCurrentConnectedDevice();
 
+  /// Возвращает данные о здоровье
   @async
   List<YuchengHealthData> getHealthData({
     int? startTimestamp,
     int? endTimestamp,
   });
 
+  /// Возвращает данные о сне и здоровье
   @async
   YuchengSleepHealthData getSleepHealthData({
     int? startTimestamp,
     int? endTimestamp,
   });
 
+  /// Возвращает настроики девайса
   @async
   YuchengDeviceSettings? getDeviceSettings();
 
+  /// Удаляет данные о сне
   @async
   bool deleteSleepData();
 
+  /// Удаляет данные о здоровье
   @async
   bool deleteHealthData();
 
+  /// Удаляет данные о сне и здоровье
   @async
   bool deleteSleepHealthData();
 
+  /// Сброс устройства до заводских настроек
   @async
   bool resetToFactory();
 
+  /// Обновление девайса
   @async
   bool updateFirmware(YuchengDevice device, String pathToFile);
 }
@@ -397,4 +434,7 @@ abstract class YuchengStreamApi {
 
   /// Стрим данных о сне и здоровье
   YuchengSleepHealthEvent sleepHealthData();
+
+  /// Стрим данных об обновлении
+  YuchengUpdateEvent updateData();
 }

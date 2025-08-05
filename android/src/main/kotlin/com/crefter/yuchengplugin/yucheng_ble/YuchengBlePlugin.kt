@@ -45,6 +45,9 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         if (healthStreamHandler == null) {
             healthStreamHandler = HealthDataStreamHandlerImpl(handler!!)
         }
+        if (updateStreamHandler == null) {
+            updateStreamHandler = UpdateDataStreamHandlerImpl(handler!!)
+        }
 
         Log.d(
             PLUGIN_TAG,
@@ -75,6 +78,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
             flutterPluginBinding.binaryMessenger,
             sleepHealthStreamHandler!!
         )
+        UpdateDataStreamHandler.register(flutterPluginBinding.binaryMessenger, updateStreamHandler!!)
 
         if (api == null) {
             api = YuchengApiImpl(
@@ -85,6 +89,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
                 onHealthData = { data -> healthStreamHandler?.onHealth(data) },
                 onSleepHealthData = { data -> sleepHealthStreamHandler?.onSleepHealth(data) },
                 healthDataConverter = YuchengHealthDataConverter(gson!!),
+                onUpdate = {data -> updateStreamHandler?.onUpdate(data) },
                 assetPathHandler = { pathToFile ->
                     var path = flutterPluginBinding.flutterAssets.getAssetFilePathByName(pathToFile)
                     val cachePath = getExternalAppCachePath(flutterPluginBinding.applicationContext)
@@ -191,6 +196,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         private var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = null
         private var healthStreamHandler: HealthDataStreamHandlerImpl? = null
         private var sleepHealthStreamHandler: SleepHealthDataStreamHandlerImpl? = null
+        private var updateStreamHandler: UpdateDataStreamHandlerImpl? = null
         private var gson: Gson? = null
         private var handler: Handler? = null
         private var activtiy: Activity? = null

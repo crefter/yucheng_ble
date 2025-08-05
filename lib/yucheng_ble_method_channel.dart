@@ -53,6 +53,9 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   Stream<YuchengHealthEvent> healthDataStream() => healthData();
 
   @override
+  Stream<YuchengUpdateEvent> updateDataStream() => updateData();
+
+  @override
   Future<YuchengSleepHealthData> getSleepHealthData({
     int? startTimestamp,
     int? endTimestamp,

@@ -122,3 +122,29 @@ extension YuchengHealthDataX on YuchengHealthData {
     return timeStampInMs;
   }
 }
+
+extension YuchengUpdateCompleteEventX on YuchengUpdateCompleteEvent {
+  DateTime get updateCompleteDate {
+    final completeInMs = _timeStampInMs;
+    return DateTime.fromMillisecondsSinceEpoch(completeInMs);
+  }
+
+  int get _timeStampInMs {
+    final isMs = completeTimestamp.toString().length == 13;
+    final timeStampInMs = isMs ? completeTimestamp : completeTimestamp * 1000;
+    return timeStampInMs;
+  }
+}
+
+extension YuchengUpdateStartEventX on YuchengUpdateStartEvent {
+  DateTime get updateStartDate {
+    final startInMs = _timeStampInMs;
+    return DateTime.fromMillisecondsSinceEpoch(startInMs);
+  }
+
+  int get _timeStampInMs {
+    final isMs = startTimestamp.toString().length == 13;
+    final timeStampInMs = isMs ? startTimestamp : startTimestamp * 1000;
+    return timeStampInMs;
+  }
+}

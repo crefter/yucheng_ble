@@ -1103,6 +1103,173 @@ class YuchengSleepHealthTimeOutEvent extends YuchengSleepHealthEvent {
 ;
 }
 
+sealed class YuchengUpdateEvent {
+}
+
+class YuchengUpdateStartEvent extends YuchengUpdateEvent {
+  YuchengUpdateStartEvent({
+    required this.startTimestamp,
+  });
+
+  int startTimestamp;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      startTimestamp,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengUpdateStartEvent decode(Object result) {
+    result as List<Object?>;
+    return YuchengUpdateStartEvent(
+      startTimestamp: result[0]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengUpdateStartEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+class YuchengUpdateProgressEvent extends YuchengUpdateEvent {
+  YuchengUpdateProgressEvent({
+    required this.progress,
+  });
+
+  double progress;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      progress,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengUpdateProgressEvent decode(Object result) {
+    result as List<Object?>;
+    return YuchengUpdateProgressEvent(
+      progress: result[0]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengUpdateProgressEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+class YuchengUpdateCompleteEvent extends YuchengUpdateEvent {
+  YuchengUpdateCompleteEvent({
+    required this.completeTimestamp,
+  });
+
+  int completeTimestamp;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      completeTimestamp,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengUpdateCompleteEvent decode(Object result) {
+    result as List<Object?>;
+    return YuchengUpdateCompleteEvent(
+      completeTimestamp: result[0]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengUpdateCompleteEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+class YuchengUpdateErrorEvent extends YuchengUpdateEvent {
+  YuchengUpdateErrorEvent({
+    required this.error,
+  });
+
+  String error;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      error,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengUpdateErrorEvent decode(Object result) {
+    result as List<Object?>;
+    return YuchengUpdateErrorEvent(
+      error: result[0]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengUpdateErrorEvent || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1180,6 +1347,18 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is YuchengSleepHealthTimeOutEvent) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
+    }    else if (value is YuchengUpdateStartEvent) {
+      buffer.putUint8(152);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengUpdateProgressEvent) {
+      buffer.putUint8(153);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengUpdateCompleteEvent) {
+      buffer.putUint8(154);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengUpdateErrorEvent) {
+      buffer.putUint8(155);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1236,6 +1415,14 @@ class _PigeonCodec extends StandardMessageCodec {
         return YuchengSleepHealthErrorEvent.decode(readValue(buffer)!);
       case 151: 
         return YuchengSleepHealthTimeOutEvent.decode(readValue(buffer)!);
+      case 152: 
+        return YuchengUpdateStartEvent.decode(readValue(buffer)!);
+      case 153: 
+        return YuchengUpdateProgressEvent.decode(readValue(buffer)!);
+      case 154: 
+        return YuchengUpdateCompleteEvent.decode(readValue(buffer)!);
+      case 155: 
+        return YuchengUpdateErrorEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1456,6 +1643,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Возвращает данные о здоровье
   Future<List<YuchengHealthData>> getHealthData({int? startTimestamp, int? endTimestamp}) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1484,6 +1672,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Возвращает данные о сне и здоровье
   Future<YuchengSleepHealthData> getSleepHealthData({int? startTimestamp, int? endTimestamp}) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepHealthData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1512,6 +1701,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Возвращает настроики девайса
   Future<YuchengDeviceSettings?> getDeviceSettings() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getDeviceSettings$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1535,6 +1725,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Удаляет данные о сне
   Future<bool> deleteSleepData() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteSleepData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1563,6 +1754,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Удаляет данные о здоровье
   Future<bool> deleteHealthData() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteHealthData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1591,6 +1783,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Удаляет данные о сне и здоровье
   Future<bool> deleteSleepHealthData() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteSleepHealthData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1619,6 +1812,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Сброс устройства до заводских настроек
   Future<bool> resetToFactory() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.resetToFactory$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1647,6 +1841,7 @@ class YuchengHostApi {
     }
   }
 
+  /// Обновление девайса
   Future<bool> updateFirmware(YuchengDevice device, String pathToFile) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.updateFirmware$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1728,6 +1923,17 @@ Stream<YuchengSleepHealthEvent> sleepHealthData( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.sleepHealthData$instanceName', pigeonMethodCodec);
   return sleepHealthDataChannel.receiveBroadcastStream().map((dynamic event) {
     return event as YuchengSleepHealthEvent;
+  });
+}
+    
+Stream<YuchengUpdateEvent> updateData( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel updateDataChannel =
+      EventChannel('dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.updateData$instanceName', pigeonMethodCodec);
+  return updateDataChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as YuchengUpdateEvent;
   });
 }
     

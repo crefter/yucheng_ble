@@ -841,6 +841,123 @@ data class YuchengSleepHealthTimeOutEvent (
 
   override fun hashCode(): Int = toList().hashCode()
 }
+
+/**
+ * Generated class from Pigeon that represents data sent in messages.
+ * This class should not be extended by any user class outside of the generated file.
+ */
+sealed class YuchengUpdateEvent 
+/** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengUpdateStartEvent (
+  val startTimestamp: Long
+) : YuchengUpdateEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengUpdateStartEvent {
+      val startTimestamp = pigeonVar_list[0] as Long
+      return YuchengUpdateStartEvent(startTimestamp)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      startTimestamp,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengUpdateStartEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return YuchengBleApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengUpdateProgressEvent (
+  val progress: Double
+) : YuchengUpdateEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengUpdateProgressEvent {
+      val progress = pigeonVar_list[0] as Double
+      return YuchengUpdateProgressEvent(progress)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      progress,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengUpdateProgressEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return YuchengBleApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengUpdateCompleteEvent (
+  val completeTimestamp: Long
+) : YuchengUpdateEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengUpdateCompleteEvent {
+      val completeTimestamp = pigeonVar_list[0] as Long
+      return YuchengUpdateCompleteEvent(completeTimestamp)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      completeTimestamp,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengUpdateCompleteEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return YuchengBleApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class YuchengUpdateErrorEvent (
+  val error: String
+) : YuchengUpdateEvent()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): YuchengUpdateErrorEvent {
+      val error = pigeonVar_list[0] as String
+      return YuchengUpdateErrorEvent(error)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      error,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is YuchengUpdateErrorEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return YuchengBleApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
 private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -959,6 +1076,26 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
           YuchengSleepHealthTimeOutEvent.fromList(it)
         }
       }
+      152.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengUpdateStartEvent.fromList(it)
+        }
+      }
+      153.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengUpdateProgressEvent.fromList(it)
+        }
+      }
+      154.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengUpdateCompleteEvent.fromList(it)
+        }
+      }
+      155.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          YuchengUpdateErrorEvent.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1056,6 +1193,22 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
         stream.write(151)
         writeValue(stream, value.toList())
       }
+      is YuchengUpdateStartEvent -> {
+        stream.write(152)
+        writeValue(stream, value.toList())
+      }
+      is YuchengUpdateProgressEvent -> {
+        stream.write(153)
+        writeValue(stream, value.toList())
+      }
+      is YuchengUpdateCompleteEvent -> {
+        stream.write(154)
+        writeValue(stream, value.toList())
+      }
+      is YuchengUpdateErrorEvent -> {
+        stream.write(155)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -1092,13 +1245,21 @@ interface YuchengHostApi {
   fun getSleepData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengSleepData>>) -> Unit)
   /** Возвращает текущий подключенный девайс */
   fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit)
+  /** Возвращает данные о здоровье */
   fun getHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<List<YuchengHealthData>>) -> Unit)
+  /** Возвращает данные о сне и здоровье */
   fun getSleepHealthData(startTimestamp: Long?, endTimestamp: Long?, callback: (Result<YuchengSleepHealthData>) -> Unit)
+  /** Возвращает настроики девайса */
   fun getDeviceSettings(callback: (Result<YuchengDeviceSettings?>) -> Unit)
+  /** Удаляет данные о сне */
   fun deleteSleepData(callback: (Result<Boolean>) -> Unit)
+  /** Удаляет данные о здоровье */
   fun deleteHealthData(callback: (Result<Boolean>) -> Unit)
+  /** Удаляет данные о сне и здоровье */
   fun deleteSleepHealthData(callback: (Result<Boolean>) -> Unit)
+  /** Сброс устройства до заводских настроек */
   fun resetToFactory(callback: (Result<Boolean>) -> Unit)
+  /** Обновление девайса */
   fun updateFirmware(device: YuchengDevice, pathToFile: String, callback: (Result<Boolean>) -> Unit)
 
   companion object {
@@ -1500,6 +1661,19 @@ abstract class SleepHealthDataStreamHandler : YuchengBleApiPigeonEventChannelWra
         channelName += ".$instanceName"
       }
       val internalStreamHandler = YuchengBleApiPigeonStreamHandler<YuchengSleepHealthEvent>(streamHandler)
+      EventChannel(messenger, channelName, YuchengBleApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+}
+      
+abstract class UpdateDataStreamHandler : YuchengBleApiPigeonEventChannelWrapper<YuchengUpdateEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: UpdateDataStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.updateData"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = YuchengBleApiPigeonStreamHandler<YuchengUpdateEvent>(streamHandler)
       EventChannel(messenger, channelName, YuchengBleApiPigeonMethodCodec).setStreamHandler(internalStreamHandler)
     }
   }

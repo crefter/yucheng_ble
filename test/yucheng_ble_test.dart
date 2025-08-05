@@ -137,6 +137,12 @@ class MockYuchengBlePlatform
     // TODO: implement updateFirmware
     throw UnimplementedError();
   }
+
+  @override
+  Stream<YuchengUpdateEvent> updateDataStream() {
+    // TODO: implement updateDataStream
+    throw UnimplementedError();
+  }
 }
 
 void main() {
