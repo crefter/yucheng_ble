@@ -795,7 +795,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     /// Connecting devices back
     func reconnectWithMacAddr(completion: @escaping (Result<Bool, any Error>) -> Void) {
-        usleep(2_500_000)
+        usleep(3_500_000)
         repeatScanJLCount = 0
         scanJLForceOtaDevice(completion: completion)
     }
@@ -803,38 +803,30 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private func scanJLForceOtaDevice(completion: @escaping (Result<Bool, any Error>) -> Void) {
         repeatScanJLCount += 1
         if repeatScanJLCount >= REPEAT_SCAN_JL_FORCE_OTA_COUNT {
-            // Device not found, upgrade failed.
             return
         }
         // Search Device
-        YCProduct.scanningDevice() { devices, error in
+        YCProduct.scanningDevice(delayTime: 6.0) { devices, error in
             if (devices.isEmpty) {
-                self.connectForceOtaDevice(completion: completion)
+                self.currentDevice = YCProduct.shared.currentPeripheral
+                if self.currentDevice != nil {
+                    self.connectForceOtaDevice(completion: completion)
+                }
             }
-            for device in devices where self.scannedDevicesToUpdate.contains(device) ==
-            false {
-                self.scannedDevicesToUpdate.append(device)
-                self.connectForceOtaDevice(completion: completion)
+            for device in devices {
+                if (!self.scannedDevicesToUpdate.contains(device)) {
+                    print("Device found, try connect force ota device: \(device.macAddress)")
+                    self.scannedDevicesToUpdate.append(device)
+                    self.connectForceOtaDevice(completion: completion)
+                }
             }
         }
     }
     /// Reconnect equipment
     private func connectForceOtaDevice(completion: @escaping (Result<Bool, any Error>) -> Void) {
-        if scannedDevicesToUpdate.isEmpty {
-            if (currentDevice != nil && currentDevice?.macAddress != self.reconnectMacAddress) {
-                scanJLForceOtaDevice(completion: completion)
-            }
-            YCProduct.connectDevice(currentDevice!) { [weak self] state, error
-                in
-                if state == .connected {
-                    self?.otaUpdate(device: self!.currentDevice!, path: self?.filePathToUpdate ?? "", completion: completion)
-                } else {
-                    self?.scanJLForceOtaDevice(completion: completion)
-                }
-            }
-            return
-        }
-        for device in scannedDevicesToUpdate {
+        if (self.scannedDevicesToUpdate.isEmpty && self.currentDevice != nil) {
+            let device = self.currentDevice!
+            print("Device mac : Reconnect mac = " + device.macAddress.uppercased() + " : " + self.reconnectMacAddress.uppercased())
             if device.macAddress.uppercased() == self.reconnectMacAddress.uppercased() {
                 YCProduct.connectDevice(device) { [weak self] state, error
                     in
@@ -845,6 +837,21 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     }
                 }
                 return
+            }
+        } else {
+            for device in scannedDevicesToUpdate {
+                print("Device mac : Reconnect mac = " + device.macAddress.uppercased() + " : " + self.reconnectMacAddress.uppercased())
+                if device.macAddress.uppercased() == self.reconnectMacAddress.uppercased() {
+                    YCProduct.connectDevice(device) { [weak self] state, error
+                        in
+                        if state == .connected {
+                            self?.otaUpdate(device: device, path: self?.filePathToUpdate ?? "", completion: completion)
+                        } else {
+                            self?.scanJLForceOtaDevice(completion: completion)
+                        }
+                    }
+                    return
+                }
             }
         }
         scanJLForceOtaDevice(completion: completion)

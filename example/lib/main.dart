@@ -123,6 +123,10 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
             print(
                 "Обновление завершено! Время выполнения: ${event.updateCompleteDate}");
           case YuchengUpdateErrorEvent():
+            if (event.isDataVerificationError) {
+              updateFirmware();
+              break;
+            }
             print("Обновление завершено с ошибкой! Ошибка: ${event.error}");
         }
       },

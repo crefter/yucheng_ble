@@ -148,3 +148,7 @@ extension YuchengUpdateStartEventX on YuchengUpdateStartEvent {
     return timeStampInMs;
   }
 }
+
+extension YuchengUpdateErrorEventX on YuchengUpdateErrorEvent {
+  bool get isDataVerificationError => error == 'Data verification failure';
+}

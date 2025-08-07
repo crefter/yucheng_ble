@@ -771,6 +771,9 @@ class YuchengApiImpl(
                 }
                 override fun failed(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Failed = $p0")
+                    if (p0 == "Data verification failure") {
+                        onUpdate(YuchengUpdateErrorEvent(p0))
+                    }
                     errorUpdateCount++
                     if (!isCompleted && errorUpdateCount > 3) {
                         onUpdate(YuchengUpdateErrorEvent(p0 ?: ""))
