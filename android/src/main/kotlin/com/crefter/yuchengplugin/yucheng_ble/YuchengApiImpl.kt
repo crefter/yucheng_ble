@@ -773,6 +773,10 @@ class YuchengApiImpl(
                     Log.d(UPDATE_FIRMWARE, "Failed = $p0")
                     if (p0 == "Data verification failure") {
                         onUpdate(YuchengUpdateErrorEvent(p0))
+                        callback(Result.failure(Exception(p0)))
+                        isCompleted = true
+                        errorUpdateCount = 0
+                        return
                     }
                     errorUpdateCount++
                     if (!isCompleted && errorUpdateCount > 3) {
