@@ -266,7 +266,8 @@ final class YuchengService
       }
       setSelectedDevice(device);
       setDeviceConnected(
-          await _ble.connect(selectedDevice!, connectTimeInSeconds));
+        await _ble.connect(deviceToConnect, connectTimeInSeconds),
+      );
       return isAnyDeviceConnected;
     } catch (e) {
       rethrow;
