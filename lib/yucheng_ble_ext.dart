@@ -150,5 +150,6 @@ extension YuchengUpdateStartEventX on YuchengUpdateStartEvent {
 }
 
 extension YuchengUpdateErrorEventX on YuchengUpdateErrorEvent {
-  bool get isDataVerificationError => error == 'Data verification failure';
+  bool get isDataVerificationError =>
+      error.contains('Data verification failure');
 }
