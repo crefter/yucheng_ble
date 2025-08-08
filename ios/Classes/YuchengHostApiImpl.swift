@@ -830,6 +830,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
             if device.macAddress.uppercased() == self.reconnectMacAddress.uppercased() {
                 YCProduct.connectDevice(device) { [weak self] state, error
                     in
+                    print(state)
+                    if (error != nil) {
+                        print(error!)
+                    }
                     if state == .connected {
                         self?.otaUpdate(device: device, path: self?.filePathToUpdate ?? "", completion: completion)
                     } else {
@@ -844,6 +848,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 if device.macAddress.uppercased() == self.reconnectMacAddress.uppercased() {
                     YCProduct.connectDevice(device) { [weak self] state, error
                         in
+                        print(state)
+                        if (error != nil) {
+                            print(error!)
+                        }
                         if state == .connected {
                             self?.otaUpdate(device: device, path: self?.filePathToUpdate ?? "", completion: completion)
                         } else {
