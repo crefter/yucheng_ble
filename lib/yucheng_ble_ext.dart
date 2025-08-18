@@ -53,11 +53,48 @@ extension YuchengHealthDataJson on YuchengHealthData {
   }
 }
 
-extension YuchengSleepHealthDataX on YuchengSleepHealthData {
+extension YuchengSportDataX on YuchengSportData {
+  Map<String, dynamic> toJson() {
+    return {
+      "start_date": startDate.toIso8601String(),
+      "end_date": endDate.toIso8601String(),
+      "distance": distance,
+      "calories": calories,
+      "steps": steps,
+    };
+  }
+
+  DateTime get startDate {
+    final timeStampInMs = _timeStampInMs(startTimeStamp);
+    return DateTime.fromMillisecondsSinceEpoch(timeStampInMs);
+  }
+
+  DateTime get endDate {
+    final timeStampInMs = _timeStampInMs(endTimeStamp);
+    return DateTime.fromMillisecondsSinceEpoch(timeStampInMs);
+  }
+
+  int _timeStampInMs(int timestamp) {
+    final isMs = timestamp.toString().length == 13;
+    final timeStampInMs = isMs ? startTimeStamp : startTimeStamp * 1000;
+    return timeStampInMs;
+  }
+}
+
+extension YuchengHealthSportDataX on YuchengHealthSportData {
+  Map<String, dynamic> toJson() {
+    return {
+      'health_data': this.healthData.map((e) => e.toJson()).toList(),
+      'sport_data': sportData.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+
+extension YuchengAllDataX on YuchengAllData {
   Map<String, dynamic> toJson() {
     return {
       "sleep_data": this.sleepData.map((e) => e.toJson()).toList(),
-      "health_data": this.healthData.map((e) => e.toJson()).toList(),
+      "health_data": healthSportData.toJson(),
     };
   }
 }

@@ -47,7 +47,7 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
       _api.reconnect(reconnectTimeInSeconds);
 
   @override
-  Stream<YuchengSleepHealthEvent> sleepHealthDataStream() => sleepHealthData();
+  Stream<YuchengAllEvent> allDataStream() => allData();
 
   @override
   Stream<YuchengHealthEvent> healthDataStream() => healthData();
@@ -56,19 +56,19 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   Stream<YuchengUpdateEvent> updateDataStream() => updateData();
 
   @override
-  Future<YuchengSleepHealthData> getSleepHealthData({
+  Future<YuchengAllData> getSleepHealthData({
     int? startTimestamp,
     int? endTimestamp,
   }) =>
-      _api.getSleepHealthData(
+      _api.getAllData(
           startTimestamp: startTimestamp, endTimestamp: endTimestamp);
 
   @override
-  Future<List<YuchengHealthData>> getHealthData({
+  Future<YuchengHealthSportData> getHealthSportData({
     int? startTimestamp,
     int? endTimestamp,
   }) =>
-      _api.getHealthData(
+      _api.getHealthSportData(
           startTimestamp: startTimestamp, endTimestamp: endTimestamp);
 
   @override
@@ -79,10 +79,10 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   Future<bool> deleteSleepData() => _api.deleteSleepData();
 
   @override
-  Future<bool> deleteHealthData() => _api.deleteHealthData();
+  Future<bool> deleteHealthSportData() => _api.deleteHealthSportData();
 
   @override
-  Future<bool> deleteSleepHealthData() => _api.deleteSleepHealthData();
+  Future<bool> deleteAllData() => _api.deleteAllData();
 
   @override
   Future<bool> resetToFactory() => _api.resetToFactory();

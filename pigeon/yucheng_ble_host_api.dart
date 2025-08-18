@@ -100,13 +100,39 @@ class YuchengHealthData {
   });
 }
 
-class YuchengSleepHealthData {
-  final List<YuchengSleepData> sleepData;
-  final List<YuchengHealthData> healthData;
+class YuchengSportData {
+  final int startTimeStamp;
+  final int endTimeStamp;
+  final int distance;
+  final int steps;
+  final int calories;
 
-  const YuchengSleepHealthData({
-    required this.sleepData,
+  const YuchengSportData({
+    required this.startTimeStamp,
+    required this.endTimeStamp,
+    required this.distance,
+    required this.steps,
+    required this.calories,
+  });
+}
+
+class YuchengHealthSportData {
+  final List<YuchengHealthData> healthData;
+  final List<YuchengSportData> sportData;
+
+  const YuchengHealthSportData({
     required this.healthData,
+    required this.sportData,
+  });
+}
+
+class YuchengAllData {
+  final List<YuchengSleepData> sleepData;
+  final YuchengHealthSportData healthSportData;
+
+  const YuchengAllData({
+    required this.sleepData,
+    required this.healthSportData,
   });
 }
 
@@ -260,7 +286,7 @@ sealed class YuchengHealthEvent {
 }
 
 class YuchengHealthDataEvent extends YuchengHealthEvent {
-  final YuchengHealthData healthData;
+  final YuchengHealthSportData healthData;
 
   const YuchengHealthDataEvent({
     required this.healthData,
@@ -283,30 +309,30 @@ class YuchengHealthTimeOutEvent extends YuchengHealthEvent {
   });
 }
 
-sealed class YuchengSleepHealthEvent {
-  const YuchengSleepHealthEvent();
+sealed class YuchengAllEvent {
+  const YuchengAllEvent();
 }
 
-class YuchengSleepHealthDataEvent extends YuchengSleepHealthEvent {
-  final YuchengSleepHealthData data;
+class YuchengAllDataEvent extends YuchengAllEvent {
+  final YuchengAllData data;
 
-  const YuchengSleepHealthDataEvent({
+  const YuchengAllDataEvent({
     required this.data,
   });
 }
 
-class YuchengSleepHealthErrorEvent extends YuchengSleepHealthEvent {
+class YuchengAllErrorEvent extends YuchengAllEvent {
   final String error;
 
-  const YuchengSleepHealthErrorEvent({
+  const YuchengAllErrorEvent({
     required this.error,
   });
 }
 
-class YuchengSleepHealthTimeOutEvent extends YuchengSleepHealthEvent {
+class YuchengAllTimeOutEvent extends YuchengAllEvent {
   final bool isTimeout;
 
-  const YuchengSleepHealthTimeOutEvent({
+  const YuchengAllTimeOutEvent({
     required this.isTimeout,
   });
 }
@@ -381,14 +407,14 @@ abstract class YuchengHostApi {
 
   /// Возвращает данные о здоровье
   @async
-  List<YuchengHealthData> getHealthData({
+  YuchengHealthSportData getHealthSportData({
     int? startTimestamp,
     int? endTimestamp,
   });
 
   /// Возвращает данные о сне и здоровье
   @async
-  YuchengSleepHealthData getSleepHealthData({
+  YuchengAllData getAllData({
     int? startTimestamp,
     int? endTimestamp,
   });
@@ -403,11 +429,11 @@ abstract class YuchengHostApi {
 
   /// Удаляет данные о здоровье
   @async
-  bool deleteHealthData();
+  bool deleteHealthSportData();
 
   /// Удаляет данные о сне и здоровье
   @async
-  bool deleteSleepHealthData();
+  bool deleteAllData();
 
   /// Сброс устройства до заводских настроек
   @async
@@ -433,7 +459,7 @@ abstract class YuchengStreamApi {
   YuchengHealthEvent healthData();
 
   /// Стрим данных о сне и здоровье
-  YuchengSleepHealthEvent sleepHealthData();
+  YuchengAllEvent allData();
 
   /// Стрим данных об обновлении
   YuchengUpdateEvent updateData();

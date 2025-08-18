@@ -1,17 +1,17 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
+import AllDataStreamHandler
 import DeviceStateStreamHandler
 import DevicesStreamHandler
 import HealthDataStreamHandler
 import PigeonEventSink
 import SleepDataStreamHandler
-import SleepHealthDataStreamHandler
 import UpdateDataStreamHandler
+import YuchengAllEvent
 import YuchengDeviceEvent
 import YuchengDeviceStateEvent
 import YuchengHealthEvent
 import YuchengSleepEvent
-import YuchengSleepHealthEvent
 import YuchengUpdateEvent
 import android.os.Handler
 import android.util.Log
@@ -132,34 +132,34 @@ class HealthDataStreamHandlerImpl(private val uiThreadHandler: Handler) : Health
     }
 }
 
-class SleepHealthDataStreamHandlerImpl(private val uiThreadHandler: Handler) : SleepHealthDataStreamHandler() {
-    private var eventSink: PigeonEventSink<YuchengSleepHealthEvent>? = null
+class AllDataStreamHandlerImpl(private val uiThreadHandler: Handler) : AllDataStreamHandler() {
+    private var eventSink: PigeonEventSink<YuchengAllEvent>? = null
 
-    override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengSleepHealthEvent>) {
+    override fun onListen(p0: Any?, sink: PigeonEventSink<YuchengAllEvent>) {
         eventSink = sink
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data stream handler sink onListen = $this")
-        Log.d( YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler onListen")
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler sink = $sink")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "All data stream handler sink onListen = $this")
+        Log.d( YuchengBlePlugin.PLUGIN_TAG, "All data handler onListen")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "All data handler sink = $sink")
     }
 
     override fun onCancel(p0: Any?) {
         eventSink = null
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler onCancel")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "All data handler onCancel")
     }
 
-    fun onSleepHealth(state: YuchengSleepHealthEvent) {
+    fun onSleepHealth(state: YuchengAllEvent) {
         uiThreadHandler.post {
             eventSink?.success(state)
         }
         if (eventSink == null) {
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data EVENT SINK IS NULL!")
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "All data EVENT SINK IS NULL!")
         }
     }
 
     fun detach() {
         eventSink?.endOfStream()
         eventSink = null
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Sleep Health data handler detach")
+        Log.d(YuchengBlePlugin.PLUGIN_TAG, "All data handler detach")
     }
 }
 

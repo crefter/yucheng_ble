@@ -39,8 +39,8 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         if (deviceStateStreamHandler == null) {
             deviceStateStreamHandler = DeviceStateStreamHandlerImpl(handler!!)
         }
-        if (sleepHealthStreamHandler == null) {
-            sleepHealthStreamHandler = SleepHealthDataStreamHandlerImpl(handler!!)
+        if (allStreamHandler == null) {
+            allStreamHandler = AllDataStreamHandlerImpl(handler!!)
         }
         if (healthStreamHandler == null) {
             healthStreamHandler = HealthDataStreamHandlerImpl(handler!!)
@@ -74,9 +74,9 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
             flutterPluginBinding.binaryMessenger,
             healthStreamHandler!!
         )
-        SleepHealthDataStreamHandler.register(
+        AllDataStreamHandler.register(
             flutterPluginBinding.binaryMessenger,
-            sleepHealthStreamHandler!!
+            allStreamHandler!!
         )
         UpdateDataStreamHandler.register(flutterPluginBinding.binaryMessenger, updateStreamHandler!!)
 
@@ -87,9 +87,10 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
                 sleepDataConverter = YuchengSleepDataConverter(gson!!),
                 onState = { data -> deviceStateStreamHandler?.onState(data) },
                 onHealthData = { data -> healthStreamHandler?.onHealth(data) },
-                onSleepHealthData = { data -> sleepHealthStreamHandler?.onSleepHealth(data) },
+                onAllData = { data -> allStreamHandler?.onSleepHealth(data) },
                 healthDataConverter = YuchengHealthDataConverter(gson!!),
                 onUpdate = {data -> updateStreamHandler?.onUpdate(data) },
+                sportDataConverter = YuchengSportDataConverter(gson!!),
                 assetPathHandler = { pathToFile ->
                     var path = flutterPluginBinding.flutterAssets.getAssetFilePathByName(pathToFile)
                     val cachePath = getExternalAppCachePath(flutterPluginBinding.applicationContext)
@@ -161,7 +162,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         sleepDataHandler?.detach()
         deviceStateStreamHandler?.detach()
         healthStreamHandler?.detach()
-        sleepHealthStreamHandler?.detach()
+        allStreamHandler?.detach()
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -195,7 +196,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         private var sleepDataHandler: SleepDataHandlerImpl? = null
         private var deviceStateStreamHandler: DeviceStateStreamHandlerImpl? = null
         private var healthStreamHandler: HealthDataStreamHandlerImpl? = null
-        private var sleepHealthStreamHandler: SleepHealthDataStreamHandlerImpl? = null
+        private var allStreamHandler: AllDataStreamHandlerImpl? = null
         private var updateStreamHandler: UpdateDataStreamHandlerImpl? = null
         private var gson: Gson? = null
         private var handler: Handler? = null

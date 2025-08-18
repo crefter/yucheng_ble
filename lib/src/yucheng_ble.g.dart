@@ -288,38 +288,145 @@ class YuchengHealthData {
 ;
 }
 
-class YuchengSleepHealthData {
-  YuchengSleepHealthData({
-    required this.sleepData,
-    required this.healthData,
+class YuchengSportData {
+  YuchengSportData({
+    required this.startTimeStamp,
+    required this.endTimeStamp,
+    required this.distance,
+    required this.steps,
+    required this.calories,
   });
 
-  List<YuchengSleepData> sleepData;
+  int startTimeStamp;
 
-  List<YuchengHealthData> healthData;
+  int endTimeStamp;
+
+  int distance;
+
+  int steps;
+
+  int calories;
 
   List<Object?> _toList() {
     return <Object?>[
-      sleepData,
-      healthData,
+      startTimeStamp,
+      endTimeStamp,
+      distance,
+      steps,
+      calories,
     ];
   }
 
   Object encode() {
     return _toList();  }
 
-  static YuchengSleepHealthData decode(Object result) {
+  static YuchengSportData decode(Object result) {
     result as List<Object?>;
-    return YuchengSleepHealthData(
-      sleepData: (result[0] as List<Object?>?)!.cast<YuchengSleepData>(),
-      healthData: (result[1] as List<Object?>?)!.cast<YuchengHealthData>(),
+    return YuchengSportData(
+      startTimeStamp: result[0]! as int,
+      endTimeStamp: result[1]! as int,
+      distance: result[2]! as int,
+      steps: result[3]! as int,
+      calories: result[4]! as int,
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! YuchengSleepHealthData || other.runtimeType != runtimeType) {
+    if (other is! YuchengSportData || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+class YuchengHealthSportData {
+  YuchengHealthSportData({
+    required this.healthData,
+    required this.sportData,
+  });
+
+  List<YuchengHealthData> healthData;
+
+  List<YuchengSportData> sportData;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      healthData,
+      sportData,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengHealthSportData decode(Object result) {
+    result as List<Object?>;
+    return YuchengHealthSportData(
+      healthData: (result[0] as List<Object?>?)!.cast<YuchengHealthData>(),
+      sportData: (result[1] as List<Object?>?)!.cast<YuchengSportData>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengHealthSportData || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+class YuchengAllData {
+  YuchengAllData({
+    required this.sleepData,
+    required this.healthSportData,
+  });
+
+  List<YuchengSleepData> sleepData;
+
+  YuchengHealthSportData healthSportData;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      sleepData,
+      healthSportData,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static YuchengAllData decode(Object result) {
+    result as List<Object?>;
+    return YuchengAllData(
+      sleepData: (result[0] as List<Object?>?)!.cast<YuchengSleepData>(),
+      healthSportData: result[1]! as YuchengHealthSportData,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! YuchengAllData || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -859,7 +966,7 @@ class YuchengHealthDataEvent extends YuchengHealthEvent {
     required this.healthData,
   });
 
-  YuchengHealthData healthData;
+  YuchengHealthSportData healthData;
 
   List<Object?> _toList() {
     return <Object?>[
@@ -873,7 +980,7 @@ class YuchengHealthDataEvent extends YuchengHealthEvent {
   static YuchengHealthDataEvent decode(Object result) {
     result as List<Object?>;
     return YuchengHealthDataEvent(
-      healthData: result[0]! as YuchengHealthData,
+      healthData: result[0]! as YuchengHealthSportData,
     );
   }
 
@@ -977,15 +1084,15 @@ class YuchengHealthTimeOutEvent extends YuchengHealthEvent {
 ;
 }
 
-sealed class YuchengSleepHealthEvent {
+sealed class YuchengAllEvent {
 }
 
-class YuchengSleepHealthDataEvent extends YuchengSleepHealthEvent {
-  YuchengSleepHealthDataEvent({
+class YuchengAllDataEvent extends YuchengAllEvent {
+  YuchengAllDataEvent({
     required this.data,
   });
 
-  YuchengSleepHealthData data;
+  YuchengAllData data;
 
   List<Object?> _toList() {
     return <Object?>[
@@ -996,17 +1103,17 @@ class YuchengSleepHealthDataEvent extends YuchengSleepHealthEvent {
   Object encode() {
     return _toList();  }
 
-  static YuchengSleepHealthDataEvent decode(Object result) {
+  static YuchengAllDataEvent decode(Object result) {
     result as List<Object?>;
-    return YuchengSleepHealthDataEvent(
-      data: result[0]! as YuchengSleepHealthData,
+    return YuchengAllDataEvent(
+      data: result[0]! as YuchengAllData,
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! YuchengSleepHealthDataEvent || other.runtimeType != runtimeType) {
+    if (other is! YuchengAllDataEvent || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -1021,8 +1128,8 @@ class YuchengSleepHealthDataEvent extends YuchengSleepHealthEvent {
 ;
 }
 
-class YuchengSleepHealthErrorEvent extends YuchengSleepHealthEvent {
-  YuchengSleepHealthErrorEvent({
+class YuchengAllErrorEvent extends YuchengAllEvent {
+  YuchengAllErrorEvent({
     required this.error,
   });
 
@@ -1037,9 +1144,9 @@ class YuchengSleepHealthErrorEvent extends YuchengSleepHealthEvent {
   Object encode() {
     return _toList();  }
 
-  static YuchengSleepHealthErrorEvent decode(Object result) {
+  static YuchengAllErrorEvent decode(Object result) {
     result as List<Object?>;
-    return YuchengSleepHealthErrorEvent(
+    return YuchengAllErrorEvent(
       error: result[0]! as String,
     );
   }
@@ -1047,7 +1154,7 @@ class YuchengSleepHealthErrorEvent extends YuchengSleepHealthEvent {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! YuchengSleepHealthErrorEvent || other.runtimeType != runtimeType) {
+    if (other is! YuchengAllErrorEvent || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -1062,8 +1169,8 @@ class YuchengSleepHealthErrorEvent extends YuchengSleepHealthEvent {
 ;
 }
 
-class YuchengSleepHealthTimeOutEvent extends YuchengSleepHealthEvent {
-  YuchengSleepHealthTimeOutEvent({
+class YuchengAllTimeOutEvent extends YuchengAllEvent {
+  YuchengAllTimeOutEvent({
     required this.isTimeout,
   });
 
@@ -1078,9 +1185,9 @@ class YuchengSleepHealthTimeOutEvent extends YuchengSleepHealthEvent {
   Object encode() {
     return _toList();  }
 
-  static YuchengSleepHealthTimeOutEvent decode(Object result) {
+  static YuchengAllTimeOutEvent decode(Object result) {
     result as List<Object?>;
-    return YuchengSleepHealthTimeOutEvent(
+    return YuchengAllTimeOutEvent(
       isTimeout: result[0]! as bool,
     );
   }
@@ -1088,7 +1195,7 @@ class YuchengSleepHealthTimeOutEvent extends YuchengSleepHealthEvent {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! YuchengSleepHealthTimeOutEvent || other.runtimeType != runtimeType) {
+    if (other is! YuchengAllTimeOutEvent || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -1293,71 +1400,77 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is YuchengHealthData) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthData) {
+    }    else if (value is YuchengSportData) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepTimeOutEvent) {
+    }    else if (value is YuchengHealthSportData) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataEvent) {
+    }    else if (value is YuchengAllData) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepDataDetail) {
+    }    else if (value is YuchengSleepTimeOutEvent) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepErrorEvent) {
+    }    else if (value is YuchengSleepDataEvent) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateTimeOutEvent) {
+    }    else if (value is YuchengSleepDataDetail) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateDataEvent) {
+    }    else if (value is YuchengSleepErrorEvent) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceStateErrorEvent) {
+    }    else if (value is YuchengDeviceStateTimeOutEvent) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDevice) {
+    }    else if (value is YuchengDeviceStateDataEvent) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceTimeOutEvent) {
+    }    else if (value is YuchengDeviceStateErrorEvent) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceDataEvent) {
+    }    else if (value is YuchengDevice) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengDeviceCompleteEvent) {
+    }    else if (value is YuchengDeviceTimeOutEvent) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengHealthDataEvent) {
+    }    else if (value is YuchengDeviceDataEvent) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengHealthErrorEvent) {
+    }    else if (value is YuchengDeviceCompleteEvent) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengHealthTimeOutEvent) {
+    }    else if (value is YuchengHealthDataEvent) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthDataEvent) {
+    }    else if (value is YuchengHealthErrorEvent) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthErrorEvent) {
+    }    else if (value is YuchengHealthTimeOutEvent) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengSleepHealthTimeOutEvent) {
+    }    else if (value is YuchengAllDataEvent) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengUpdateStartEvent) {
+    }    else if (value is YuchengAllErrorEvent) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengUpdateProgressEvent) {
+    }    else if (value is YuchengAllTimeOutEvent) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengUpdateCompleteEvent) {
+    }    else if (value is YuchengUpdateStartEvent) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    }    else if (value is YuchengUpdateErrorEvent) {
+    }    else if (value is YuchengUpdateProgressEvent) {
       buffer.putUint8(155);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengUpdateCompleteEvent) {
+      buffer.putUint8(156);
+      writeValue(buffer, value.encode());
+    }    else if (value is YuchengUpdateErrorEvent) {
+      buffer.putUint8(157);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1380,48 +1493,52 @@ class _PigeonCodec extends StandardMessageCodec {
       case 133: 
         return YuchengHealthData.decode(readValue(buffer)!);
       case 134: 
-        return YuchengSleepHealthData.decode(readValue(buffer)!);
+        return YuchengSportData.decode(readValue(buffer)!);
       case 135: 
-        return YuchengSleepTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengHealthSportData.decode(readValue(buffer)!);
       case 136: 
-        return YuchengSleepDataEvent.decode(readValue(buffer)!);
+        return YuchengAllData.decode(readValue(buffer)!);
       case 137: 
-        return YuchengSleepDataDetail.decode(readValue(buffer)!);
+        return YuchengSleepTimeOutEvent.decode(readValue(buffer)!);
       case 138: 
-        return YuchengSleepErrorEvent.decode(readValue(buffer)!);
+        return YuchengSleepDataEvent.decode(readValue(buffer)!);
       case 139: 
-        return YuchengDeviceStateTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengSleepDataDetail.decode(readValue(buffer)!);
       case 140: 
-        return YuchengDeviceStateDataEvent.decode(readValue(buffer)!);
+        return YuchengSleepErrorEvent.decode(readValue(buffer)!);
       case 141: 
-        return YuchengDeviceStateErrorEvent.decode(readValue(buffer)!);
+        return YuchengDeviceStateTimeOutEvent.decode(readValue(buffer)!);
       case 142: 
-        return YuchengDevice.decode(readValue(buffer)!);
+        return YuchengDeviceStateDataEvent.decode(readValue(buffer)!);
       case 143: 
-        return YuchengDeviceTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengDeviceStateErrorEvent.decode(readValue(buffer)!);
       case 144: 
-        return YuchengDeviceDataEvent.decode(readValue(buffer)!);
+        return YuchengDevice.decode(readValue(buffer)!);
       case 145: 
-        return YuchengDeviceCompleteEvent.decode(readValue(buffer)!);
+        return YuchengDeviceTimeOutEvent.decode(readValue(buffer)!);
       case 146: 
-        return YuchengHealthDataEvent.decode(readValue(buffer)!);
+        return YuchengDeviceDataEvent.decode(readValue(buffer)!);
       case 147: 
-        return YuchengHealthErrorEvent.decode(readValue(buffer)!);
+        return YuchengDeviceCompleteEvent.decode(readValue(buffer)!);
       case 148: 
-        return YuchengHealthTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengHealthDataEvent.decode(readValue(buffer)!);
       case 149: 
-        return YuchengSleepHealthDataEvent.decode(readValue(buffer)!);
+        return YuchengHealthErrorEvent.decode(readValue(buffer)!);
       case 150: 
-        return YuchengSleepHealthErrorEvent.decode(readValue(buffer)!);
+        return YuchengHealthTimeOutEvent.decode(readValue(buffer)!);
       case 151: 
-        return YuchengSleepHealthTimeOutEvent.decode(readValue(buffer)!);
+        return YuchengAllDataEvent.decode(readValue(buffer)!);
       case 152: 
-        return YuchengUpdateStartEvent.decode(readValue(buffer)!);
+        return YuchengAllErrorEvent.decode(readValue(buffer)!);
       case 153: 
-        return YuchengUpdateProgressEvent.decode(readValue(buffer)!);
+        return YuchengAllTimeOutEvent.decode(readValue(buffer)!);
       case 154: 
-        return YuchengUpdateCompleteEvent.decode(readValue(buffer)!);
+        return YuchengUpdateStartEvent.decode(readValue(buffer)!);
       case 155: 
+        return YuchengUpdateProgressEvent.decode(readValue(buffer)!);
+      case 156: 
+        return YuchengUpdateCompleteEvent.decode(readValue(buffer)!);
+      case 157: 
         return YuchengUpdateErrorEvent.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1644,8 +1761,8 @@ class YuchengHostApi {
   }
 
   /// Возвращает данные о здоровье
-  Future<List<YuchengHealthData>> getHealthData({int? startTimestamp, int? endTimestamp}) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthData$pigeonVar_messageChannelSuffix';
+  Future<YuchengHealthSportData> getHealthSportData({int? startTimestamp, int? endTimestamp}) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthSportData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1668,13 +1785,13 @@ class YuchengHostApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<YuchengHealthData>();
+      return (pigeonVar_replyList[0] as YuchengHealthSportData?)!;
     }
   }
 
   /// Возвращает данные о сне и здоровье
-  Future<YuchengSleepHealthData> getSleepHealthData({int? startTimestamp, int? endTimestamp}) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getSleepHealthData$pigeonVar_messageChannelSuffix';
+  Future<YuchengAllData> getAllData({int? startTimestamp, int? endTimestamp}) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getAllData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1697,7 +1814,7 @@ class YuchengHostApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as YuchengSleepHealthData?)!;
+      return (pigeonVar_replyList[0] as YuchengAllData?)!;
     }
   }
 
@@ -1755,8 +1872,8 @@ class YuchengHostApi {
   }
 
   /// Удаляет данные о здоровье
-  Future<bool> deleteHealthData() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteHealthData$pigeonVar_messageChannelSuffix';
+  Future<bool> deleteHealthSportData() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteHealthSportData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1784,8 +1901,8 @@ class YuchengHostApi {
   }
 
   /// Удаляет данные о сне и здоровье
-  Future<bool> deleteSleepHealthData() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteSleepHealthData$pigeonVar_messageChannelSuffix';
+  Future<bool> deleteAllData() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.deleteAllData$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -1915,14 +2032,14 @@ Stream<YuchengHealthEvent> healthData( {String instanceName = ''}) {
   });
 }
     
-Stream<YuchengSleepHealthEvent> sleepHealthData( {String instanceName = ''}) {
+Stream<YuchengAllEvent> allData( {String instanceName = ''}) {
   if (instanceName.isNotEmpty) {
     instanceName = '.$instanceName';
   }
-  final EventChannel sleepHealthDataChannel =
-      EventChannel('dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.sleepHealthData$instanceName', pigeonMethodCodec);
-  return sleepHealthDataChannel.receiveBroadcastStream().map((dynamic event) {
-    return event as YuchengSleepHealthEvent;
+  final EventChannel allDataChannel =
+      EventChannel('dev.flutter.pigeon.yucheng_ble.YuchengStreamApi.allData$instanceName', pigeonMethodCodec);
+  return allDataChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as YuchengAllEvent;
   });
 }
     

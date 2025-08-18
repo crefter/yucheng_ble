@@ -97,11 +97,11 @@ class HealthDataHandlerImpl : HealthDataStreamHandler {
     }
 }
 
-class SleepHealthDataHandlerImpl : SleepHealthDataStreamHandler {
-    private var eventSink: PigeonEventSink<YuchengSleepHealthEvent>? = nil;
+class AllDataStreamHandlerImpl : AllDataStreamHandler {
+    private var eventSink: PigeonEventSink<YuchengAllEvent>? = nil;
     
     
-    override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<YuchengSleepHealthEvent>) {
+    override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<YuchengAllEvent>) {
         eventSink = sink;
     }
     
@@ -109,8 +109,8 @@ class SleepHealthDataHandlerImpl : SleepHealthDataStreamHandler {
         eventSink = nil;
     }
     
-    func onSleepDataChanged(_ event: YuchengSleepHealthEvent) {
-        print("onSleepDataChanged = new event")
+    func onAllDataChanged(_ event: YuchengAllEvent) {
+        print("onAllDataChanged = new event")
         eventSink?.success(event);
     }
     

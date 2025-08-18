@@ -33,11 +33,11 @@ class YuchengBle {
   /// start time = now - 7 days
   /// If endTime == null:
   /// end time = next day
-  Future<List<YuchengHealthData>> getHealthData({
+  Future<YuchengHealthSportData> getHealthSportData({
     DateTime? startTime,
     DateTime? endTime,
   }) =>
-      YuchengBlePlatform.instance.getHealthData(
+      YuchengBlePlatform.instance.getHealthSportData(
         startTimestamp: startTime?.millisecondsSinceEpoch,
         endTimestamp: endTime?.millisecondsSinceEpoch,
       );
@@ -46,7 +46,7 @@ class YuchengBle {
   /// start time = now - 7 days
   /// If endTime == null:
   /// end time = next day
-  Future<YuchengSleepHealthData> getSleepHealthData({
+  Future<YuchengAllData> getAllData({
     DateTime? startTime,
     DateTime? endTime,
   }) =>
@@ -70,8 +70,8 @@ class YuchengBle {
   Stream<YuchengHealthEvent> healthDataStream() =>
       YuchengBlePlatform.instance.healthDataStream();
 
-  Stream<YuchengSleepHealthEvent> sleepHealthDataStream() =>
-      YuchengBlePlatform.instance.sleepHealthDataStream();
+  Stream<YuchengAllEvent> allDataStream() =>
+      YuchengBlePlatform.instance.allDataStream();
 
   Stream<YuchengUpdateEvent> updateDataStream() =>
       YuchengBlePlatform.instance.updateDataStream();
@@ -85,11 +85,10 @@ class YuchengBle {
   Future<bool> deleteSleepData() =>
       YuchengBlePlatform.instance.deleteSleepData();
 
-  Future<bool> deleteHealthData() =>
-      YuchengBlePlatform.instance.deleteHealthData();
+  Future<bool> deleteHealthSportData() =>
+      YuchengBlePlatform.instance.deleteHealthSportData();
 
-  Future<bool> deleteSleepHealthData() =>
-      YuchengBlePlatform.instance.deleteSleepHealthData();
+  Future<bool> deleteAllData() => YuchengBlePlatform.instance.deleteAllData();
 
   Future<bool> resetToFactory() => YuchengBlePlatform.instance.resetToFactory();
 

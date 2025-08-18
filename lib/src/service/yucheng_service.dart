@@ -38,8 +38,7 @@ final class YuchengService
 
   Stream<YuchengHealthEvent> get healthDataStream => _ble.healthDataStream();
 
-  Stream<YuchengSleepHealthEvent> get sleepHealthDataStream =>
-      _ble.sleepHealthDataStream();
+  Stream<YuchengAllEvent> get sleepHealthDataStream => _ble.allDataStream();
 
   Stream<YuchengUpdateEvent> get updateDataStream => _ble.updateDataStream();
 
@@ -289,12 +288,12 @@ final class YuchengService
     }
   }
 
-  Future<List<YuchengHealthData>> tryGetHealthData({
+  Future<YuchengHealthSportData> tryGetHealthSportData({
     DateTime? startTime,
     DateTime? endTime,
   }) async {
     try {
-      final data = await _ble.getHealthData(
+      final data = await _ble.getHealthSportData(
         startTime: startTime,
         endTime: endTime,
       );
@@ -304,12 +303,12 @@ final class YuchengService
     }
   }
 
-  Future<YuchengSleepHealthData> tryGetSleepHealthData({
+  Future<YuchengAllData> tryGetAllData({
     DateTime? startTime,
     DateTime? endTime,
   }) async {
     try {
-      final data = await _ble.getSleepHealthData(
+      final data = await _ble.getAllData(
         startTime: startTime,
         endTime: endTime,
       );
@@ -364,17 +363,17 @@ final class YuchengService
     }
   }
 
-  Future<bool> deleteHealthData() async {
+  Future<bool> deleteHealthSportData() async {
     try {
-      return await _ble.deleteHealthData();
+      return await _ble.deleteHealthSportData();
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<bool> deleteSleepHealthData() async {
+  Future<bool> deleteAllData() async {
     try {
-      return await _ble.deleteSleepHealthData();
+      return await _ble.deleteAllData();
     } catch (e) {
       rethrow;
     }

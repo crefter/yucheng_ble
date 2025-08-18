@@ -29,7 +29,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     typealias StateHandler = (any YuchengDeviceStateEvent) -> Void
     typealias SleepHandler = (any YuchengSleepEvent) -> Void
     typealias HealthHandler = (any YuchengHealthEvent) -> Void
-    typealias SleepHealthHandler = (any YuchengSleepHealthEvent) -> Void
+    typealias AllDataHandler = (any YuchengAllEvent) -> Void
     typealias UpdateHandler = (any YuchengUpdateEvent) -> Void
     typealias AssetPathHandler = (String) -> String;
     private let onDevice: DeviceHandler;
@@ -37,9 +37,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private let onState: StateHandler;
     private let onUpdate: UpdateHandler;
     private let onHealth: HealthHandler;
-    private let onSleepHealth: SleepHealthHandler;
+    private let onAllData: AllDataHandler;
     private let sleepConverter: YuchengSleepDataConverter;
-    private let healdConverter: YuchengHealthDataConverter;
+    private let healthConverter: YuchengHealthDataConverter;
+    private let sportConverter: YuchengSportDataConverter;
     private let assetPathHandler: AssetPathHandler;
     private var scannedDevices: [CBPeripheral] = [];
     private var scannedDevicesToUpdate: [CBPeripheral] = [];
@@ -61,14 +62,15 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private var isUpgradeCompleted = false
     private var isUiUpgradeCompleted = false
     
-    init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onSleepHealth: @Sendable @escaping (_: YuchengSleepHealthEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter, assetPathHandler: @Sendable @escaping (_: String) -> String, onUpdate: @Sendable @escaping  (_: YuchengUpdateEvent) -> Void) {
+    init(onDevice: @Sendable @escaping (_: YuchengDeviceEvent) -> Void, onSleepData: @Sendable @escaping (_: YuchengSleepEvent) -> Void, onState: @Sendable @escaping (_: YuchengDeviceStateEvent) -> Void, onHealth: @Sendable @escaping (_: YuchengHealthEvent) -> Void, onAllData: @Sendable @escaping (_: YuchengAllEvent) -> Void, sleepConverter: YuchengSleepDataConverter, healthConverter:YuchengHealthDataConverter, sportConverter: YuchengSportDataConverter, assetPathHandler: @Sendable @escaping (_: String) -> String, onUpdate: @Sendable @escaping  (_: YuchengUpdateEvent) -> Void) {
         self.onDevice = onDevice
         self.onSleepData = onSleepData
         self.sleepConverter = sleepConverter
-        self.healdConverter = healthConverter
+        self.healthConverter = healthConverter
+        self.sportConverter = sportConverter
         self.onState = onState
         self.onHealth = onHealth
-        self.onSleepHealth = onSleepHealth
+        self.onAllData = onAllData
         self.assetPathHandler = assetPathHandler
         self.onUpdate = onUpdate
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: {
@@ -380,85 +382,130 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     
-    func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[YuchengHealthData], any Error>) -> Void) {
+    func getHealthSportData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengHealthSportData, any Error>) -> Void) {
         let defaultDate = getDefaultStartAndEndDate()
         let start = startTimestamp ?? defaultDate.start
         let end = endTimestamp ?? defaultDate.end
-        var isCompleted = false
+        var isHealthCompleted = false
+        var isSportCompleted = false
         do {
             if (start >= end) {
                 onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
-                completion(.success([]))
+                completion(.success(YuchengHealthSportData(healthData: [], sportData: [])))
             }
             
             var healthDataList: [YuchengHealthData] = []
+            var sportDataList: [YuchengSportData] = []
             let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
-            let mac = device?.macAddress
-            let name = device?.name
+            let _ = device?.macAddress
+            let _ = device?.name
             
-            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.combinedData) { state, response in
-                if (isCompleted) {
-                    return
+            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.step) { state, response in
+                if state == .succeed, let datas = response as? [YCHealthDataStep] {
+                    for info in datas {
+                        let sportData = self.sportConverter.convert(sportDataFromDevice: info)
+                        let isInRange = sportData.startTimeStamp >= start && sportData.endTimeStamp <= end
+                        if (!isInRange) { continue }
+                        sportDataList.append(sportData)
+                    }
+                }
+                else {
+                    print("No sport data")
+                }
+                if (isHealthCompleted && !isSportCompleted) {
+                    DispatchQueue.main.async {
+                        let healthSportData = YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)
+                        completion(.success(healthSportData))
+                        self.onHealth(YuchengHealthDataEvent(healthData: healthSportData))
+                    }
                 }
                 
+                isSportCompleted = true
+            }
+            
+            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.combinedData) { state, response in                
                 if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
                     for info in datas {
-                        let healthData = self.healdConverter.convert(healthDataFromDevice: info)
+                        let healthData = self.healthConverter.convert(healthDataFromDevice: info)
                         let isInRange = healthData.startTimestamp >= start && healthData.startTimestamp <= end
                         if (!isInRange) { continue }
                         healthDataList.append(healthData)
-                        let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
-                        DispatchQueue.main.async {
-                            self.onHealth(ycHealthEvent)
-                        }
                     }
                 } else {
                     print("No data")
                 }
-                if (!isCompleted) {
+                if (isSportCompleted && !isHealthCompleted) {
                     DispatchQueue.main.async {
-                        completion(.success(healthDataList))
+                        let healthSportData = YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)
+                        completion(.success(healthSportData))
+                        self.onHealth(YuchengHealthDataEvent(healthData: healthSportData))
                     }
                 }
-                isCompleted = true
+                isHealthCompleted = true
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT) {
-                if (isCompleted) {
+                if (isHealthCompleted || isSportCompleted) {
                     return;
                 }
-                for healthData in healthDataList {
-                    let event = YuchengHealthDataEvent(healthData: healthData)
-                    DispatchQueue.main.async { self.onHealth(event) }
+                DispatchQueue.main.async {
+                    self.onHealth(YuchengHealthDataEvent(healthData: YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)))
                 }
                 DispatchQueue.main.async { self.onHealth(YuchengHealthTimeOutEvent(isTimeout: true)) }
             }
         } catch {
-            isCompleted = true
+            isHealthCompleted = true
             DispatchQueue.main.async {
                 completion(.failure(error))
             }
         }
     }
     
-    func getSleepHealthData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengSleepHealthData, any Error>) -> Void) {
-        let empty = YuchengSleepHealthData(sleepData: [], healthData: [])
+    func getAllData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengAllData, any Error>) -> Void) {
+        let empty = YuchengAllData(sleepData: [], healthSportData: YuchengHealthSportData(healthData: [], sportData: []))
         let defaultDate = getDefaultStartAndEndDate()
         let start = startTimestamp ?? defaultDate.start
         let end = endTimestamp ?? defaultDate.end
         var isHealthCompleted = false;
         var isSleepCompleted = false;
+        var isSportCompleted = false;
         var healthDataList: [YuchengHealthData] = []
         var sleepDataList: [YuchengSleepData] = []
+        var sportDataList: [YuchengSportData] = []
         let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
-        let mac = device?.macAddress
-        let name = device?.name
+        let _ = device?.macAddress
+        let _ = device?.name
         do {
             if (start >= end) {
                 onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
                 completion(.success(empty))
             }
             do {
+                YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.step) { state, response in
+                    if state == .succeed, let datas = response as? [YCHealthDataStep] {
+                        for info in datas {
+                            let sportData = self.sportConverter.convert(sportDataFromDevice: info)
+                            let isInRange = sportData.startTimeStamp >= start && sportData.endTimeStamp <= end
+                            if (!isInRange) { continue }
+                            sportDataList.append(sportData)
+                        }
+                    }
+                    else {
+                        print("No sport data")
+                    }
+                    
+                    if (isHealthCompleted && isSleepCompleted && !isSportCompleted) {
+                        DispatchQueue.main.async {
+                            let healthSportData = YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)
+                            let data = YuchengAllData(sleepData: sleepDataList, healthSportData: healthSportData)
+                            completion(.success(data))
+                            self.onAllData(YuchengAllDataEvent(data: data))
+                        }
+                    }
+                    
+                    isSportCompleted = true
+                }
+                
                 YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.combinedData) { state, response in
                     if (isHealthCompleted) {
                         return
@@ -466,23 +513,20 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     
                     if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
                         for info in datas {
-                            let healthData = self.healdConverter.convert(healthDataFromDevice: info)
+                            let healthData = self.healthConverter.convert(healthDataFromDevice: info)
                             let isInRange = healthData.startTimestamp >= start && healthData.startTimestamp <= end
                             if (!isInRange) { continue }
                             healthDataList.append(healthData)
-                            let ycHealthEvent = YuchengHealthDataEvent(healthData: healthData)
-                            DispatchQueue.main.async {
-                                self.onHealth(ycHealthEvent)
-                            }
                         }
                     } else {
                         print("No data")
                     }
-                    if (!isHealthCompleted && isSleepCompleted) {
+                    if (!isHealthCompleted && isSleepCompleted && isSportCompleted) {
                         DispatchQueue.main.async {
-                            let data = YuchengSleepHealthData(sleepData: sleepDataList, healthData: healthDataList)
+                            let healthSportData = YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)
+                            let data = YuchengAllData(sleepData: sleepDataList, healthSportData: healthSportData)
                             completion(.success(data))
-                            self.onSleepHealth(YuchengSleepHealthDataEvent(data: data))
+                            self.onAllData(YuchengAllDataEvent(data: data))
                         }
                     }
                     isHealthCompleted = true
@@ -492,6 +536,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     completion(.failure(error))
                 }
                 isHealthCompleted = true
+                isSportCompleted = true
             }
             do {
                 YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.sleep) { state, response in
@@ -512,11 +557,12 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     } else {
                         print("No data")
                     }
-                    if (!isSleepCompleted && isHealthCompleted) {
+                    if (!isSleepCompleted && isHealthCompleted && isSportCompleted) {
                         DispatchQueue.main.async {
-                            let data = YuchengSleepHealthData(sleepData: sleepDataList, healthData: healthDataList)
+                            let healthSportData = YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)
+                            let data = YuchengAllData(sleepData: sleepDataList, healthSportData: healthSportData)
                             completion(.success(data))
-                            self.onSleepHealth(YuchengSleepHealthDataEvent(data: data))
+                            self.onAllData(YuchengAllDataEvent(data: data))
                         }
                     }
                     isSleepCompleted = true
@@ -533,15 +579,16 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
             isHealthCompleted = true
             isSleepCompleted = true
+            isSportCompleted = true
         }
         
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
-            if (isHealthCompleted && isSleepCompleted) {
+            if (isHealthCompleted && isSleepCompleted && isSportCompleted) {
                 return
             }
             DispatchQueue.main.async {
-                self.onSleepHealth(YuchengSleepHealthDataEvent(data: empty))
-                self.onSleepHealth(YuchengSleepHealthTimeOutEvent(isTimeout: true))
+                self.onAllData(YuchengAllDataEvent(data: empty))
+                self.onAllData(YuchengAllTimeOutEvent(isTimeout: true))
                 completion(.success(empty))
             }
         })
@@ -618,15 +665,29 @@ final class YuchengHostApiImpl : YuchengHostApi {
         })
     }
     
-    func deleteHealthData(completion: @escaping (Result<Bool, any Error>) -> Void) {
-        var isCompleted = false
+    func deleteHealthSportData(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isHealthDeleted = false
+        var isSportDeleted = false
         do {
             let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
             let mac = selectedDevice?.macAddress
+            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.step) {
+                state, response in
+                let isDeleted = state == YCProductState.succeed
+                isSportDeleted = true
+                if (isHealthDeleted && isSportDeleted) {
+                    DispatchQueue.main.async {
+                        completion(.success(true))
+                    }
+                }
+            }
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.combinedData) { state, response in
                 let isDeleted = state == YCProductState.succeed
-                DispatchQueue.main.async {
-                    completion(.success(isDeleted))
+                isHealthDeleted = true
+                if (isHealthDeleted && isSportDeleted) {
+                    DispatchQueue.main.async {
+                        completion(.success(true))
+                    }
                 }
             }
         } catch {
@@ -635,7 +696,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
-            if (isCompleted) {
+            if (isHealthDeleted && isSportDeleted) {
                 return
             }
             DispatchQueue.main.async {
@@ -644,25 +705,34 @@ final class YuchengHostApiImpl : YuchengHostApi {
         })
     }
     
-    func deleteSleepHealthData(completion: @escaping (Result<Bool, any Error>) -> Void) {
+    func deleteAllData(completion: @escaping (Result<Bool, any Error>) -> Void) {
         var isHealthCompleted = false
         var isSleepCompleted = false
+        var isSportCompleted = false
         do {
             let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
             let mac = selectedDevice?.macAddress
+            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.step) { state, response in
+                isSportCompleted = state == YCProductState.succeed
+                if (isSleepCompleted && isHealthCompleted && isSportCompleted) {
+                    DispatchQueue.main.async {
+                        completion(.success(isSleepCompleted && isHealthCompleted && isSportCompleted))
+                    }
+                }
+            }
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.sleep) { state, response in
                 isSleepCompleted = state == YCProductState.succeed
-                if (isSleepCompleted && isHealthCompleted) {
+                if (isSleepCompleted && isHealthCompleted && isSportCompleted) {
                     DispatchQueue.main.async {
-                        completion(.success(isSleepCompleted && isHealthCompleted))
+                        completion(.success(isSleepCompleted && isHealthCompleted && isSportCompleted))
                     }
                 }
             }
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.combinedData) { state, response in
                 isHealthCompleted = state == YCProductState.succeed
-                if (isSleepCompleted && isHealthCompleted) {
+                if (isSleepCompleted && isHealthCompleted && isSportCompleted) {
                     DispatchQueue.main.async {
-                        completion(.success(isSleepCompleted && isHealthCompleted))
+                        completion(.success(isSleepCompleted && isHealthCompleted && isSportCompleted))
                     }
                 }
             }
@@ -672,7 +742,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
-            if (isHealthCompleted && isSleepCompleted) {
+            if (isHealthCompleted && isSleepCompleted && isSportCompleted) {
                 return
             }
             DispatchQueue.main.async {
