@@ -76,7 +76,7 @@ extension YuchengSportDataX on YuchengSportData {
 
   int _timeStampInMs(int timestamp) {
     final isMs = timestamp.toString().length == 13;
-    final timeStampInMs = isMs ? startTimeStamp : startTimeStamp * 1000;
+    final timeStampInMs = isMs ? timestamp : timestamp * 1000;
     return timeStampInMs;
   }
 }
