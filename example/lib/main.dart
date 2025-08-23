@@ -816,7 +816,12 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Дата: ${item.startDate}',
+                                'Начальная Дата: ${item.startDate}',
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Конечная Дата: ${item.endDate}',
                               ),
                             ),
                           ],

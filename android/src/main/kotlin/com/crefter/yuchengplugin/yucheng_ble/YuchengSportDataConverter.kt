@@ -5,7 +5,7 @@ import com.google.gson.Gson
 
 private class YuchengSportBean(
     val sportStartTime: Long,    // start timestamp (seconds)
-val  sportEndTime: Long,  // end timestamp (seconds)
+    val sportEndTime: Long,  // end timestamp (seconds)
     val sportStep: Int,  // number of steps (steps)
     val sportDistance: Int, // distance (meters)
     val sportCalorie: Int, // calories (kcal)
