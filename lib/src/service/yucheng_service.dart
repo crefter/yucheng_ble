@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:yucheng_ble/export.dart';
 import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
-import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
 import 'mixin/yucheng_service_bluetooth_mixin.dart';
@@ -277,12 +277,18 @@ final class YuchengService
     DateTime? startTime,
     DateTime? endTime,
   }) async {
+    final (start, end) = DateTime.now()._weeklyDateRange;
+    final startDate = startTime ?? start;
+    final endDate = endTime ?? end;
     try {
       final data = await _ble.getSleepData(
-        startTime: startTime,
-        endTime: endTime,
+        startTime: startDate,
+        endTime: endDate,
       );
-      return data;
+
+      final filteredData =
+          data.where((e) => e.isInRange(startDate, endDate)).toList();
+      return filteredData;
     } catch (e) {
       rethrow;
     }
@@ -292,12 +298,17 @@ final class YuchengService
     DateTime? startTime,
     DateTime? endTime,
   }) async {
+    final (start, end) = DateTime.now()._weeklyDateRange;
+    final startDate = startTime ?? start;
+    final endDate = endTime ?? end;
     try {
       final data = await _ble.getHealthSportData(
-        startTime: startTime,
-        endTime: endTime,
+        startTime: startDate,
+        endTime: endDate,
       );
-      return data;
+
+      var filteredData = data.inDateRange(startDate, endDate);
+      return filteredData;
     } catch (e) {
       rethrow;
     }
@@ -307,12 +318,17 @@ final class YuchengService
     DateTime? startTime,
     DateTime? endTime,
   }) async {
+    final (start, end) = DateTime.now()._weeklyDateRange;
+    final startDate = startTime ?? start;
+    final endDate = endTime ?? end;
     try {
       final data = await _ble.getAllData(
-        startTime: startTime,
-        endTime: endTime,
+        startTime: startDate,
+        endTime: endDate,
       );
-      return data;
+
+      final filteredData = data.inDateRange(startDate, endDate);
+      return filteredData;
     } catch (e) {
       rethrow;
     }
@@ -421,5 +437,17 @@ extension FirstWhereOrNullX<T> on Iterable<T> {
       }
     }
     return null;
+  }
+}
+
+extension on DateTime {
+  /// Returns a tuple of (startDate, endDate) from current date
+  /// endDate is end of current day
+  /// startDate is endDate - 7 days (week)
+  (DateTime startDate, DateTime endDate) get _weeklyDateRange {
+    final endDate = DateTime(year, month, day, 23, 59, 59, 999, 999);
+    final startDate = endDate.subtract(const Duration(days: 7));
+
+    return (startDate, endDate);
   }
 }

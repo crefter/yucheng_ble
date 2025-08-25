@@ -64,6 +64,17 @@ extension YuchengSportDataX on YuchengSportData {
     };
   }
 
+  bool isInRange(DateTime startTime, DateTime endTime) {
+    final startDate = this.startDate;
+    final endDate = this.endDate;
+
+    final inRange = (startDate.isAfter(startTime) ||
+            startDate.isAtSameMomentAs(startTime)) &&
+        (endDate.isBefore(endTime) || endDate.isAtSameMomentAs(endTime));
+
+    return inRange;
+  }
+
   DateTime get startDate {
     final timeStampInMs = _timeStampInMs(startTimeStamp);
     return DateTime.fromMillisecondsSinceEpoch(timeStampInMs);
@@ -88,6 +99,15 @@ extension YuchengHealthSportDataX on YuchengHealthSportData {
       'sport_data': sportData.map((e) => e.toJson()).toList(),
     };
   }
+
+  YuchengHealthSportData inDateRange(DateTime startTime, DateTime endTime) {
+    final healthData =
+        this.healthData.where((e) => e.isInRange(startTime, endTime)).toList();
+    final sportData =
+        this.sportData.where((e) => e.isInRange(startTime, endTime)).toList();
+
+    return YuchengHealthSportData(healthData: healthData, sportData: sportData);
+  }
 }
 
 extension YuchengAllDataX on YuchengAllData {
@@ -96,6 +116,18 @@ extension YuchengAllDataX on YuchengAllData {
       "sleep_data": this.sleepData.map((e) => e.toJson()).toList(),
       "health_data": healthSportData.toJson(),
     };
+  }
+
+  YuchengAllData inDateRange(DateTime startTime, DateTime endTime) {
+    final sleepData =
+        this.sleepData.where((e) => e.isInRange(startTime, endTime)).toList();
+    final healthSportData =
+        this.healthSportData.inDateRange(startTime, endTime);
+
+    return YuchengAllData(
+      sleepData: sleepData,
+      healthSportData: healthSportData,
+    );
   }
 }
 
@@ -108,7 +140,7 @@ extension YuchengDeviceSettingsJson on YuchengDeviceSettings {
   }
 }
 
-extension YuchengSleepDataEventX on YuchengSleepData {
+extension YuchengSleepDataX on YuchengSleepData {
   DateTime get startDate {
     final startInMs = _timeStampInMs(startTimeStamp);
     return DateTime.fromMillisecondsSinceEpoch(startInMs);
@@ -117,6 +149,17 @@ extension YuchengSleepDataEventX on YuchengSleepData {
   DateTime get endDate {
     final endInMs = _timeStampInMs(endTimeStamp);
     return DateTime.fromMillisecondsSinceEpoch(endInMs);
+  }
+
+  bool isInRange(DateTime startTime, DateTime endTime) {
+    final startDate = this.startDate;
+    final endDate = this.endDate;
+
+    final inRange = (startDate.isAfter(startTime) ||
+            startDate.isAtSameMomentAs(startTime)) &&
+        (endDate.isBefore(endTime) || endDate.isAtSameMomentAs(endTime));
+
+    return inRange;
   }
 
   int _timeStampInMs(int timeStamp) {
@@ -151,6 +194,16 @@ extension YuchengHealthDataX on YuchengHealthData {
   DateTime get startDate {
     final startInMs = _timeStampInMs;
     return DateTime.fromMillisecondsSinceEpoch(startInMs);
+  }
+
+  bool isInRange(DateTime startTime, DateTime endTime) {
+    final date = startDate;
+
+    final inRange = (startDate.isAfter(startTime) ||
+            startDate.isAtSameMomentAs(startTime)) &&
+        (date.isBefore(endTime) || date.isAtSameMomentAs(endTime));
+
+    return inRange;
   }
 
   int get _timeStampInMs {
