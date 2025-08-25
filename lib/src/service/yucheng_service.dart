@@ -307,7 +307,7 @@ final class YuchengService
         endTime: endDate,
       );
 
-      var filteredData = data.inDateRange(startDate, endDate);
+      final filteredData = data.inDateRange(startDate, endDate);
       return filteredData;
     } catch (e) {
       rethrow;
@@ -431,7 +431,7 @@ final class YuchengService
 extension FirstWhereOrNullX<T> on Iterable<T> {
   /// returns first item to satisfy `test`, else null
   T? firstWhereOrNull(bool Function(T) test) {
-    for (var element in this) {
+    for (final element in this) {
       if (test(element)) {
         return element;
       }
