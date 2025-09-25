@@ -47,14 +47,14 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('getSleepData has not been implemented.');
   }
 
-  Future<List<YuchengHealthData>> getHealthData({
+  Future<YuchengHealthSportData> getHealthSportData({
     int? startTimestamp,
     int? endTimestamp,
   }) {
     throw UnimplementedError('getHealthData has not been implemented.');
   }
 
-  Future<YuchengSleepHealthData> getSleepHealthData({
+  Future<YuchengAllData> getSleepHealthData({
     int? startTimestamp,
     int? endTimestamp,
   }) {
@@ -82,8 +82,12 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('healthData has not been implemented.');
   }
 
-  Stream<YuchengSleepHealthEvent> sleepHealthDataStream() {
+  Stream<YuchengAllEvent> allDataStream() {
     throw UnimplementedError('sleepHealthData has not been implemented.');
+  }
+
+  Stream<YuchengUpdateEvent> updateDataStream() {
+    throw UnimplementedError('updateData has not been implemented.');
   }
 
   Future<bool> reconnect(int? reconnectTimeInSeconds) {
@@ -98,15 +102,19 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('deleteSleepData has not been implemented.');
   }
 
-  Future<bool> deleteHealthData() {
+  Future<bool> deleteHealthSportData() {
     throw UnimplementedError('deleteHealthData has not been implemented.');
   }
 
-  Future<bool> deleteSleepHealthData() {
+  Future<bool> deleteAllData() {
     throw UnimplementedError('deleteSleepHealthData has not been implemented.');
   }
 
   Future<bool> resetToFactory() {
     throw UnimplementedError('resetToFactory has not been implemented.');
+  }
+
+  Future<bool> updateFirmware(YuchengDevice device, String pathToFile) {
+    throw UnimplementedError('updateFirmware has not been implemented.');
   }
 }

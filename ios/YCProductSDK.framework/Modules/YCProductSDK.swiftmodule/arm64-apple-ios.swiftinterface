@@ -1,6 +1,7 @@
 // swift-interface-format-version: 1.0
-// swift-compiler-version: Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)
-// swift-module-flags: -target arm64-apple-ios9.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name YCProductSDK
+// swift-compiler-version: Apple Swift version 6.0.3 effective-5.10 (swiftlang-6.0.3.1.10 clang-1600.0.30.1)
+// swift-module-flags: -target arm64-apple-ios9.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -Onone -enable-experimental-feature OpaqueTypeErasure -enable-bare-slash-regex -module-name YCProductSDK
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface
 import CoreBluetooth
 import Foundation
 import JLDialUnit
@@ -28,6 +29,18 @@ extension CoreBluetooth.CBPeripheral {
     @objc get
   }
   @objc dynamic public var macAddress: Swift.String {
+    @objc get
+  }
+  @objc dynamic public var imageIndex: Swift.Int {
+    @objc get
+  }
+  @objc dynamic public var firmwareVersion: Swift.Int {
+    @objc get
+  }
+  @objc dynamic public var deviceSize: Swift.Int {
+    @objc get
+  }
+  @objc dynamic public var deviceColor: Swift.Int {
     @objc get
   }
   @objc dynamic public var deviceModel: Swift.String {
@@ -218,6 +231,17 @@ extension YCProductSDK.YCProductUserConfiguration {
   @objc dynamic public var toString: Swift.String {
     @objc get
   }
+}
+extension YCProductSDK.YCProduct {
+  @objc public static func startHenAIAutomaticMeasurement(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, macAddress: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func startHenAIBPMeasure(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, mac: Swift.String)
+  @objc public static func stopHenAIBPMeasure(completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func initHenAIBP(account: Swift.String, password: Swift.String, name: Swift.String, gender: Swift.Int, macAddress: Swift.String, deviceName: Swift.String, deviceHAModel: Swift.String, description: Swift.String, birthday: Swift.String, height: Swift.Int, weight: Swift.Int, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func henAIBloodPressureCalibration(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, systolicBloodPressure: Swift.UInt8, diastolicBloodPressure: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func gethenAIBloodPressureModel(macAddress: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func deletehenAIBloodPressureModel(macAddress: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func stopCalibration(completion: ((YCProductSDK.YCProductState, Any?) -> Swift.Void)?)
+  @objc public static func stopMessareCalibration(completion: ((YCProductSDK.YCProductState, Any?) -> Swift.Void)?)
 }
 @objc @_inheritsConvenienceInitializers @objcMembers public class YCProductFunctionSupportItems : ObjectiveC.NSObject {
   @objc public var isSupportBloodPressure: Swift.Bool {
@@ -541,6 +565,36 @@ extension YCProductSDK.YCProductUserConfiguration {
   @objc public var isSupportCustomWatchface: Swift.Bool {
     get
   }
+  @objc public var isSupportFewSleep: Swift.Bool {
+    get
+  }
+  @objc public var isSupportAppShowAuxiliary: Swift.Bool {
+    get
+  }
+  @objc public var isSupportLocationRecord: Swift.Bool {
+    get
+  }
+  @objc public var isSupportThirdAlgorithms: Swift.Bool {
+    get
+  }
+  @objc public var isSupportSedentaryRecordDataReporting: Swift.Bool {
+    get
+  }
+  @objc public var isSupportHengAiPreciseBloodPressure: Swift.Bool {
+    get
+  }
+  @objc public var isSupportHengAiPrecisePressure: Swift.Bool {
+    get
+  }
+  @objc public var isSupportAuxiliaryWithBloodGlucose: Swift.Bool {
+    get
+  }
+  @objc public var isSupportAuxiliaryWithUricAcid: Swift.Bool {
+    get
+  }
+  @objc public var isSupportAuxiliaryWithBloodFat: Swift.Bool {
+    get
+  }
   @objc public var isSupportAccurateBloodPressureMeasurement: Swift.Bool {
     get
   }
@@ -820,6 +874,11 @@ extension YCProductSDK.YCProductUserConfiguration {
   case inflationBloodPressure
   case ppi
   case eda
+  case hengAiBloodPressure
+  case hengAiPressure
+  case jiuleIBI
+  case jiuleBloodPressure
+  case jiuleGuardianship
   public var toString: Swift.String {
     get
   }
@@ -943,6 +1002,7 @@ public enum YCRecordingFileType : Swift.UInt8 {
   case accurateBloodPressureWaveform
   case multiChannelPPG
   case bodyIndexData
+  case hengAiWaveData = 0x12
   @available(*, deprecated, message: "use toString instand of it")
   public var string: Swift.String {
     get
@@ -1168,6 +1228,19 @@ public enum YCRecordingFileType : Swift.UInt8 {
   @objc override dynamic public init()
   @objc deinit
 }
+@objc @_inheritsConvenienceInitializers @objcMembers public class YCReceivedRealTimeHengAiWaveDataInfo : ObjectiveC.NSObject {
+  @objc public var type: Swift.Int {
+    get
+  }
+  @objc public var content: Foundation.NSData {
+    get
+  }
+  @objc public var toString: Swift.String {
+    @objc get
+  }
+  @objc override dynamic public init()
+  @objc deinit
+}
 extension YCProductSDK.YCProduct {
   @objc public static func setIntelligentFunctions(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, functionType: YCProductSDK.YCIntelligentFunctionType, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
 }
@@ -1248,6 +1321,7 @@ extension YCProductSDK.YCProduct {
   case lightSleep = 0xF2
   case rem = 0xF3
   case awake = 0xF4
+  case fewSleep = 0xF5
   public var toString: Swift.String {
     get
   }
@@ -1845,10 +1919,16 @@ extension YCProductSDK.YCProduct {
   @objc public static func uricAcidCalibration(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, value: Swift.UInt16, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func bloodFatCalibration(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, cholesterol: Swift.Double, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func sendPhoneUUIDToDevice(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, content: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func sendAlgorithmManufacturersKeyToDevice(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, algorithmManufacturers: YCProductSDK.YCQueryAlgorithmManufacturersType, algorithKey: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func sendDeviceQuiteSleep(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
 }
 extension YCProductSDK.YCProduct {
   @objc public static func startECGMeasurement(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func stopECGMeasurement(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+}
+extension YCProductSDK.YCProduct {
+  @objc public static func startSentimentMeasurement(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func stopSentimentMeasurement(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
 }
 extension YCProductSDK.YCProduct {
   @objc public static func startSendAddressBook(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
@@ -1858,6 +1938,9 @@ extension YCProductSDK.YCProduct {
 extension YCProductSDK.YCProduct {
   @objc public static func sendWeatherData(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, whichDay: YCProductSDK.YCWeatherPeriodType = .today, lowestTemperature: Swift.Int8, highestTemperature: Swift.Int8, realTimeTemperature: Swift.Int8, weatherType: YCProductSDK.YCWeatherCodeType, windDirection: Swift.String = "", windPower: Swift.String = "", location: Swift.String = "", moonType: YCProductSDK.YCWeatherMoonType = .unknown, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   public static func sendWeatherData(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isTomorrow: Swift.Bool = false, lowestTemperature: Swift.Int8, highestTemperature: Swift.Int8, realTimeTemperature: Swift.Int8, weatherType: YCProductSDK.YCWeatherCodeType, windDirection: Swift.String? = nil, windPower: Swift.String? = nil, location: Swift.String? = nil, moonType: YCProductSDK.YCWeatherMoonType? = nil, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func queryDeviceBind4GState(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, deviceBindState: YCProductSDK.YCDeviceBind4GState, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setDeviceDomainInfo(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, domainInfo: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setHealthWarningBackground(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, deviceHealthDataType: YCProductSDK.YCDeviceHealthDataType, backgroundData: Foundation.NSData, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
 }
 extension YCProductSDK.YCProduct {
   @objc public static func downloadWatchFace(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, data: Foundation.NSData, dialID: Swift.UInt32, blockCount: Swift.UInt16, dialVersion: Swift.UInt16, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
@@ -1922,6 +2005,7 @@ extension YCProductSDK.YCProduct {
   @objc public static func queryDevicePowerStatistics(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func queryDeviceSleepState(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func queryECGModel(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func queryAlgorithmInformation(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
 }
 public func computeRepeatValue(_ repeat: Swift.Set<YCProductSDK.YCDeviceWeekRepeat>) -> Swift.UInt8
 public func repeatWeekValueToSet(_ repeat: Swift.UInt8) -> Swift.Set<YCProductSDK.YCDeviceWeekRepeat>
@@ -1948,6 +2032,7 @@ extension YCProductSDK.YCProduct : CoreBluetooth.CBPeripheralDelegate {
   @objc dynamic open func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didUpdateNotificationStateFor characteristic: CoreBluetooth.CBCharacteristic, error: (any Swift.Error)?)
   @objc dynamic open func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didDiscoverCharacteristicsFor service: CoreBluetooth.CBService, error: (any Swift.Error)?)
   @objc dynamic open func peripheral(_ peripheral: CoreBluetooth.CBPeripheral, didDiscoverServices error: (any Swift.Error)?)
+  @objc dynamic public func refreshDeviceFunction(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ error: Foundation.NSError?) -> ())?)
 }
 extension YCProductSDK.YCProduct : CoreBluetooth.CBCentralManagerDelegate {
   @objc dynamic open func centralManager(_ central: CoreBluetooth.CBCentralManager, didConnect peripheral: CoreBluetooth.CBPeripheral)
@@ -2305,6 +2390,9 @@ extension YCProductSDK.YCProduct {
   case multiAxisSensor
   case ambientLight
   case multiChannelPPG
+  case hengAiBPData
+  case hengAiPressure
+  case hengAiMultiBOData
   public init?(rawValue: Swift.UInt8)
   public typealias RawValue = Swift.UInt8
   public var rawValue: Swift.UInt8 {
@@ -2553,6 +2641,7 @@ extension YCProductSDK.YCProduct {
 @objc public enum YCLocationInformationType : Swift.UInt8 {
   case longitudeAndLatitude = 0
   case detailedAddress = 1
+  case electronicFence = 2
   public init?(rawValue: Swift.UInt8)
   public typealias RawValue = Swift.UInt8
   public var rawValue: Swift.UInt8 {
@@ -2993,6 +3082,7 @@ extension YCProductSDK.YCProduct {
     get
   }
   public init?(rawValue: Swift.UInt8)
+  @available(*, deprecated, message: "use YCDeviceScreenTimeInterval instand of it")
   public typealias RawValue = Swift.UInt8
   public var rawValue: Swift.UInt8 {
     get
@@ -3034,6 +3124,8 @@ extension YCProductSDK.YCProduct {
   case rtk8762d
   case jl701n
   case jl632n
+  case ac707n
+  case rm12xx
   public var toString: Swift.String {
     get
   }
@@ -3305,6 +3397,16 @@ extension YCProductSDK.YCProduct {
   @objc override dynamic public init()
   @objc deinit
 }
+@objc public enum YCSettingHealthType : Swift.UInt8 {
+  case bloodGlucose = 0
+  case uricAcid
+  case bloodFat
+  public init?(rawValue: Swift.UInt8)
+  public typealias RawValue = Swift.UInt8
+  public var rawValue: Swift.UInt8 {
+    get
+  }
+}
 @objc public enum YCDeviceControlType : Swift.UInt8 {
   case findPhone = 0
   case antiLost = 0x01
@@ -3324,6 +3426,8 @@ extension YCProductSDK.YCProduct {
   case invasiveMeasurementState = 0x13
   case alipayActivationState = 0x14
   case dynamicCodeState = 0x15
+  case sedentaryReminders = 0x16
+  case reportWarningEvent = 0x17
   @available(*, deprecated, message: "use toString instand of it")
   public var string: Swift.String {
     get
@@ -3499,8 +3603,29 @@ extension YCProductSDK.YCProduct {
     get
   }
 }
+@objc public enum YCDeviceWarningEvent : Swift.UInt8 {
+  case lowBattery = 0
+  case alwayHighHeartRate
+  case alwayLowHeartRate
+  case alwaySportHighHeartRate
+  case alwaySportLowHeartRate
+  case alwayLowBloodOxygen
+  case alwayHighTemperature
+  case wearReminder
+  case electronicFence
+  case sportTargetFinish
+  public var toString: Swift.String {
+    get
+  }
+  public init?(rawValue: Swift.UInt8)
+  public typealias RawValue = Swift.UInt8
+  public var rawValue: Swift.UInt8 {
+    get
+  }
+}
 extension YCProductSDK.YCProduct {
   @objc public static func setDeviceTime(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, year: Swift.UInt16, month: Swift.UInt8, day: Swift.UInt8, hour: Swift.UInt8, minute: Swift.UInt8, second: Swift.UInt8, weekDay: YCProductSDK.YCWeekDay, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setUTCDeviceSyncPhoneTime(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceSyncPhoneTime(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func isHour12Format() -> Swift.Bool
   @objc public static func setDeviceStepGoal(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, step: Swift.UInt32, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
@@ -3519,7 +3644,7 @@ extension YCProductSDK.YCProduct {
   @objc public static func setPhoneSystemInfo(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, phoneSystemType: YCProductSDK.YCPhoneSystemType = .ios, systemVersion: Swift.String = UIDevice.current.systemVersion, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceInfoPush(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, infoPushType: Foundation.NSSet, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   public static func setDeviceInfoPush(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, infoPushType: Swift.Set<YCProductSDK.YCDeviceInfoPushType>, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
-  @objc public static func setDeviceHeartRateAlarm(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, maxHeartRate: Swift.UInt8, minHeartRate: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setDeviceHeartRateAlarm(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, maxHeartRate: Swift.UInt8, minHeartRate: Swift.UInt8, highMinute: Swift.UInt8 = 10, lowMinute: Swift.UInt8 = 10, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceHealthMonitoringMode(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, interval: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc @available(*, deprecated, renamed: "setDeviceHealthMonitoringMode", message: "use func setDeviceHealthMonitoringMode instand of it")
   public static func setDeviceHeartRateMonitoringMode(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, interval: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
@@ -3564,7 +3689,7 @@ extension YCProductSDK.YCProduct {
   @objc public static func setDeviceMacAddress(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, macaddress: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceSOSEnable(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceBloodPressureAlarm(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, maximumSystolicBloodPressure: Swift.UInt8, maximumDiastolicBloodPressure: Swift.UInt8, minimumSystolicBloodPressure: Swift.UInt8, minimumDiastolicBloodPressure: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
-  @objc public static func setDeviceBloodOxygenAlarm(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, minimum: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setDeviceBloodOxygenAlarm(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, minimum: Swift.UInt8, lowMinute: Swift.UInt8 = 10, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceMotorVibrationTime(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, mode: YCProductSDK.YCDeviceMotorVibrationType = .alarm, time: Swift.UInt32, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceMotorVibrationStrength(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, level: YCProductSDK.YCMotorVibrationStrengthLevel, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func setDeviceRespirationRateAlarm(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, maximum: Swift.UInt8, minimum: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
@@ -3593,6 +3718,11 @@ extension YCProductSDK.YCProduct {
   @objc public static func modifyDeviceSchedule(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, scheduleEnable: Swift.Bool, scheduleIndex: Swift.UInt8, eventIndex: Swift.UInt8, eventType: YCProductSDK.YCDevcieScheduleEventType, eventEnable: Swift.Bool, eventTime: Swift.Int, eventName: Swift.String, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func deleteDeviceSchedule(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, scheduleIndex: Swift.UInt8, eventIndex: Swift.UInt8, eventType: YCProductSDK.YCDevcieScheduleEventType, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
   @objc public static func queryDeviceScheduleInfo(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setDeviceHRVAutomaticMeasurement(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, startHour: Swift.UInt8, startMinute: Swift.UInt8, endHour: Swift.UInt8, endMinute: Swift.UInt8, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setDeviceSportHeartRateWaring(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, highValue: Swift.UInt8, lowValue: Swift.UInt8, highMinute: Swift.UInt8 = 10, lowMinute: Swift.UInt8 = 10, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setEmergencyContact(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, contactNumber: Swift.UInt8, phone: Swift.String?, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setHealthAuxiliary(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, isEnable: Swift.Bool, healthType: YCProductSDK.YCSettingHealthType, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
+  @objc public static func setDeviceBluetooth(_ peripheral: CoreBluetooth.CBPeripheral? = YCProduct.shared.currentPeripheral, completion: ((_ state: YCProductSDK.YCProductState, _ response: Any?) -> ())?)
 }
 extension YCProductSDK.YCProduct {
   @objc public static func getDeviceByUUID(_ uuidString: Swift.String) -> CoreBluetooth.CBPeripheral?
@@ -3630,6 +3760,24 @@ extension YCProductSDK.YCProduct {
   public var rawValue: Swift.UInt {
     get
   }
+}
+public let HA_HOST: Swift.String
+public let HENAI_APP_KEY: Swift.String
+public enum YCNetworkStatusCode : Swift.UInt {
+  case succeed
+  case succeed_henai
+  case serverException
+  case noNetwork
+  case unknow
+  public init?(rawValue: Swift.UInt)
+  public typealias RawValue = Swift.UInt
+  public var rawValue: Swift.UInt {
+    get
+  }
+}
+extension YCProductSDK.YCProduct {
+  public static func checkBPModelList(mac: Swift.String, completion: @escaping (_ status: YCProductSDK.YCNetworkStatusCode, _ message: Swift.String, _ data: [Swift.String : Any]) -> ())
+  public static func delBPModel(mac: Swift.String, completion: @escaping (_ status: YCProductSDK.YCNetworkStatusCode, _ message: Swift.String, _ data: [Swift.String : Any]) -> ())
 }
 @objc public enum YCDeviceBatterystate : Swift.UInt8 {
   case normal = 0
@@ -3708,6 +3856,28 @@ extension YCProductSDK.YCProduct {
     get
   }
   @objc public var deviceType: YCProductSDK.YCDeviceType {
+    get
+  }
+  @objc public var toString: Swift.String {
+    @objc get
+  }
+  @objc override dynamic public init()
+  @objc deinit
+}
+@objc @_inheritsConvenienceInitializers @objcMembers public class YCDeviceAlgorithmInformation : ObjectiveC.NSObject {
+  @objc public var algorithmManufacturers: Swift.UInt8 {
+    get
+  }
+  @objc public var deviceIdType: Swift.UInt8 {
+    get
+  }
+  @objc public var activatState: Swift.UInt8 {
+    get
+  }
+  @objc public var deviceIdLength: Swift.UInt8 {
+    get
+  }
+  @objc public var deviceId: Swift.String {
     get
   }
   @objc public var toString: Swift.String {
@@ -3939,6 +4109,18 @@ extension YCProductSDK.YCProduct {
     get
   }
 }
+@objc public enum YCQueryAlgorithmManufacturersType : Swift.UInt8 {
+  case gongmo = 0
+  case hengai
+  public var toString: Swift.String {
+    get
+  }
+  public init?(rawValue: Swift.UInt8)
+  public typealias RawValue = Swift.UInt8
+  public var rawValue: Swift.UInt8 {
+    get
+  }
+}
 @objc @_inheritsConvenienceInitializers @objcMembers public class YCDevicePowerStatistics : ObjectiveC.NSObject {
   @objc public var lastChargingEndTimestamp: Swift.Int {
     get
@@ -3988,6 +4170,31 @@ extension YCProductSDK.YCProduct {
 @objc public enum YCDeviceECGModelState : Swift.UInt8 {
   case normal
   case check
+  public var toString: Swift.String {
+    get
+  }
+  public init?(rawValue: Swift.UInt8)
+  public typealias RawValue = Swift.UInt8
+  public var rawValue: Swift.UInt8 {
+    get
+  }
+}
+@objc public enum YCDeviceBind4GState : Swift.UInt8 {
+  case binding
+  case success
+  case fail
+  public var toString: Swift.String {
+    get
+  }
+  public init?(rawValue: Swift.UInt8)
+  public typealias RawValue = Swift.UInt8
+  public var rawValue: Swift.UInt8 {
+    get
+  }
+}
+@objc public enum YCDeviceHealthDataType : Swift.UInt8 {
+  case heartRate
+  case bloodOxygen
   public var toString: Swift.String {
     get
   }
@@ -4282,6 +4489,9 @@ extension YCProductSDK.YCDeviceScreenType : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceFaceTimePosition : Swift.Equatable {}
 extension YCProductSDK.YCDeviceFaceTimePosition : Swift.Hashable {}
 extension YCProductSDK.YCDeviceFaceTimePosition : Swift.RawRepresentable {}
+extension YCProductSDK.YCSettingHealthType : Swift.Equatable {}
+extension YCProductSDK.YCSettingHealthType : Swift.Hashable {}
+extension YCProductSDK.YCSettingHealthType : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceControlType : Swift.Equatable {}
 extension YCProductSDK.YCDeviceControlType : Swift.Hashable {}
 extension YCProductSDK.YCDeviceControlType : Swift.RawRepresentable {}
@@ -4300,12 +4510,18 @@ extension YCProductSDK.YCDeviceControlDeviceSportState : Swift.RawRepresentable 
 extension YCProductSDK.YCDeviceControlDynamicCodeState : Swift.Equatable {}
 extension YCProductSDK.YCDeviceControlDynamicCodeState : Swift.Hashable {}
 extension YCProductSDK.YCDeviceControlDynamicCodeState : Swift.RawRepresentable {}
+extension YCProductSDK.YCDeviceWarningEvent : Swift.Equatable {}
+extension YCProductSDK.YCDeviceWarningEvent : Swift.Hashable {}
+extension YCProductSDK.YCDeviceWarningEvent : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceCheckType : Swift.Equatable {}
 extension YCProductSDK.YCDeviceCheckType : Swift.Hashable {}
 extension YCProductSDK.YCDeviceCheckType : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceDetectionErrorType : Swift.Equatable {}
 extension YCProductSDK.YCDeviceDetectionErrorType : Swift.Hashable {}
 extension YCProductSDK.YCDeviceDetectionErrorType : Swift.RawRepresentable {}
+extension YCProductSDK.YCNetworkStatusCode : Swift.Equatable {}
+extension YCProductSDK.YCNetworkStatusCode : Swift.Hashable {}
+extension YCProductSDK.YCNetworkStatusCode : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceBatterystate : Swift.Equatable {}
 extension YCProductSDK.YCDeviceBatterystate : Swift.Hashable {}
 extension YCProductSDK.YCDeviceBatterystate : Swift.RawRepresentable {}
@@ -4318,9 +4534,18 @@ extension YCProductSDK.YCDeviceElectrodePosition : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceRemindType : Swift.Equatable {}
 extension YCProductSDK.YCDeviceRemindType : Swift.Hashable {}
 extension YCProductSDK.YCDeviceRemindType : Swift.RawRepresentable {}
+extension YCProductSDK.YCQueryAlgorithmManufacturersType : Swift.Equatable {}
+extension YCProductSDK.YCQueryAlgorithmManufacturersType : Swift.Hashable {}
+extension YCProductSDK.YCQueryAlgorithmManufacturersType : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceSleepState : Swift.Equatable {}
 extension YCProductSDK.YCDeviceSleepState : Swift.Hashable {}
 extension YCProductSDK.YCDeviceSleepState : Swift.RawRepresentable {}
 extension YCProductSDK.YCDeviceECGModelState : Swift.Equatable {}
 extension YCProductSDK.YCDeviceECGModelState : Swift.Hashable {}
 extension YCProductSDK.YCDeviceECGModelState : Swift.RawRepresentable {}
+extension YCProductSDK.YCDeviceBind4GState : Swift.Equatable {}
+extension YCProductSDK.YCDeviceBind4GState : Swift.Hashable {}
+extension YCProductSDK.YCDeviceBind4GState : Swift.RawRepresentable {}
+extension YCProductSDK.YCDeviceHealthDataType : Swift.Equatable {}
+extension YCProductSDK.YCDeviceHealthDataType : Swift.Hashable {}
+extension YCProductSDK.YCDeviceHealthDataType : Swift.RawRepresentable {}

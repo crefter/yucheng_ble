@@ -72,8 +72,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   final _service = YuchengService();
   final List<YuchengDevice> devices = [];
   final List<YuchengSleepData> sleepData = [];
-  final List<YuchengHealthData> healthData = [];
-  final List<YuchengSleepHealthData> sleepHealthData = [];
+  YuchengHealthSportData? healthSportData;
+  YuchengAllData? allData;
   YuchengDevice? selectedDevice;
 
   @override
@@ -83,8 +83,6 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
       ..listenAll(() => setState(() {}))
       ..init(
         shouldTryReconnect: () async => true,
-        macAddress: '1B:5D:E3:91:4F:76',
-        deviceName: 'YC093 0AA8',
         onBluetoothNotSupported: () {
           if (!context.mounted) return;
           _showSnackBar(context, 'Блютуз не поддерживается!');
@@ -113,6 +111,30 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     _service.selectedDeviceNotifier.addListener(() {
       selectedDevice = _service.selectedDevice;
     });
+    _service.updateDataStream.listen(
+      (event) {
+        switch (event) {
+          case YuchengUpdateStartEvent():
+            print(
+                "Обновление началось! Время начала: ${event.updateStartDate}");
+          case YuchengUpdateProgressEvent():
+            print("Обновление в процессе! Прогресс: ${event.progress}");
+          case YuchengUpdateCompleteEvent():
+            print(
+                "Обновление завершено! Время выполнения: ${event.updateCompleteDate}");
+          case YuchengUpdateErrorEvent():
+            if (event.isDataVerificationError) {
+              updateFirmware();
+              break;
+            }
+            print("Обновление завершено с ошибкой! Ошибка: ${event.error}");
+        }
+      },
+    );
+
+    _service.sleepDataStream.listen(
+      (event) {},
+    );
   }
 
   @override
@@ -164,24 +186,18 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   }
 
   Future<void> tryGetHealthData() async {
-    final data = await _service.tryGetHealthData();
-    healthData
-      ..clear()
-      ..addAll(data);
+    final data = await _service.tryGetHealthSportData();
+    healthSportData = data;
     setState(() {});
   }
 
   Future<void> tryGetSleepHealthData() async {
-    final data = await _service.tryGetSleepHealthData();
-    sleepHealthData
-      ..clear()
-      ..add(data);
+    final data = await _service.tryGetAllData();
+    allData = data;
     sleepData
       ..clear()
       ..addAll(data.sleepData);
-    healthData
-      ..clear()
-      ..addAll(data.healthData);
+    healthSportData = data.healthSportData;
     setState(() {});
   }
 
@@ -190,13 +206,19 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   }
 
   Future<bool> tryReconnect() async {
-    return await _service.tryReconnect(
-      macAddress: '1B:5D:E3:91:4F:76',
-    );
+    return await _service.tryReconnect();
   }
 
   Future<bool> resetToFactory() async {
     return await _service.resetToFactory();
+  }
+
+  Future<bool> updateFirmware() async {
+    if (selectedDevice == null) return false;
+    return await _service.updateFirmware(
+      'assets/update_firmware/update.ufw',
+      selectedDevice!,
+    );
   }
 
   @override
@@ -232,8 +254,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           final isReset = await resetToFactory();
                           if (isReset) {
                             sleepData.clear();
-                            healthData.clear();
-                            sleepHealthData.clear();
+                            healthSportData = null;
+                            allData = null;
                           }
                           if (!context.mounted) return;
                           final text = isReset
@@ -312,11 +334,93 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                   child: const Text('Получить данные о текущем девайсе'),
                 ),
               ),
-            if (sleepHealthData.isNotEmpty)
+            SliverToBoxAdapter(
+              child: ValueListenableBuilder(
+                valueListenable: _service.isReconnectedNotifier,
+                builder: (context, isReconnected, child) {
+                  return ValueListenableBuilder(
+                    valueListenable: _service.isDeviceConnectedNotifier,
+                    builder: (context, isConnected, child) {
+                      if (isReconnected || isConnected) {
+                        return child!;
+                      } else {
+                        return const SizedBox.shrink();
+                      }
+                    },
+                    child: ValueListenableBuilder(
+                      valueListenable: _service.updatingFirmwareNotifier,
+                      builder: (context, isUpgrading, child) {
+                        if (!isUpgrading) {
+                          return ElevatedButton(
+                            onPressed: () async {
+                              try {
+                                final isUpdated = await updateFirmware();
+                                print(isUpdated);
+                              } catch (e) {
+                                print(e);
+                              }
+                            },
+                            child: const Text('Обновить прошивку'),
+                          );
+                        } else {
+                          return const CircularProgressIndicator();
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            if (healthSportData != null)
               SliverToBoxAdapter(
                 child: TextButton(
                   onPressed: () async {
-                    final data = jsonEncode(sleepHealthData.first.toJson());
+                    final data = jsonEncode(healthSportData!.toJson());
+                    final deviceId = await _service.getDeviceId();
+                    final json = '{'
+                        '"device_id": "$deviceId",'
+                        '"utc_offset": "${DateTime.now().timeZoneOffset.inMinutes}",'
+                        '"data": $data'
+                        '}';
+                    if (!context.mounted) return;
+                    await showAdaptiveDialog(
+                      context: context,
+                      builder: (context) {
+                        return SimpleDialog(
+                          backgroundColor: Colors.blue.shade300,
+                          contentPadding: const EdgeInsets.all(12),
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  icon: const Icon(
+                                    Icons.clear,
+                                    size: 24,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              json,
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  child: const Text('Сформировать json c данными о здоровье'),
+                ),
+              ),
+            if (allData != null)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    final data = jsonEncode(allData!.toJson());
                     final deviceId = await _service.getDeviceId();
                     final json = '{'
                         '"device_id": "$deviceId",'
@@ -496,9 +600,9 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           ElevatedButton(
                             onPressed: () async {
                               await _service.disconnect();
-                              healthData.clear();
+                              healthSportData = null;
                               sleepData.clear();
-                              sleepHealthData.clear();
+                              allData = null;
                               setState(() {});
                             },
                             child: const Text(
@@ -513,12 +617,12 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton(
-                            onPressed: _service.deleteHealthData,
+                            onPressed: _service.deleteHealthSportData,
                             child: Text('Удалить данные о здоровье'),
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton(
-                            onPressed: _service.deleteSleepHealthData,
+                            onPressed: _service.deleteAllData,
                             child: Text('Удалить данные о сне и здоровье'),
                           ),
                         ],
@@ -565,55 +669,6 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                       ],
                     ),
                   );
-                },
-              ),
-            ),
-            if (healthData.isNotEmpty)
-              const SliverPadding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                sliver: SliverToBoxAdapter(
-                  child: Text(
-                    'Данные о здоровье:',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            SliverPadding(
-              padding: const EdgeInsets.only(bottom: 12),
-              sliver: SliverList.separated(
-                itemCount: healthData.length,
-                itemBuilder: (context, index) {
-                  final item = healthData[index];
-                  return DecoratedBox(
-                    decoration: const BoxDecoration(color: Colors.blueGrey),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Дата: ${item.startDate}',
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          'Кислород: ${item.OOValue}',
-                        ),
-                        Text(
-                          'Шаги: ${item.stepValue}',
-                        ),
-                        Text(
-                          'Пульс: ${item.heartValue}',
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                separatorBuilder: (context, index) {
-                  return const SizedBox(height: 8);
                 },
               ),
             ),
@@ -670,6 +725,117 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                                 child: _DetailItem(detail: e),
                               ))
                           .toList(),
+                    ),
+                  );
+                },
+                separatorBuilder: (context, index) {
+                  return const SizedBox(height: 8);
+                },
+              ),
+            ),
+            if (healthSportData?.healthData.isNotEmpty ?? false)
+              const SliverPadding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    'Данные о здоровье:',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: 12),
+              sliver: SliverList.separated(
+                itemCount: healthSportData?.healthData.length ?? 0,
+                itemBuilder: (context, index) {
+                  final item =
+                      healthSportData?.healthData.elementAtOrNull(index);
+                  if (item == null) {
+                    return const SizedBox();
+                  }
+                  return DecoratedBox(
+                    decoration: const BoxDecoration(color: Colors.blueGrey),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Дата: ${item.startDate}',
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Кислород: ${item.OOValue}',
+                        ),
+                        Text(
+                          'Шаги: ${item.stepValue}',
+                        ),
+                        Text(
+                          'Пульс: ${item.heartValue}',
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                separatorBuilder: (context, index) {
+                  return const SizedBox(height: 8);
+                },
+              ),
+            ),
+            if (healthSportData?.sportData.isNotEmpty ?? false)
+              const SliverPadding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    'Данные о спорте:',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            SliverPadding(
+              padding: const EdgeInsets.only(bottom: 12),
+              sliver: SliverList.separated(
+                itemCount: healthSportData?.sportData.length ?? 0,
+                itemBuilder: (context, index) {
+                  final item =
+                      healthSportData?.sportData.elementAtOrNull(index);
+                  if (item == null) {
+                    return const SizedBox();
+                  }
+                  return DecoratedBox(
+                    decoration: const BoxDecoration(color: Colors.blueGrey),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Начальная Дата: ${item.startDate}',
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Конечная Дата: ${item.endDate}',
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          'Шаги: ${item.steps}',
+                        ),
+                        Text(
+                          'Дистанция: ${item.distance}',
+                        ),
+                        Text(
+                          'Калории: ${item.calories}',
+                        ),
+                      ],
                     ),
                   );
                 },

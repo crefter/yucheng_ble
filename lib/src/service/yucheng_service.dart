@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:yucheng_ble/export.dart';
 import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
-import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
 import 'mixin/yucheng_service_bluetooth_mixin.dart';
@@ -38,8 +38,9 @@ final class YuchengService
 
   Stream<YuchengHealthEvent> get healthDataStream => _ble.healthDataStream();
 
-  Stream<YuchengSleepHealthEvent> get sleepHealthDataStream =>
-      _ble.sleepHealthDataStream();
+  Stream<YuchengAllEvent> get sleepHealthDataStream => _ble.allDataStream();
+
+  Stream<YuchengUpdateEvent> get updateDataStream => _ble.updateDataStream();
 
   Future<void> init({
     required Future<bool> Function()? shouldTryReconnect,
@@ -169,7 +170,7 @@ final class YuchengService
     }
 
     final lastConnectedDevice = await _ble.getCurrentConnectedDevice();
-    if ((lastConnectedDevice == null || lastConnectedDevice.uuid.isEmpty) &&
+    if ((lastConnectedDevice == null) &&
         (macAddress != null || deviceName != null)) {
       final scannedDevices = await scanDevices(
         onBluetoothNotSupported: onBluetoothNotSupported,
@@ -182,8 +183,8 @@ final class YuchengService
         setReconnected(false);
         return false;
       }
-      final device =
-          scannedDevices.firstWhereOrNull((d) => d.deviceName == deviceName);
+      final device = scannedDevices.firstWhereOrNull(
+          (d) => d.uuid == macAddress || d.deviceName == deviceName);
       if (device == null) {
         setReconnecting(false);
         setReconnected(false);
@@ -264,7 +265,8 @@ final class YuchengService
       }
       setSelectedDevice(device);
       setDeviceConnected(
-          await _ble.connect(selectedDevice!, connectTimeInSeconds));
+        await _ble.connect(deviceToConnect, connectTimeInSeconds),
+      );
       return isAnyDeviceConnected;
     } catch (e) {
       rethrow;
@@ -275,42 +277,58 @@ final class YuchengService
     DateTime? startTime,
     DateTime? endTime,
   }) async {
+    final (start, end) = DateTime.now()._weeklyDateRange;
+    final startDate = startTime ?? start;
+    final endDate = endTime ?? end;
     try {
       final data = await _ble.getSleepData(
-        startTime: startTime,
-        endTime: endTime,
+        startTime: startDate,
+        endTime: endDate,
       );
-      return data;
+
+      final filteredData =
+          data.where((e) => e.isInRange(startDate, endDate)).toList();
+      return filteredData;
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<List<YuchengHealthData>> tryGetHealthData({
+  Future<YuchengHealthSportData> tryGetHealthSportData({
     DateTime? startTime,
     DateTime? endTime,
   }) async {
+    final (start, end) = DateTime.now()._weeklyDateRange;
+    final startDate = startTime ?? start;
+    final endDate = endTime ?? end;
     try {
-      final data = await _ble.getHealthData(
-        startTime: startTime,
-        endTime: endTime,
+      final data = await _ble.getHealthSportData(
+        startTime: startDate,
+        endTime: endDate,
       );
-      return data;
+
+      final filteredData = data.inDateRange(startDate, endDate);
+      return filteredData;
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<YuchengSleepHealthData> tryGetSleepHealthData({
+  Future<YuchengAllData> tryGetAllData({
     DateTime? startTime,
     DateTime? endTime,
   }) async {
+    final (start, end) = DateTime.now()._weeklyDateRange;
+    final startDate = startTime ?? start;
+    final endDate = endTime ?? end;
     try {
-      final data = await _ble.getSleepHealthData(
-        startTime: startTime,
-        endTime: endTime,
+      final data = await _ble.getAllData(
+        startTime: startDate,
+        endTime: endDate,
       );
-      return data;
+
+      final filteredData = data.inDateRange(startDate, endDate);
+      return filteredData;
     } catch (e) {
       rethrow;
     }
@@ -361,17 +379,17 @@ final class YuchengService
     }
   }
 
-  Future<bool> deleteHealthData() async {
+  Future<bool> deleteHealthSportData() async {
     try {
-      return await _ble.deleteHealthData();
+      return await _ble.deleteHealthSportData();
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<bool> deleteSleepHealthData() async {
+  Future<bool> deleteAllData() async {
     try {
-      return await _ble.deleteSleepHealthData();
+      return await _ble.deleteAllData();
     } catch (e) {
       rethrow;
     }
@@ -391,16 +409,45 @@ final class YuchengService
       rethrow;
     }
   }
+
+  Future<bool> updateFirmware(String pathToFile,
+      [YuchengDevice? device]) async {
+    try {
+      final deviceToConnect = device ?? selectedDevice;
+      if (deviceToConnect == null) {
+        throw YuchengServiceException('No device selected');
+      }
+      setUpdatingFirmware(true);
+      final result = await _ble.updateFirmware(deviceToConnect, pathToFile);
+      setUpdatingFirmware(false);
+      return result;
+    } catch (e) {
+      setUpdatingFirmware(false);
+      rethrow;
+    }
+  }
 }
 
 extension FirstWhereOrNullX<T> on Iterable<T> {
   /// returns first item to satisfy `test`, else null
   T? firstWhereOrNull(bool Function(T) test) {
-    for (var element in this) {
+    for (final element in this) {
       if (test(element)) {
         return element;
       }
     }
     return null;
+  }
+}
+
+extension on DateTime {
+  /// Returns a tuple of (startDate, endDate) from current date
+  /// endDate is end of current day
+  /// startDate is endDate - 7 days (week)
+  (DateTime startDate, DateTime endDate) get _weeklyDateRange {
+    final endDate = DateTime(year, month, day, 23, 59, 59, 999, 999);
+    final startDate = endDate.subtract(const Duration(days: 7));
+
+    return (startDate, endDate);
   }
 }

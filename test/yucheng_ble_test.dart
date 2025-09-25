@@ -82,23 +82,8 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<YuchengSleepHealthData> getSleepHealthData({
-    int? startTimestamp,
-    int? endTimestamp,
-  }) {
-    // TODO: implement getSleepHealthData
-    throw UnimplementedError();
-  }
-
-  @override
   Stream<YuchengHealthEvent> healthDataStream() {
     // TODO: implement healthDataStream
-    throw UnimplementedError();
-  }
-
-  @override
-  Stream<YuchengSleepHealthEvent> sleepHealthDataStream() {
-    // TODO: implement sleepHealthDataStream
     throw UnimplementedError();
   }
 
@@ -129,6 +114,50 @@ class MockYuchengBlePlatform
   @override
   Future<bool> resetToFactory() {
     // TODO: implement resetToFactory
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> updateFirmware(YuchengDevice device, String pathToFile) {
+    // TODO: implement updateFirmware
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<YuchengUpdateEvent> updateDataStream() {
+    // TODO: implement updateDataStream
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<YuchengAllEvent> allDataStream() {
+    // TODO: implement allDataStream
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> deleteAllData() {
+    // TODO: implement deleteAllData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> deleteHealthSportData() {
+    // TODO: implement deleteHealthSportData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<YuchengHealthSportData> getHealthSportData(
+      {int? startTimestamp, int? endTimestamp}) {
+    // TODO: implement getHealthSportData
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<YuchengAllData> getSleepHealthData(
+      {int? startTimestamp, int? endTimestamp}) {
+    // TODO: implement getSleepHealthData
     throw UnimplementedError();
   }
 }

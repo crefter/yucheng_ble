@@ -53,12 +53,81 @@ extension YuchengHealthDataJson on YuchengHealthData {
   }
 }
 
-extension YuchengSleepHealthDataX on YuchengSleepHealthData {
+extension YuchengSportDataX on YuchengSportData {
+  Map<String, dynamic> toJson() {
+    return {
+      "start_date": startDate.toIso8601String(),
+      "end_date": endDate.toIso8601String(),
+      "distance": distance,
+      "calories": calories,
+      "steps": steps,
+    };
+  }
+
+  bool isInRange(DateTime startTime, DateTime endTime) {
+    final startDate = this.startDate;
+    final endDate = this.endDate;
+
+    final inRange = (startDate.isAfter(startTime) ||
+            startDate.isAtSameMomentAs(startTime)) &&
+        (endDate.isBefore(endTime) || endDate.isAtSameMomentAs(endTime));
+
+    return inRange;
+  }
+
+  DateTime get startDate {
+    final timeStampInMs = _timeStampInMs(startTimeStamp);
+    return DateTime.fromMillisecondsSinceEpoch(timeStampInMs);
+  }
+
+  DateTime get endDate {
+    final timeStampInMs = _timeStampInMs(endTimeStamp);
+    return DateTime.fromMillisecondsSinceEpoch(timeStampInMs);
+  }
+
+  int _timeStampInMs(int timestamp) {
+    final isMs = timestamp.toString().length == 13;
+    final timeStampInMs = isMs ? timestamp : timestamp * 1000;
+    return timeStampInMs;
+  }
+}
+
+extension YuchengHealthSportDataX on YuchengHealthSportData {
+  Map<String, dynamic> toJson() {
+    return {
+      'health_data': this.healthData.map((e) => e.toJson()).toList(),
+      'sport_data': sportData.map((e) => e.toJson()).toList(),
+    };
+  }
+
+  YuchengHealthSportData inDateRange(DateTime startTime, DateTime endTime) {
+    final healthData =
+        this.healthData.where((e) => e.isInRange(startTime, endTime)).toList();
+    final sportData =
+        this.sportData.where((e) => e.isInRange(startTime, endTime)).toList();
+
+    return YuchengHealthSportData(healthData: healthData, sportData: sportData);
+  }
+}
+
+extension YuchengAllDataX on YuchengAllData {
   Map<String, dynamic> toJson() {
     return {
       "sleep_data": this.sleepData.map((e) => e.toJson()).toList(),
-      "health_data": this.healthData.map((e) => e.toJson()).toList(),
+      "health_data": healthSportData.toJson(),
     };
+  }
+
+  YuchengAllData inDateRange(DateTime startTime, DateTime endTime) {
+    final sleepData =
+        this.sleepData.where((e) => e.isInRange(startTime, endTime)).toList();
+    final healthSportData =
+        this.healthSportData.inDateRange(startTime, endTime);
+
+    return YuchengAllData(
+      sleepData: sleepData,
+      healthSportData: healthSportData,
+    );
   }
 }
 
@@ -71,7 +140,7 @@ extension YuchengDeviceSettingsJson on YuchengDeviceSettings {
   }
 }
 
-extension YuchengSleepDataEventX on YuchengSleepData {
+extension YuchengSleepDataX on YuchengSleepData {
   DateTime get startDate {
     final startInMs = _timeStampInMs(startTimeStamp);
     return DateTime.fromMillisecondsSinceEpoch(startInMs);
@@ -80,6 +149,17 @@ extension YuchengSleepDataEventX on YuchengSleepData {
   DateTime get endDate {
     final endInMs = _timeStampInMs(endTimeStamp);
     return DateTime.fromMillisecondsSinceEpoch(endInMs);
+  }
+
+  bool isInRange(DateTime startTime, DateTime endTime) {
+    final startDate = this.startDate;
+    final endDate = this.endDate;
+
+    final inRange = (startDate.isAfter(startTime) ||
+            startDate.isAtSameMomentAs(startTime)) &&
+        (endDate.isBefore(endTime) || endDate.isAtSameMomentAs(endTime));
+
+    return inRange;
   }
 
   int _timeStampInMs(int timeStamp) {
@@ -116,9 +196,50 @@ extension YuchengHealthDataX on YuchengHealthData {
     return DateTime.fromMillisecondsSinceEpoch(startInMs);
   }
 
+  bool isInRange(DateTime startTime, DateTime endTime) {
+    final date = startDate;
+
+    final inRange = (startDate.isAfter(startTime) ||
+            startDate.isAtSameMomentAs(startTime)) &&
+        (date.isBefore(endTime) || date.isAtSameMomentAs(endTime));
+
+    return inRange;
+  }
+
   int get _timeStampInMs {
     final isMs = startTimestamp.toString().length == 13;
     final timeStampInMs = isMs ? startTimestamp : startTimestamp * 1000;
     return timeStampInMs;
   }
+}
+
+extension YuchengUpdateCompleteEventX on YuchengUpdateCompleteEvent {
+  DateTime get updateCompleteDate {
+    final completeInMs = _timeStampInMs;
+    return DateTime.fromMillisecondsSinceEpoch(completeInMs);
+  }
+
+  int get _timeStampInMs {
+    final isMs = completeTimestamp.toString().length == 13;
+    final timeStampInMs = isMs ? completeTimestamp : completeTimestamp * 1000;
+    return timeStampInMs;
+  }
+}
+
+extension YuchengUpdateStartEventX on YuchengUpdateStartEvent {
+  DateTime get updateStartDate {
+    final startInMs = _timeStampInMs;
+    return DateTime.fromMillisecondsSinceEpoch(startInMs);
+  }
+
+  int get _timeStampInMs {
+    final isMs = startTimestamp.toString().length == 13;
+    final timeStampInMs = isMs ? startTimestamp : startTimestamp * 1000;
+    return timeStampInMs;
+  }
+}
+
+extension YuchengUpdateErrorEventX on YuchengUpdateErrorEvent {
+  bool get isDataVerificationError =>
+      error.contains('Data verification failure');
 }
