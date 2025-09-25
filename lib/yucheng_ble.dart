@@ -94,4 +94,10 @@ class YuchengBle {
 
   Future<bool> updateFirmware(YuchengDevice device, String pathToFile) =>
       YuchengBlePlatform.instance.updateFirmware(device, pathToFile);
+
+  Future<int?> getHealthMonitorInterval() =>
+      YuchengBlePlatform.instance.getHealthMonitorInterval();
+
+  Future<bool> setHealthMonitorInterval(int interval) =>
+      YuchengBlePlatform.instance.setHealthMonitorInterval(interval);
 }

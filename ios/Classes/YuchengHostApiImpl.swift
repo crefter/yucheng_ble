@@ -934,6 +934,66 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
         scanJLForceOtaDevice(completion: completion)
     }
+    
+    func getHealthMonitorInterval(completion: @escaping (Result<Int64?, any Error>) -> Void) {
+        var isCompleted = false
+        do {
+            YCProduct.queryDeviceUserConfiguration { (state, result) in
+                if isCompleted { return }
+                if (state == YCProductState.succeed) {
+                    let data = result as? YCProductUserConfiguration
+                    if (data == nil) {
+                        return
+                    }
+                    let monitoringInterval = data?.monitoringInterval ?? 0
+                    DispatchQueue.main.async {
+                        completion(.success(Int64(monitoringInterval)))
+                    }
+                } else {
+                    completion(.success(nil))
+                }
+                isCompleted = true
+            }
+        } catch {
+            isCompleted = true
+            DispatchQueue.main.async {
+                completion(.failure(error))
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if isCompleted { return }
+            completion(.success(nil))
+        })
+    }
+    
+    func setHealthMonitorInterval(interval: Int64, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isCompleted = false
+        do {
+            YCProduct.setDeviceHealthMonitoringMode(isEnable: true, interval: UInt8(interval), completion: {(state, result) in
+                if state == YCProductState.succeed {
+                    isCompleted = true
+                    DispatchQueue.main.async {
+                        completion(.success(true))
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        completion(.success(false))
+                    }
+                }
+            })
+        } catch {
+            isCompleted = true
+            DispatchQueue.main.async {
+                completion(.failure(error))
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if isCompleted { return }
+            completion(.success(false))
+        })
+    }
 }
 
 extension Date {

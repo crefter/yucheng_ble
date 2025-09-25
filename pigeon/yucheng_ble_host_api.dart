@@ -1,3 +1,5 @@
+// Команда для генерации: fvm dart run pigeon --input pigeon/yucheng_ble_host_api.dart
+
 import 'package:pigeon/pigeon.dart';
 
 // #docregion config
@@ -344,11 +346,13 @@ sealed class YuchengUpdateEvent {
 
 class YuchengUpdateStartEvent extends YuchengUpdateEvent {
   final int startTimestamp;
+
   const YuchengUpdateStartEvent({required this.startTimestamp});
 }
 
 class YuchengUpdateProgressEvent extends YuchengUpdateEvent {
   final double progress;
+
   const YuchengUpdateProgressEvent({
     required this.progress,
   });
@@ -356,11 +360,13 @@ class YuchengUpdateProgressEvent extends YuchengUpdateEvent {
 
 class YuchengUpdateCompleteEvent extends YuchengUpdateEvent {
   final int completeTimestamp;
+
   const YuchengUpdateCompleteEvent({required this.completeTimestamp});
 }
 
 class YuchengUpdateErrorEvent extends YuchengUpdateEvent {
   final String error;
+
   const YuchengUpdateErrorEvent({
     required this.error,
   });
@@ -442,6 +448,16 @@ abstract class YuchengHostApi {
   /// Обновление девайса
   @async
   bool updateFirmware(YuchengDevice device, String pathToFile);
+
+  /// Вернет null, если не получилось получить интервал
+  @async
+  int? getHealthMonitorInterval();
+
+  /// [interval] - 1-60 (минуты)
+  /// true - успех
+  /// false - не успех
+  @async
+  bool setHealthMonitorInterval(int interval);
 }
 
 @EventChannelApi()

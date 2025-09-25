@@ -117,4 +117,14 @@ abstract class YuchengBlePlatform extends PlatformInterface {
   Future<bool> updateFirmware(YuchengDevice device, String pathToFile) {
     throw UnimplementedError('updateFirmware has not been implemented.');
   }
+
+  Future<int?> getHealthMonitorInterval() {
+    throw UnimplementedError(
+        'getHealthMonitorInterval has not been implemented.');
+  }
+
+  Future<bool> setHealthMonitorInterval(int interval) {
+    throw UnimplementedError(
+        'setHealthMonitorInterval has not been implemented.');
+  }
 }

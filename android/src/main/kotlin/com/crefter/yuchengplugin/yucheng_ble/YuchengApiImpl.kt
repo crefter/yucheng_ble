@@ -386,8 +386,7 @@ class YuchengApiImpl(
         val sportDataCompleter = CompletableDeferred<List<YuchengSportData>>()
         val sportDataList: MutableList<YuchengSportData> = mutableListOf()
         try {
-            YCBTClient.healthHistoryData(Constants.DATATYPE.Health_HistorySport) {
-                code, ratio, data ->
+            YCBTClient.healthHistoryData(Constants.DATATYPE.Health_HistorySport) { code, ratio, data ->
                 if (data != null) {
                     val sportData = data["data"] as List<*>? ?: return@healthHistoryData
                     val mappedSport = sportData.map {
@@ -510,7 +509,11 @@ class YuchengApiImpl(
                 val sleepData =
                     getSleepData(skipHandler = true, startTimestamp = start, endTimestamp = end)
                 val healthData =
-                    getHealthSportData(skipHandler = true, startTimestamp = start, endTimestamp = end)
+                    getHealthSportData(
+                        skipHandler = true,
+                        startTimestamp = start,
+                        endTimestamp = end
+                    )
                 val sleepHealthData = YuchengAllData(sleepData, healthData)
                 Log.d(GET_SLEEP_HEALTH_DATA, "Sleep Health data = $sleepHealthData")
                 if (!sleepHealthDataCompleter.isCompleted) {
@@ -775,7 +778,8 @@ class YuchengApiImpl(
         YCBTClient.setOta(true)
         val timestamp =
             Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime().toEpochSecond(
-                ZoneOffset.UTC).toLong()
+                ZoneOffset.UTC
+            ).toLong()
         onUpdate(YuchengUpdateStartEvent(timestamp))
         YCBTClient.upgradeFirmware(
             activity, deviceToUpdate!!.uuid, deviceToUpdate!!.deviceName, pathToUpdate,
@@ -784,6 +788,7 @@ class YuchengApiImpl(
                     Log.d(UPDATE_FIRMWARE, "Progress = $p0")
                     onUpdate(YuchengUpdateProgressEvent(p0 / 10000.0))
                 }
+
                 @RequiresApi(Build.VERSION_CODES.O)
                 override fun success() {
                     Log.d(UPDATE_FIRMWARE, "Success")
@@ -794,11 +799,14 @@ class YuchengApiImpl(
                     errorUpdateCount = 0
                     isCompleted = true
                     val date =
-                        Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime().toEpochSecond(
-                            ZoneOffset.UTC).toLong()
+                        Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime()
+                            .toEpochSecond(
+                                ZoneOffset.UTC
+                            ).toLong()
                     onUpdate(YuchengUpdateCompleteEvent(date))
                     callback(Result.success(true))
                 }
+
                 override fun failed(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Failed = $p0")
                     if (p0?.contains("Data verification failure") == true) {
@@ -816,19 +824,24 @@ class YuchengApiImpl(
                         errorUpdateCount = 0
                     }
                 }
+
                 override fun disconnect() {
                     Log.d(UPDATE_FIRMWARE, "Disconnect")
                 }
+
                 override fun connecting() {
                     Log.d(UPDATE_FIRMWARE, "Connecting")
                 }
+
                 override fun connected() {
                     Log.d(UPDATE_FIRMWARE, "Connected")
                 }
+
                 override fun latest() {
                     Log.d(UPDATE_FIRMWARE, "Latest")
                     errorUpdateCount = 0
                 }
+
                 override fun error(p0: String?) {
                     Log.d(UPDATE_FIRMWARE, "Error = $p0")
                     if (!isCompleted) {
@@ -867,8 +880,54 @@ class YuchengApiImpl(
                 }
             }
         }
+    }
+
+    override fun getHealthMonitorInterval(callback: (Result<Long?>) -> Unit) {
+        callback(Result.success(null))
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun setHealthMonitorInterval(
+        interval: Long,
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        val heartCompleter = CompletableDeferred<Boolean>()
+        val bloodCompleter = CompletableDeferred<Boolean>()
+        try {
+            YCBTClient.settingHeartMonitor(0x01, interval.toInt()) { code, ratio, data ->
+                if (heartCompleter.isCompleted) return@settingHeartMonitor
+                if (code == 0) {
+                    heartCompleter.complete(true)
+                } else {
+                    heartCompleter.complete(false)
+                }
+            }
+            YCBTClient.settingBloodOxygenModeMonitor(true, interval.toInt()) { code, ratio, data ->
+                if (bloodCompleter.isCompleted) return@settingBloodOxygenModeMonitor
+                if (code == 0) {
+                    bloodCompleter.complete(true)
+                } else {
+                    bloodCompleter.complete(false)
+                }
+            }
+        } catch (e: Exception) {
+            if (!heartCompleter.isCompleted) {
+                heartCompleter.completeExceptionally(e)
+            } else if (!bloodCompleter.isCompleted) {
+                bloodCompleter.completeExceptionally(e)
+            }
         }
 
+        GlobalScope.launch {
+            try {
+                val heartResult = heartCompleter.await()
+                val bloodResult = bloodCompleter.await()
+                callback(Result.success(heartResult && bloodResult))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
 
     companion object {
         private const val YUCHENG_API = "YUCH_API"

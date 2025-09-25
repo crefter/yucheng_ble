@@ -238,35 +238,36 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
             ),
             SliverToBoxAdapter(
               child: ValueListenableBuilder(
-                  valueListenable: _service.isDeviceConnectedNotifier,
-                  builder: (context, isDeviceConnected, _) {
-                    return ValueListenableBuilder(
-                      valueListenable: _service.isReconnectedNotifier,
-                      builder: (context, isReconnected, child) {
-                        if (isReconnected || isDeviceConnected) {
-                          return child!;
-                        }
+                valueListenable: _service.isDeviceConnectedNotifier,
+                builder: (context, isDeviceConnected, _) {
+                  return ValueListenableBuilder(
+                    valueListenable: _service.isReconnectedNotifier,
+                    builder: (context, isReconnected, child) {
+                      if (isReconnected || isDeviceConnected) {
+                        return child!;
+                      }
 
-                        return const SizedBox.shrink();
+                      return const SizedBox.shrink();
+                    },
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final isReset = await resetToFactory();
+                        if (isReset) {
+                          sleepData.clear();
+                          healthSportData = null;
+                          allData = null;
+                        }
+                        if (!context.mounted) return;
+                        final text = isReset
+                            ? 'Сброс ввыполнен! Попробуй переподключиться'
+                            : 'Сброс не выполнен! ';
+                        _showSnackBar(context, text);
                       },
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final isReset = await resetToFactory();
-                          if (isReset) {
-                            sleepData.clear();
-                            healthSportData = null;
-                            allData = null;
-                          }
-                          if (!context.mounted) return;
-                          final text = isReset
-                              ? 'Сброс ввыполнен! Попробуй переподключиться'
-                              : 'Сброс не выполнен! ';
-                          _showSnackBar(context, text);
-                        },
-                        child: Text('Сбросить настройки'),
-                      ),
-                    );
-                  }),
+                      child: Text('Сбросить настройки'),
+                    ),
+                  );
+                },
+              ),
             ),
             SliverToBoxAdapter(
               child: ValueListenableBuilder(
@@ -334,6 +335,63 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                   child: const Text('Получить данные о текущем девайсе'),
                 ),
               ),
+            if (_service.isReconnected || _service.isAnyDeviceConnected) ...[
+              SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final isSet =
+                              await _service.setHealthMonitorInterval(30);
+                          if (isSet && context.mounted) {
+                            _showSnackBar(context, 'Интервал установлен!');
+                          }
+                        },
+                        child: const Text('Установить интервал в 30 мин'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final isSet =
+                              await _service.setHealthMonitorInterval(60);
+                          if (isSet && context.mounted) {
+                            _showSnackBar(context, 'Интервал установлен!');
+                          }
+                        },
+                        child: const Text('Установить интервал в 60 мин'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.only(top: 6, bottom: 6),
+                sliver: SliverToBoxAdapter(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          final interval =
+                              await _service.getHealthMonitorInterval();
+                          final text = switch (interval) {
+                            null => 'Неизвестно',
+                            _ => '$interval'
+                          };
+                          if (context.mounted) {
+                            _showSnackBar(context, text);
+                          }
+                        },
+                        child: Text('Получить интервал'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             SliverToBoxAdapter(
               child: ValueListenableBuilder(
                 valueListenable: _service.isReconnectedNotifier,
