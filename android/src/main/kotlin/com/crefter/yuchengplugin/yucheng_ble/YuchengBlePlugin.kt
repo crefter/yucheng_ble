@@ -173,7 +173,10 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        TODO("Not yet implemented")
+        activtiy = null
+        if (api != null) {
+            api?.activity = null
+        }
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
