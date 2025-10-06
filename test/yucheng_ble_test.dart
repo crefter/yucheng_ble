@@ -160,6 +160,18 @@ class MockYuchengBlePlatform
     // TODO: implement getSleepHealthData
     throw UnimplementedError();
   }
+
+  @override
+  Future<int?> getHealthMonitorInterval() {
+    // TODO: implement getHealthMonitorInterval
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> setHealthMonitorInterval(int interval) {
+    // TODO: implement setHealthMonitorInterval
+    throw UnimplementedError();
+  }
 }
 
 void main() {

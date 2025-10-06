@@ -90,4 +90,11 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   @override
   Future<bool> updateFirmware(YuchengDevice device, String pathToFile) =>
       _api.updateFirmware(device, pathToFile);
+
+  @override
+  Future<int?> getHealthMonitorInterval() => _api.getHealthMonitorInterval();
+
+  @override
+  Future<bool> setHealthMonitorInterval(int interval) =>
+      _api.setHealthMonitorInterval(interval);
 }

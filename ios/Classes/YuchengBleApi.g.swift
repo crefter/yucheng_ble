@@ -1249,6 +1249,12 @@ protocol YuchengHostApi {
   func resetToFactory(completion: @escaping (Result<Bool, Error>) -> Void)
   /// Обновление девайса
   func updateFirmware(device: YuchengDevice, pathToFile: String, completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Вернет null, если не получилось получить интервал
+  func getHealthMonitorInterval(completion: @escaping (Result<Int64?, Error>) -> Void)
+  /// [interval] - 1-60 (минуты)
+  /// true - успех
+  /// false - не успех
+  func setHealthMonitorInterval(interval: Int64, completion: @escaping (Result<Bool, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1523,6 +1529,42 @@ class YuchengHostApiSetup {
       }
     } else {
       updateFirmwareChannel.setMessageHandler(nil)
+    }
+    /// Вернет null, если не получилось получить интервал
+    let getHealthMonitorIntervalChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthMonitorInterval\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getHealthMonitorIntervalChannel.setMessageHandler { _, reply in
+        api.getHealthMonitorInterval { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getHealthMonitorIntervalChannel.setMessageHandler(nil)
+    }
+    /// [interval] - 1-60 (минуты)
+    /// true - успех
+    /// false - не успех
+    let setHealthMonitorIntervalChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.setHealthMonitorInterval\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setHealthMonitorIntervalChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let intervalArg = args[0] as! Int64
+        api.setHealthMonitorInterval(interval: intervalArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setHealthMonitorIntervalChannel.setMessageHandler(nil)
     }
   }
 }

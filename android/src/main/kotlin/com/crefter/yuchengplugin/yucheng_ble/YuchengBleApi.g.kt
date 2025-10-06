@@ -1350,6 +1350,14 @@ interface YuchengHostApi {
   fun resetToFactory(callback: (Result<Boolean>) -> Unit)
   /** Обновление девайса */
   fun updateFirmware(device: YuchengDevice, pathToFile: String, callback: (Result<Boolean>) -> Unit)
+  /** Вернет null, если не получилось получить интервал */
+  fun getHealthMonitorInterval(callback: (Result<Long?>) -> Unit)
+  /**
+   * [interval] - 1-60 (минуты)
+   * true - успех
+   * false - не успех
+   */
+  fun setHealthMonitorInterval(interval: Long, callback: (Result<Boolean>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1637,6 +1645,44 @@ interface YuchengHostApi {
             val deviceArg = args[0] as YuchengDevice
             val pathToFileArg = args[1] as String
             api.updateFirmware(deviceArg, pathToFileArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getHealthMonitorInterval$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getHealthMonitorInterval{ result: Result<Long?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.setHealthMonitorInterval$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val intervalArg = args[0] as Long
+            api.setHealthMonitorInterval(intervalArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(YuchengBleApiPigeonUtils.wrapError(error))

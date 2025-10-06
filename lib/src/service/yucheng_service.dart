@@ -426,6 +426,22 @@ final class YuchengService
       rethrow;
     }
   }
+
+  Future<int?> getHealthMonitorInterval() async {
+    try {
+      return await _ble.getHealthMonitorInterval();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> setHealthMonitorInterval(int interval) async {
+    try {
+      return await _ble.setHealthMonitorInterval(interval);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 extension FirstWhereOrNullX<T> on Iterable<T> {
