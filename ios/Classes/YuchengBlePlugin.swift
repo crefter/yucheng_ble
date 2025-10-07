@@ -36,6 +36,18 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             updateStreamHandler = UpdateDataHandlerImpl()
         }
         
+        
+        YCProduct.realTimeDataUplod(YCProduct.shared.currentPeripheral,
+                                    isEnable: true,
+                                    dataType: YCRealTimeDataType.combinedData,
+                                    completion: {state, result in
+            if state == .succeed {
+                
+            } else {
+                
+            }
+        } );
+        
         DevicesStreamHandler.register(with: registrar.messenger(), streamHandler: devicesHandler!)
         SleepDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepDataHandler!)
         DeviceStateStreamHandler.register(with: registrar.messenger(), streamHandler: deviceStateStreamHandler!)
