@@ -172,6 +172,12 @@ class MockYuchengBlePlatform
     // TODO: implement setHealthMonitorInterval
     throw UnimplementedError();
   }
+
+  @override
+  Future<YuchengHealthSportData> getRealTimeHealthRecord() {
+    // TODO: implement getRealTimeHealthRecord
+    throw UnimplementedError();
+  }
 }
 
 void main() {

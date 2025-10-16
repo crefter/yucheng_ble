@@ -1255,6 +1255,7 @@ protocol YuchengHostApi {
   /// true - успех
   /// false - не успех
   func setHealthMonitorInterval(interval: Int64, completion: @escaping (Result<Bool, Error>) -> Void)
+  func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1565,6 +1566,21 @@ class YuchengHostApiSetup {
       }
     } else {
       setHealthMonitorIntervalChannel.setMessageHandler(nil)
+    }
+    let getRealTimeHealthRecordChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeHealthRecord\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getRealTimeHealthRecordChannel.setMessageHandler { _, reply in
+        api.getRealTimeHealthRecord { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getRealTimeHealthRecordChannel.setMessageHandler(nil)
     }
   }
 }

@@ -44,7 +44,7 @@ base mixin YuchengServicePermissionsMixin {
     final requested = await permissions.request();
     final granted = requested.values.every((granted) => granted.isGranted);
     // // TODO: не пушить
-    // return true;
+    return true;
     return granted;
   }
 

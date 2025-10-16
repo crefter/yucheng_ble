@@ -127,4 +127,9 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError(
         'setHealthMonitorInterval has not been implemented.');
   }
+
+  Future<YuchengHealthSportData> getRealTimeHealthRecord() {
+    throw UnimplementedError(
+        'getRealTimeHealthRecord has not been implemented.');
+  }
 }

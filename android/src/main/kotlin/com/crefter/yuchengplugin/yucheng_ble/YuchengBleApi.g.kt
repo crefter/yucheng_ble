@@ -1358,6 +1358,7 @@ interface YuchengHostApi {
    * false - не успех
    */
   fun setHealthMonitorInterval(interval: Long, callback: (Result<Boolean>) -> Unit)
+  fun getRealTimeHealthRecord(callback: (Result<YuchengHealthSportData>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1683,6 +1684,24 @@ interface YuchengHostApi {
             val args = message as List<Any?>
             val intervalArg = args[0] as Long
             api.setHealthMonitorInterval(intervalArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeHealthRecord$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getRealTimeHealthRecord{ result: Result<YuchengHealthSportData> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(YuchengBleApiPigeonUtils.wrapError(error))

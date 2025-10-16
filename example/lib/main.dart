@@ -335,6 +335,16 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                   child: const Text('Получить данные о текущем девайсе'),
                 ),
               ),
+            if (_service.isReconnected || _service.isAnyDeviceConnected)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    final data = await _service.getRealTimeHealthRecord();
+                    print(data);
+                  },
+                  child: const Text('Получить данные в реальном времени'),
+                ),
+              ),
             if (_service.isReconnected || _service.isAnyDeviceConnected) ...[
               SliverToBoxAdapter(
                 child: Row(
