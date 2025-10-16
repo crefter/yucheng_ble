@@ -32,6 +32,15 @@ final class YuchengHostApiImpl : YuchengHostApi {
     typealias AllDataHandler = (any YuchengAllEvent) -> Void
     typealias UpdateHandler = (any YuchengUpdateEvent) -> Void
     typealias AssetPathHandler = (String) -> String;
+    
+    public var bloodOxygens: [Int64] = [];
+    public var sbps: [Int64] = [];
+    public var dbps: [Int64] = [];
+    public var heartRates: [Int64] = [];
+    public var steps: Int64 = 0;
+    public var distance: Int64 = 0;
+    public var calories: Int64 = 0;
+    
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
     private let onState: StateHandler;
@@ -79,6 +88,34 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
             }
         })
+    }
+    
+    func addBlooxOxygen(item: Int64) {
+        bloodOxygens.append(item)
+    }
+    
+    func addSbp(item: Int64) {
+        sbps.append(item)
+    }
+    
+    func addDbp(item: Int64) {
+        dbps.append(item)
+    }
+    
+    func addHeartRate(item: Int64) {
+        heartRates.append(item)
+    }
+    
+    func setSteps(steps: Int64) {
+        self.steps = steps
+    }
+    
+    func setCalories(calories: Int64) {
+        self.calories = calories
+    }
+    
+    func setDistance(distance: Int64) {
+        self.distance = distance
     }
     
     func startScanDevices(scanTimeInSeconds: Double?, completion: @escaping (Result<[YuchengDevice], any Error>) -> Void) {
@@ -703,6 +740,65 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.success(false))
             }
         })
+    }
+    
+    func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, any Error>) -> Void) {
+        var isCompleted = false
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            let _ = device?.name
+            YCProduct.realTimeDataUplod(device, isEnable: true, dataType: YCRealTimeDataType.step) { state, response in
+                if (state == YCProductState.succeed) {
+                    print("Successfully")
+                } else {
+                    print("Not successfully")
+                }
+                print(response)
+            }
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
+                print(state)
+                print(response)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 45) {
+                YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
+                    print(state)
+                    print(response)
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 105, execute: {
+                let startTimeStamp = Int64(Date().localDate().timeIntervalSince1970).toMilliseconds()
+                let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
+                let sbpMean = self.calculateMean(collection: self.sbps)
+                let dbpMean = self.calculateMean(collection: self.dbps)
+                let heartRateMean = self.calculateMean(collection: self.heartRates)
+                let healthData = YuchengHealthData(heartValue: heartRateMean, hrvValue: 0, cvrrValue: 0, OOValue: bloodOxygenMean, stepValue: self.steps, DBPValue: dbpMean, tempIntValue: 0, tempFloatValue: 0, startTimestamp: startTimeStamp, SBPValue: sbpMean, respiratoryRateValue: 0, bodyFatIntValue: 0, bodyFatFloatValue: 0, bloodSugarValue: 0)
+                let sportData = YuchengSportData(startTimeStamp: startTimeStamp, endTimeStamp: startTimeStamp, distance: self.distance, steps: self.steps, calories: self.calories)
+                let data = YuchengHealthSportData(healthData: [healthData], sportData: [sportData])
+                if (isCompleted) { return }
+                completion(.success(data))
+                isCompleted = true
+            })
+        } catch {
+            if (isCompleted) { return }
+            completion(.failure(error))
+            isCompleted = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+            if (isCompleted) { return }
+            completion(.success(YuchengHealthSportData(healthData: [], sportData: [])))
+            isCompleted = true
+        })
+    }
+    
+    private func calculateMean(collection: [Int64]) -> Int64 {
+        let sum =  collection.reduce(0) { partialResult, item in
+            partialResult + item
+        }
+        var count = Int64(collection.count)
+        count = count < 1 ? 1 : count
+        let mean = sum / count
+        return mean
     }
     
     func deleteAllData(completion: @escaping (Result<Bool, any Error>) -> Void) {
