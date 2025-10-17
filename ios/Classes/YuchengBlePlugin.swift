@@ -178,36 +178,14 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         {
             let device = response.device
             let data = response.data
-            // TODO: определить тип переменной data
-            if data is String {
-                print("STRING")
+            if (data != nil) {
+                let dataString = String(describing: data!)
+                let bloodOxygen = Int64(dataString) ?? 0
+                YuchengBlePlugin.api?.bloodOxygens.append(bloodOxygen)
+                print("BLOOD OXYGEN INT", device?.name ?? "",
+                      response.data ?? "no blood oxygen data"
+                )
             }
-            if data is Int {
-                print("Int")
-                
-            }
-            if data is Int32 {
-                print("Int32")
-            }
-            if data is Int16 {
-                print("Int16")
-            }
-            if data is Int64 {
-                print("Int64")
-            }
-            if data is UInt32 {
-                print("UInt32")
-            }
-            if data is UInt16 {
-                print("UInt16")
-            }
-            if data is UInt64 {
-                print("UInt64")
-            }
-            print("BLOOD OXYGEN", device?.name ?? "",
-                  response.data ?? "no blood oxygen data"
-            )
-            //YuchengBlePlugin.api?.bloodOxygens.append(Int64(data))
         }
     }
     

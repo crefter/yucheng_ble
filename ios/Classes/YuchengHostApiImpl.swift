@@ -760,13 +760,13 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 print(state)
                 print(response)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 45) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 50) {
                 YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
                     print(state)
                     print(response)
                 }
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 105, execute: {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 110, execute: {
                 let startTimeStamp = Int64(Date().localDate().timeIntervalSince1970).toMilliseconds()
                 let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
                 let sbpMean = self.calculateMean(collection: self.sbps)
@@ -784,7 +784,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             completion(.failure(error))
             isCompleted = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 125, execute: {
             if (isCompleted) { return }
             completion(.success(YuchengHealthSportData(healthData: [], sportData: [])))
             isCompleted = true
