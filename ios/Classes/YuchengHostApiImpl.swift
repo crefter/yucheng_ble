@@ -10,6 +10,66 @@ import Flutter
 import JLDialUnit
 import JL_BLEKit
 
+import Combine
+
+class Completer<T> {
+    private let subject = PassthroughSubject<T, Error>()
+    private let lock = NSRecursiveLock()
+    private var _isCompleted = false
+    
+    /// Public future that can be subscribed to
+    public var future: AnyPublisher<T, Error> {
+        subject.eraseToAnyPublisher()
+    }
+    
+    /// Thread-safe completion status
+    public var isCompleted: Bool {
+        lock.withLock { _isCompleted }
+    }
+    
+    /// Completes the future with a value
+    /// - Parameter value: The value to complete with
+    public func complete(_ value: T) {
+        guard !markAsCompleted() else { return }
+        
+        subject.send(value)
+        subject.send(completion: .finished)
+    }
+    
+    /// Completes the future with an error
+    /// - Parameter error: The error to complete with
+    public func completeError(_ error: Error) {
+        guard !markAsCompleted() else { return }
+        
+        subject.send(completion: .failure(error))
+    }
+    
+    /// Resets the completer to allow reuse (use with caution)
+    public func reset() {
+        lock.withLock {
+            _isCompleted = false
+        }
+    }
+    
+    // MARK: - Private
+    private func markAsCompleted() -> Bool {
+        lock.withLock {
+            guard !_isCompleted else {
+                debugPrint("⚠️ Completer already completed")
+                return true
+            }
+            _isCompleted = true
+            return false
+        }
+    }
+    
+    deinit {
+        // Ensure we complete the subject on deinit to avoid memory leaks
+        if !isCompleted {
+            subject.send(completion: .finished)
+        }
+    }
+}
 
 enum UnimplementedError : Error {
     case notImplemented(String)
@@ -40,7 +100,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     public var steps: Int64 = 0;
     public var distance: Int64 = 0;
     public var calories: Int64 = 0;
+    public var bloodPressureCompleter: Completer<Bool>? = nil;
+    public var bloodOxygenCompleter: Completer<Bool>? = nil;
     
+    private var cancellables = Set<AnyCancellable>()
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
     private let onState: StateHandler;
@@ -744,6 +807,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
     
     func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, any Error>) -> Void) {
         var isCompleted = false
+        bloodOxygenCompleter = Completer<Bool>();
+        bloodPressureCompleter = Completer<Bool>();
+        
         do {
             let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
             let _ = device?.macAddress
@@ -757,37 +823,55 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 print(response)
             }
             YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
-                print(state)
-                print(response)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 50) {
-                YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
-                    print(state)
-                    print(response)
+            bloodPressureCompleter?.future.sink(receiveCompletion: { result in
+                switch (result) {
+                case .finished:
+                    YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
+                    }
+                case .failure(let error):
+                    completion(.failure(error))
                 }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 110, execute: {
-                let startTimeStamp = Int64(Date().localDate().timeIntervalSince1970).toMilliseconds()
-                let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
-                let sbpMean = self.calculateMean(collection: self.sbps)
-                let dbpMean = self.calculateMean(collection: self.dbps)
-                let heartRateMean = self.calculateMean(collection: self.heartRates)
-                let healthData = YuchengHealthData(heartValue: heartRateMean, hrvValue: 0, cvrrValue: 0, OOValue: bloodOxygenMean, stepValue: self.steps, DBPValue: dbpMean, tempIntValue: 0, tempFloatValue: 0, startTimestamp: startTimeStamp, SBPValue: sbpMean, respiratoryRateValue: 0, bodyFatIntValue: 0, bodyFatFloatValue: 0, bloodSugarValue: 0)
-                let sportData = YuchengSportData(startTimeStamp: startTimeStamp, endTimeStamp: startTimeStamp, distance: self.distance, steps: self.steps, calories: self.calories)
-                let data = YuchengHealthSportData(healthData: [healthData], sportData: [sportData])
-                if (isCompleted) { return }
-                completion(.success(data))
-                isCompleted = true
-            })
+            }, receiveValue: { value in
+            
+            }).store(in: &cancellables)
+            bloodOxygenCompleter?.future.sink(receiveCompletion: {result in
+                switch (result) {
+                case .finished:
+                    DispatchQueue.main.async(execute: {
+                        let startTimeStamp = Int64(Date().timeIntervalSince1970).toMilliseconds()
+                        let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
+                        let sbpMean = self.calculateMean(collection: self.sbps)
+                        let dbpMean = self.calculateMean(collection: self.dbps)
+                        let heartRateMean = self.calculateMean(collection: self.heartRates)
+                        let healthData = YuchengHealthData(heartValue: heartRateMean, hrvValue: 0, cvrrValue: 0, OOValue: bloodOxygenMean, stepValue: self.steps, DBPValue: dbpMean, tempIntValue: 0, tempFloatValue: 0, startTimestamp: startTimeStamp, SBPValue: sbpMean, respiratoryRateValue: 0, bodyFatIntValue: 0, bodyFatFloatValue: 0, bloodSugarValue: 0)
+                        let sportData = YuchengSportData(startTimeStamp: startTimeStamp, endTimeStamp: startTimeStamp, distance: self.distance, steps: self.steps, calories: self.calories)
+                        let data = YuchengHealthSportData(healthData: [healthData], sportData: [sportData])
+                        if (isCompleted) { return }
+                        completion(.success(data))
+                        isCompleted = true
+                        self.cancellables.removeAll()
+                        self.sbps.removeAll()
+                        self.dbps.removeAll()
+                        self.heartRates.removeAll()
+                        self.bloodOxygens.removeAll()
+                    })
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }, receiveValue: { value in
+            }).store(in: &cancellables)
         } catch {
             if (isCompleted) { return }
             completion(.failure(error))
             isCompleted = true
+            self.cancellables.removeAll()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 125, execute: {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 180, execute: {
             if (isCompleted) { return }
             completion(.success(YuchengHealthSportData(healthData: [], sportData: [])))
             isCompleted = true
+            self.cancellables.removeAll()
         })
     }
     

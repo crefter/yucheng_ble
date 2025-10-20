@@ -94,6 +94,37 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             name: YCProduct.receivedRealTimeNotification,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(deviceDataStateChanged(_:)),
+            name: YCProduct.deviceControlNotification,
+            object: nil
+        )
+    }
+    
+    @objc class func deviceDataStateChanged(_ ntf: Notification) {
+        guard let info = ntf.userInfo else {
+            return
+        }
+        if let response = info[YCDeviceControlType.healthDataMeasurementResult.toString] as?
+            YCReceivedDeviceReportInfo,
+           let device = response.device,
+           let data = response.data as? YCDeviceControlMeasureHealthDataResultInfo {
+            let state = data.state
+            let type = data.dataType
+            if (type == YCAppControlMeasureHealthDataType.bloodPressure) {
+                YuchengBlePlugin.api!.bloodPressureCompleter?.complete(true)
+            } else if (type == YCAppControlMeasureHealthDataType.bloodOxygen) {
+                YuchengBlePlugin.api!.bloodOxygenCompleter?.complete(true)
+            }
+            let description = data.description
+            print("CONTROL DATA RESULT",device.name ?? "",
+                  state,
+                  type,
+                  description
+            )
+        }
     }
     
     @objc class func deviceStateChange(_ ntf: Notification) {
@@ -139,16 +170,17 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         }
         if let response =
             info[YCReceivedRealTimeDataType.realTimeMonitoringMode.toString] as?
-            YCReceivedDeviceReportInfo,
-           let device = response.device,
-           let data = response.data as? YCReceivedMonitoringModeInfo {
-            print("MODE", device.name ?? ""
-                  ,
-                  data.startTimeStamp,
-                  data.modeStep,
-                  data.modeCalories,
-                  data.modeCalories
-            )
+            YCReceivedDeviceReportInfo {
+           let device = response.device
+            print("REAL TIME MONITORING MODE", response.data)
+               if let data = response.data as? YCReceivedMonitoringModeInfo {
+                   print("MODE:", device?.name ?? "",
+                         data.startTimeStamp,
+                         data.modeStep,
+                         data.modeCalories,
+                         data.modeCalories
+                   )
+               }
         }
         // Blood pressure data
         if let response =

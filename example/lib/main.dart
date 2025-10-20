@@ -75,6 +75,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   YuchengHealthSportData? healthSportData;
   YuchengAllData? allData;
   YuchengDevice? selectedDevice;
+  YuchengHealthSportData? realData;
 
   @override
   void initState() {
@@ -339,10 +340,67 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
               SliverToBoxAdapter(
                 child: TextButton(
                   onPressed: () async {
+                    setState(() {
+                      realData = null;
+                    });
                     final data = await _service.getRealTimeHealthRecord();
                     print(data);
+                    setState(() {
+                      realData = data;
+                    });
                   },
                   child: const Text('Получить данные в реальном времени'),
+                ),
+              ),
+            if (realData != null)
+              SliverToBoxAdapter(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Colors.red.shade600),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Builder(
+                      builder: (context) {
+                        final healthData = realData!.healthData.firstOrNull;
+                        final sportData = realData!.sportData.firstOrNull;
+                        if (healthData == null && sportData == null) {
+                          return Text('NO DATA!');
+                        }
+                        return Column(
+                          children: [
+                            if (healthData != null)
+                              Column(
+                                children: [
+                                  Text(
+                                      'Time of measurement: ${healthData.startDate}'),
+                                  Text('HEALTH DATA:'),
+                                  Text(
+                                    'Oxygen: ${healthData.OOValue}',
+                                  ),
+                                  Text(
+                                    'Blood pressure: ${healthData.SBPValue}/${healthData.DBPValue}',
+                                  ),
+                                  Text(
+                                    'Heart: ${healthData.heartValue}',
+                                  ),
+                                ],
+                              ),
+                            if (healthData != null) const SizedBox(height: 10),
+                            if (sportData != null)
+                              Column(
+                                children: [
+                                  Text(
+                                      'Time of measurement: ${sportData.startDate}'),
+                                  Text('SPORT DATA:'),
+                                  Text('Steps: ${sportData.steps}'),
+                                  Text('Calories: ${sportData.calories}'),
+                                  Text('Distance: ${sportData.distance}')
+                                ],
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             if (_service.isReconnected || _service.isAnyDeviceConnected) ...[
