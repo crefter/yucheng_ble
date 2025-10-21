@@ -76,6 +76,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   YuchengAllData? allData;
   YuchengDevice? selectedDevice;
   YuchengHealthSportData? realData;
+  bool measuring = false;
 
   @override
   void initState() {
@@ -338,19 +339,23 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
               ),
             if (_service.isReconnected || _service.isAnyDeviceConnected)
               SliverToBoxAdapter(
-                child: TextButton(
-                  onPressed: () async {
-                    setState(() {
-                      realData = null;
-                    });
-                    final data = await _service.getRealTimeHealthRecord();
-                    print(data);
-                    setState(() {
-                      realData = data;
-                    });
-                  },
-                  child: const Text('Получить данные в реальном времени'),
-                ),
+                child: measuring
+                    ? const Center(child: CircularProgressIndicator())
+                    : TextButton(
+                        onPressed: () async {
+                          setState(() {
+                            measuring = true;
+                            realData = null;
+                          });
+                          final data = await _service.getRealTimeHealthRecord();
+                          print(data);
+                          setState(() {
+                            realData = data;
+                            measuring = false;
+                          });
+                        },
+                        child: const Text('Получить данные в реальном времени'),
+                      ),
               ),
             if (realData != null)
               SliverToBoxAdapter(

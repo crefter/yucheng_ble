@@ -820,7 +820,6 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 } else {
                     print("Not successfully")
                 }
-                print(response)
             }
             YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
             }
