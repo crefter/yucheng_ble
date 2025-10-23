@@ -4,7 +4,7 @@ import CoreBluetooth
 import YCProductSDK
 
 public class YuchengBlePlugin: NSObject, FlutterPlugin {
-    private static var api: YuchengHostApi? = nil
+    private static var api: YuchengHostApiImpl? = nil
     private static var devicesHandler: DeviceStreamHandlerImpl? = nil
     private static var sleepDataHandler: SleepDataHandlerImpl? = nil
     private static var healthDataHandler: HealthDataHandlerImpl? = nil
@@ -35,18 +35,18 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         if (updateStreamHandler == nil) {
             updateStreamHandler = UpdateDataHandlerImpl()
         }
-
-//         YCProduct.realTimeDataUplod(YCProduct.shared.currentPeripheral,
-//                                             isEnable: true,
-//                                             dataType: YCRealTimeDataType.combinedData,
-//                                             completion: {state, result in
-//                     if state == .succeed {
-//
-//                     } else {
-//
-//                     }
-//                 } );
-
+        
+        //         YCProduct.realTimeDataUplod(YCProduct.shared.currentPeripheral,
+        //                                             isEnable: true,
+        //                                             dataType: YCRealTimeDataType.combinedData,
+        //                                             completion: {state, result in
+        //                     if state == .succeed {
+        //
+        //                     } else {
+        //
+        //                     }
+        //                 } );
+        
         DevicesStreamHandler.register(with: registrar.messenger(), streamHandler: devicesHandler!)
         SleepDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepDataHandler!)
         DeviceStateStreamHandler.register(with: registrar.messenger(), streamHandler: deviceStateStreamHandler!)
@@ -87,6 +87,44 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             name: YCProduct.deviceStateNotification,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(receiveRealTimeData(_:)),
+            name: YCProduct.receivedRealTimeNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(deviceDataStateChanged(_:)),
+            name: YCProduct.deviceControlNotification,
+            object: nil
+        )
+    }
+    
+    @objc class func deviceDataStateChanged(_ ntf: Notification) {
+        guard let info = ntf.userInfo else {
+            return
+        }
+        if let response = info[YCDeviceControlType.healthDataMeasurementResult.toString] as?
+            YCReceivedDeviceReportInfo,
+           let device = response.device,
+           let data = response.data as? YCDeviceControlMeasureHealthDataResultInfo {
+            let state = data.state
+            let type = data.dataType
+            if (type == YCAppControlMeasureHealthDataType.bloodPressure) {
+                YuchengBlePlugin.api!.bloodPressureCompleter?.complete(true)
+            } else if (type == YCAppControlMeasureHealthDataType.bloodOxygen) {
+                YuchengBlePlugin.api!.bloodOxygenCompleter?.complete(true)
+            }
+            let description = data.description
+            print("CONTROL DATA RESULT",device.name ?? "",
+                  state,
+                  type,
+                  description
+            )
+        }
     }
     
     @objc class func deviceStateChange(_ ntf: Notification) {
@@ -111,6 +149,78 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         }
         print("STATE: " + state.toString)
     }
+    
+    @objc class func receiveRealTimeData(_ notification: Notification) {
+        guard let info = notification.userInfo else {
+            return
+        }
+        if let response = info[YCReceivedRealTimeDataType.step.toString] as?
+            YCReceivedDeviceReportInfo,
+           let device = response.device,
+           let sportInfo = response.data as? YCReceivedRealTimeStepInfo {
+            print("STEPS", device.name ?? ""
+                  ,
+                  sportInfo.step,
+                  sportInfo.calories,
+                  sportInfo.distance
+            )
+            YuchengBlePlugin.api?.setSteps(steps: Int64(sportInfo.step))
+            YuchengBlePlugin.api?.setCalories(calories: Int64(sportInfo.calories))
+            YuchengBlePlugin.api?.setDistance(distance: Int64(sportInfo.distance))
+        }
+        if let response =
+            info[YCReceivedRealTimeDataType.realTimeMonitoringMode.toString] as?
+            YCReceivedDeviceReportInfo {
+           let device = response.device
+            print("REAL TIME MONITORING MODE", response.data)
+               if let data = response.data as? YCReceivedMonitoringModeInfo {
+                   print("MODE:", device?.name ?? "",
+                         data.startTimeStamp,
+                         data.modeStep,
+                         data.modeCalories,
+                         data.modeCalories
+                   )
+               }
+        }
+        // Blood pressure data
+        if let response =
+            info[YCReceivedRealTimeDataType.bloodPressure.toString] as?
+            YCReceivedDeviceReportInfo
+        {
+            let device = response.device
+            if let healthData = response.data as? YCReceivedRealTimeBloodPressureInfo {
+                let heartRate = healthData.heartRate
+                let systolicBloodPressure =
+                healthData.systolicBloodPressure
+                let diastolicBloodPressure =
+                healthData.diastolicBloodPressure
+                print("BLOOD PRESSURE", device?.name ?? "",
+                      heartRate,
+                      systolicBloodPressure,
+                      diastolicBloodPressure
+                )
+                YuchengBlePlugin.api?.heartRates.append(Int64(heartRate))
+                YuchengBlePlugin.api?.dbps.append(Int64(diastolicBloodPressure))
+                YuchengBlePlugin.api?.sbps.append(Int64(systolicBloodPressure))
+            }
+        }
+        if let response =
+            info[YCReceivedRealTimeDataType.bloodOxygen.toString] as?
+            YCReceivedDeviceReportInfo
+        {
+            let device = response.device
+            let data = response.data
+            if (data != nil) {
+                let dataString = String(describing: data!)
+                let bloodOxygen = Int64(dataString) ?? 0
+                YuchengBlePlugin.api?.bloodOxygens.append(bloodOxygen)
+                print("BLOOD OXYGEN INT", device?.name ?? "",
+                      response.data ?? "no blood oxygen data"
+                )
+            }
+        }
+    }
+    
     
     public func detachFromEngine(for registrar: any FlutterPluginRegistrar) {
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: nil)

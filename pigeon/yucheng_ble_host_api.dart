@@ -458,6 +458,9 @@ abstract class YuchengHostApi {
   /// false - не успех
   @async
   bool setHealthMonitorInterval(int interval);
+
+  @async
+  YuchengHealthSportData getRealTimeHealthRecord();
 }
 
 @EventChannelApi()

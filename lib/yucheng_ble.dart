@@ -100,4 +100,7 @@ class YuchengBle {
 
   Future<bool> setHealthMonitorInterval(int interval) =>
       YuchengBlePlatform.instance.setHealthMonitorInterval(interval);
+
+  Future<YuchengHealthSportData> getRealTimeHealthRecord() =>
+      YuchengBlePlatform.instance.getRealTimeHealthRecord();
 }

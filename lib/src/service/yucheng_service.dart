@@ -447,6 +447,14 @@ final class YuchengService
       rethrow;
     }
   }
+
+  Future<YuchengHealthSportData> getRealTimeHealthRecord() async {
+    try {
+      return await _ble.getRealTimeHealthRecord();
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 extension FirstWhereOrNullX<T> on Iterable<T> {

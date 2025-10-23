@@ -929,6 +929,193 @@ class YuchengApiImpl(
         }
     }
 
+    private data class MeanBloodPressure(
+        val sbp: Long,
+        val dbp: Long
+    )
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun getRealTimeHealthRecord(callback: (Result<YuchengHealthSportData>) -> Unit) {
+        Log.d(YUCHENG_API, "START getRealTimeHealthRecord")
+        val heartRateType = 0
+        val bloodPressureType = 1
+        val bloodOxygenType = 2
+        val heartRates: MutableList<Long> = mutableListOf()
+        val bloodPressures: MutableList<MeanBloodPressure> = mutableListOf()
+        val bloodOxygens: MutableList<Long> = mutableListOf()
+        var heartRate: Long = 0
+        var bloodPressure = MeanBloodPressure(sbp = 0, dbp = 0)
+        var bloodOxygen: Long = 0
+        var steps: Long = 0
+        var calories: Long = 0
+        var distance: Long = 0
+
+        val heartRateCompleter = CompletableDeferred<Long>()
+        val bloodPressureCompleter = CompletableDeferred<MeanBloodPressure>()
+        val bloodOxygenCompleter = CompletableDeferred<Long>()
+        val sportCompleter = CompletableDeferred<Boolean>()
+
+        val completer = CompletableDeferred<Boolean>()
+
+        GlobalScope.launch {
+            try {
+                YCBTClient.deviceToApp { code, data ->
+                    Log.d(YUCHENG_API, "DEVICETOAPP code = $code data = $data")
+                    if (code == 0 && data != null) {
+                        val dataType = data["dataType"] as Int
+                        Log.d(YUCHENG_API, "DEVICETOAPP dataType = $dataType")
+                        if (dataType == Constants.DATATYPE.DeviceMeasurementResult) {
+                            val datas = data["datas"] as ByteArray
+                            Log.d(YUCHENG_API, "DEVICETOAPP datas = $datas")
+                            if (datas.isNotEmpty()) {
+                                val type = datas[0].toInt()
+                                val result = datas[1].toInt()
+                                Log.d(YUCHENG_API, "DEVICETOAPP type = $type")
+                                Log.d(YUCHENG_API, "DEVICETOAPP result = $result")
+                                if (result == 1) {
+                                    if (type == heartRateType) {
+                                        val sum = heartRates.reduce { prev, next -> prev + next }
+                                        var count = heartRates.count()
+                                        count = if (count < 1) 1 else count
+                                        val mean = sum / count
+                                        Log.d(YUCHENG_API, "Heart rate mean: $mean")
+                                        heartRateCompleter.complete(mean)
+                                    } else if (type == bloodOxygenType) {
+                                        val sum = bloodOxygens.reduce { prev, next -> prev + next }
+                                        var count = bloodOxygens.count()
+                                        count = if (count < 1) 1 else count
+                                        val mean = sum / count
+                                        Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
+                                        bloodOxygenCompleter.complete(mean)
+                                    } else if (type == bloodPressureType) {
+                                        var count = bloodPressures.count()
+                                        count = if (count < 1) 1 else count
+                                        val sumDbp = bloodPressures.sumOf { item -> item.dbp }
+                                        val meanDbp = sumDbp / count
+                                        val sumSbp = bloodPressures.sumOf { item -> item.sbp }
+                                        val meanSbp = sumSbp / count
+                                        Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
+                                        Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
+                                        bloodPressureCompleter.complete(MeanBloodPressure(sbp = meanSbp, dbp = meanDbp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                YCBTClient.appRegisterRealDataCallBack { type, data ->
+                    if (data != null) {
+                        if (!sportCompleter.isCompleted && type == Constants.DATATYPE.Real_UploadSport) {
+                            steps = (data["sportStep"] as Int).toLong()
+                            calories = (data["sportCalorie"] as Int).toLong()
+                            distance = (data["sportDistance"] as Int).toLong()
+                            Log.d(YUCHENG_API, "Sport data: steps = $steps, calories = $calories, distance = $distance")
+                            sportCompleter.complete(true)
+                            completer.complete(true)
+                        }
+                        if (type == Constants.DATATYPE.Real_UploadHeart) {
+                            val value = data["heartValue"] as Int
+                            Log.d(YUCHENG_API, "heart rate = $value")
+                            heartRates.add(value.toLong())
+                        }
+                        if (type == Constants.DATATYPE.Real_UploadBloodOxygen) {
+                            val value = data["bloodOxygenValue"] as Int
+                            Log.d(YUCHENG_API, "blood oxygen = $value")
+                            bloodOxygens.add(value.toLong())
+                        }
+                        if (type == Constants.DATATYPE.Real_UploadBlood) {
+                            val dbp = data["bloodDBP"] as Int
+                            val sbp = data["bloodSBP"] as Int
+                            Log.d(YUCHENG_API, "blood DBP = $dbp")
+                            Log.d(YUCHENG_API, "blood SBP = $sbp")
+                            bloodPressures.add(MeanBloodPressure(sbp = sbp.toLong(), dbp = dbp.toLong()))
+                        }
+                    }
+                }
+
+                YCBTClient.appStartMeasurement(1, heartRateType) { code, ratio, data ->
+                    Log.d(YUCHENG_API, "START HEART RATE MEASURE")
+                }
+                Log.d(YUCHENG_API, "WAITING HEART RATE")
+                heartRate = heartRateCompleter.await()
+                Log.d(YUCHENG_API, "HEART RATE = $heartRate")
+                YCBTClient.appStartMeasurement(1, bloodPressureType) { code, ratio, data ->
+                    Log.d(YUCHENG_API, "START BLOOD PRESSURE MEASURE")
+                }
+                Log.d(YUCHENG_API, "WAITING BLOOD PRESSURE")
+                bloodPressure = bloodPressureCompleter.await()
+                Log.d(YUCHENG_API, "BLOOD PRESSURE = $bloodPressure")
+
+                YCBTClient.appStartMeasurement(1, bloodOxygenType) { code, ratio, data ->
+                    Log.d(YUCHENG_API, "START BLOOD OXYGEN MEASURE")
+                }
+                Log.d(YUCHENG_API, "WAITING BLOOD OXYGEN")
+                bloodOxygen = bloodOxygenCompleter.await()
+                Log.d(YUCHENG_API, "BLOOD OXYGEN = $bloodOxygen")
+                YCBTClient.appRealDataFromDevice(1, 0) { code, ratio, data ->
+                    Log.d(YUCHENG_API, "START SPORT MEASURE")
+                }
+                Log.d(YUCHENG_API, "WAITING SPORT")
+                sportCompleter.await()
+                Log.d(YUCHENG_API, "SPORT COMPLETED")
+                if (!completer.isCompleted) completer.complete(true)
+            } catch (e: Exception) {
+                Log.d(YUCHENG_API, "ERROR = $e")
+                if (!completer.isCompleted) {
+                    completer.completeExceptionally(e)
+                }
+            }
+        }
+
+
+        GlobalScope.launch {
+            try {
+                completer.await()
+                val startTimeStamp = Instant.now().toEpochMilli()
+                val healthData = YuchengHealthData(
+                    heartRate,
+                    0,
+                    0,
+                    bloodOxygen,
+                    0,
+                    bloodPressure.dbp,
+                    0,
+                    0,
+                    startTimeStamp,
+                    bloodPressure.sbp,
+                    0,
+                    0,
+                    0,
+                    0
+                )
+                val sportData = YuchengSportData(
+                    startTimeStamp, startTimeStamp, distance, steps, calories
+                )
+                val healthSportData = YuchengHealthSportData(
+                    listOf(healthData),
+                    listOf(sportData)
+                )
+                onHealthData(
+                    YuchengHealthDataEvent(
+                        healthSportData
+                    )
+                )
+                Log.d(YUCHENG_API, "Health sport data = $healthSportData")
+                callback(Result.success(healthSportData))
+            } catch (e: Exception) {
+                Log.d(YUCHENG_API, "ERROR = $e")
+                callback(Result.failure(e))
+            }
+        }
+        GlobalScope.launch {
+            delay(1000 * 600)
+            if (completer.isCompleted) return@launch
+
+            callback(Result.failure(Exception("Timeout")))
+        }
+    }
+
     companion object {
         private const val YUCHENG_API = "YUCH_API"
         private const val GET_SLEEP_DATA = "$YUCHENG_API GET_SLEEP_DATA"

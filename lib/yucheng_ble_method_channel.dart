@@ -97,4 +97,8 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   @override
   Future<bool> setHealthMonitorInterval(int interval) =>
       _api.setHealthMonitorInterval(interval);
+
+  @override
+  Future<YuchengHealthSportData> getRealTimeHealthRecord() =>
+      _api.getRealTimeHealthRecord();
 }
