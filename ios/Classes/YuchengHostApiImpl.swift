@@ -1299,6 +1299,35 @@ final class YuchengHostApiImpl : YuchengHostApi {
         let mean = (sum / count).rounded(.toNearestOrAwayFromZero)
         return Int64(mean)
     }
+    
+    func calibrateBloodPressure(sbp: Int64, dbp: Int64, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isCompleted = false
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            YCProduct.deviceBloodPressureCalibration(device, systolicBloodPressure: UInt8(sbp), diastolicBloodPressure: UInt8(dbp)) { state, response in
+                if (isCompleted) {
+                    return
+                }
+                let result = state == YCProductState.succeed
+                completion(.success(result))
+                isCompleted = true
+            }
+        } catch {
+            if (isCompleted) {
+                return
+            }
+            completion(Result.failure(error))
+            isCompleted = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if (isCompleted) {
+                return
+            }
+            completion(Result.success(false))
+        })
+    }
 }
 
 extension Date {

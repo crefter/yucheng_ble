@@ -1197,7 +1197,7 @@ class YuchengApiImpl(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun getRealTimeBloodPressure(callback: (Result<RealTimeBloodPressure>) -> Unit) {
-        Log.d(YUCHENG_API, "START getRealTimeHealthRecord")
+        Log.d(YUCHENG_API, "START getRealTimeBloodPressure")
         val bloodPressureType = 1
         val completer = CompletableDeferred<Boolean>()
 
@@ -1243,6 +1243,42 @@ class YuchengApiImpl(
         GlobalScope.launch {
             delay(1000 * 120)
             if (completer.isCompleted) return@launch
+
+            callback(Result.failure(Exception("Timeout")))
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun calibrateBloodPressure(
+        sbp: Long,
+        dbp: Long,
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        Log.d(YUCHENG_API, "START calibrateBloodPressure sbp = $sbp dbp = $dbp")
+        val completed = CompletableDeferred<Boolean>()
+        YCBTClient.appBloodCalibration(sbp.toInt(), dbp.toInt(), { code, ratio, data ->
+            if (completed.isCompleted) return@appBloodCalibration
+            val isCompleted = code == 0
+            if (isCompleted) {
+                Log.d(YUCHENG_API, "Calibration is completed")
+            } else {
+                Log.d(YUCHENG_API, "Calibration is NOT completed")
+            }
+            completed.complete(isCompleted)
+        })
+
+        GlobalScope.launch {
+            try {
+                val result = completed.await()
+                callback(Result.success(result))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+
+        GlobalScope.launch {
+            delay(1000 * TIME_TO_TIMEOUT)
+            if (completed.isCompleted) return@launch
 
             callback(Result.failure(Exception("Timeout")))
         }
