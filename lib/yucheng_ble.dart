@@ -112,4 +112,7 @@ class YuchengBle {
 
   Future<int> getRealTimeBloodOxygen() =>
       YuchengBlePlatform.instance.getRealTimeBloodOxygen();
+
+  Future<bool> calibrateBloodPressure(int sbp, int dbp) =>
+      YuchengBlePlatform.instance.calibrateBloodPressure(sbp, dbp);
 }

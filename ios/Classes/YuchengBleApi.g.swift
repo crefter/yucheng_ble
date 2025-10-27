@@ -1293,6 +1293,7 @@ protocol YuchengHostApi {
   func getRealTimeBloodOxygen(completion: @escaping (Result<Int64, Error>) -> Void)
   func getRealTimeHeart(completion: @escaping (Result<Int64, Error>) -> Void)
   func getRealTimeBloodPressure(completion: @escaping (Result<RealTimeBloodPressure, Error>) -> Void)
+  func calibrateBloodPressure(sbp: Int64, dbp: Int64, completion: @escaping (Result<Bool, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1663,6 +1664,24 @@ class YuchengHostApiSetup {
       }
     } else {
       getRealTimeBloodPressureChannel.setMessageHandler(nil)
+    }
+    let calibrateBloodPressureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.calibrateBloodPressure\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      calibrateBloodPressureChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let sbpArg = args[0] as! Int64
+        let dbpArg = args[1] as! Int64
+        api.calibrateBloodPressure(sbp: sbpArg, dbp: dbpArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      calibrateBloodPressureChannel.setMessageHandler(nil)
     }
   }
 }

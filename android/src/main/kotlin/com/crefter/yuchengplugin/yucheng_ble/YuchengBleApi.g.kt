@@ -1402,6 +1402,7 @@ interface YuchengHostApi {
   fun getRealTimeBloodOxygen(callback: (Result<Long>) -> Unit)
   fun getRealTimeHeart(callback: (Result<Long>) -> Unit)
   fun getRealTimeBloodPressure(callback: (Result<RealTimeBloodPressure>) -> Unit)
+  fun calibrateBloodPressure(sbp: Long, dbp: Long, callback: (Result<Boolean>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1799,6 +1800,27 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.getRealTimeBloodPressure{ result: Result<RealTimeBloodPressure> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.calibrateBloodPressure$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sbpArg = args[0] as Long
+            val dbpArg = args[1] as Long
+            api.calibrateBloodPressure(sbpArg, dbpArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(YuchengBleApiPigeonUtils.wrapError(error))

@@ -479,6 +479,14 @@ final class YuchengService
       rethrow;
     }
   }
+
+  Future<bool> calibrateBloodPressure(int sbp, int dbp) async {
+    try {
+      return await _ble.calibrateBloodPressure(sbp, dbp);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 extension FirstWhereOrNullX<T> on Iterable<T> {

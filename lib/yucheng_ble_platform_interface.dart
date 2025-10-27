@@ -146,4 +146,9 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError(
         'getRealTimeBloodPressure has not been implemented.');
   }
+
+  Future<bool> calibrateBloodPressure(int sbp, int dbp) {
+    throw UnimplementedError(
+        'calibrateBloodPressure has not been implemented.');
+  }
 }

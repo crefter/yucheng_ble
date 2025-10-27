@@ -480,6 +480,9 @@ abstract class YuchengHostApi {
 
   @async
   RealTimeBloodPressure getRealTimeBloodPressure();
+
+  @async
+  bool calibrateBloodPressure(int sbp, int dbp);
 }
 
 @EventChannelApi()

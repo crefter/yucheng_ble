@@ -196,6 +196,12 @@ class MockYuchengBlePlatform
     // TODO: implement getRealTimeHeart
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> calibrateBloodPressure(int sbp, int dbp) {
+    // TODO: implement calibrateBloodPressure
+    throw UnimplementedError();
+  }
 }
 
 void main() {

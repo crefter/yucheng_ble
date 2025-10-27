@@ -111,4 +111,8 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
 
   @override
   Future<int> getRealTimeBloodOxygen() => _api.getRealTimeBloodOxygen();
+
+  @override
+  Future<bool> calibrateBloodPressure(int sbp, int dbp) =>
+      _api.calibrateBloodPressure(sbp, dbp);
 }
