@@ -101,4 +101,14 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   @override
   Future<YuchengHealthSportData> getRealTimeHealthRecord() =>
       _api.getRealTimeHealthRecord();
+
+  @override
+  Future<RealTimeBloodPressure> getRealTimeBloodPressure() =>
+      _api.getRealTimeBloodPressure();
+
+  @override
+  Future<int> getRealTimeHeart() => _api.getRealTimeHeart();
+
+  @override
+  Future<int> getRealTimeBloodOxygen() => _api.getRealTimeBloodOxygen();
 }

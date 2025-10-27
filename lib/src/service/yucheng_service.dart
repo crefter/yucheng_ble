@@ -455,6 +455,30 @@ final class YuchengService
       rethrow;
     }
   }
+
+  Future<int> getRealTimeBloodOxygen() async {
+    try {
+      return await _ble.getRealTimeBloodOxygen();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<int> getRealTimeHeart() async {
+    try {
+      return await _ble.getRealTimeHeart();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<RealTimeBloodPressure> getRealTimeBloodPressure() async {
+    try {
+      return await _ble.getRealTimeBloodPressure();
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 extension FirstWhereOrNullX<T> on Iterable<T> {

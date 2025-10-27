@@ -1024,6 +1024,35 @@ struct YuchengUpdateErrorEvent: YuchengUpdateEvent {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct RealTimeBloodPressure: Hashable {
+  var dbp: Int64
+  var sbp: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> RealTimeBloodPressure? {
+    let dbp = pigeonVar_list[0] as! Int64
+    let sbp = pigeonVar_list[1] as! Int64
+
+    return RealTimeBloodPressure(
+      dbp: dbp,
+      sbp: sbp
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      dbp,
+      sbp,
+    ]
+  }
+  static func == (lhs: RealTimeBloodPressure, rhs: RealTimeBloodPressure) -> Bool {
+    return deepEqualsYuchengBleApi(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashYuchengBleApi(value: toList(), hasher: &hasher)
+  }
+}
+
 private class YuchengBleApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -1093,6 +1122,8 @@ private class YuchengBleApiPigeonCodecReader: FlutterStandardReader {
       return YuchengUpdateCompleteEvent.fromList(self.readValue() as! [Any?])
     case 157:
       return YuchengUpdateErrorEvent.fromList(self.readValue() as! [Any?])
+    case 158:
+      return RealTimeBloodPressure.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1188,6 +1219,9 @@ private class YuchengBleApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? YuchengUpdateErrorEvent {
       super.writeByte(157)
       super.writeValue(value.toList())
+    } else if let value = value as? RealTimeBloodPressure {
+      super.writeByte(158)
+      super.writeValue(value.toList())
     } else {
       super.writeValue(value)
     }
@@ -1256,6 +1290,9 @@ protocol YuchengHostApi {
   /// false - не успех
   func setHealthMonitorInterval(interval: Int64, completion: @escaping (Result<Bool, Error>) -> Void)
   func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, Error>) -> Void)
+  func getRealTimeBloodOxygen(completion: @escaping (Result<Int64, Error>) -> Void)
+  func getRealTimeHeart(completion: @escaping (Result<Int64, Error>) -> Void)
+  func getRealTimeBloodPressure(completion: @escaping (Result<RealTimeBloodPressure, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1581,6 +1618,51 @@ class YuchengHostApiSetup {
       }
     } else {
       getRealTimeHealthRecordChannel.setMessageHandler(nil)
+    }
+    let getRealTimeBloodOxygenChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodOxygen\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getRealTimeBloodOxygenChannel.setMessageHandler { _, reply in
+        api.getRealTimeBloodOxygen { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getRealTimeBloodOxygenChannel.setMessageHandler(nil)
+    }
+    let getRealTimeHeartChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeHeart\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getRealTimeHeartChannel.setMessageHandler { _, reply in
+        api.getRealTimeHeart { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getRealTimeHeartChannel.setMessageHandler(nil)
+    }
+    let getRealTimeBloodPressureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodPressure\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getRealTimeBloodPressureChannel.setMessageHandler { _, reply in
+        api.getRealTimeBloodPressure { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getRealTimeBloodPressureChannel.setMessageHandler(nil)
     }
   }
 }

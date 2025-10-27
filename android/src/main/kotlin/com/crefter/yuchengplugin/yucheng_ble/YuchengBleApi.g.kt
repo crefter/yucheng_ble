@@ -1029,6 +1029,37 @@ data class YuchengUpdateErrorEvent (
 
   override fun hashCode(): Int = toList().hashCode()
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class RealTimeBloodPressure (
+  val dbp: Long,
+  val sbp: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RealTimeBloodPressure {
+      val dbp = pigeonVar_list[0] as Long
+      val sbp = pigeonVar_list[1] as Long
+      return RealTimeBloodPressure(dbp, sbp)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      dbp,
+      sbp,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is RealTimeBloodPressure) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return YuchengBleApiPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
 private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1177,6 +1208,11 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
           YuchengUpdateErrorEvent.fromList(it)
         }
       }
+      158.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          RealTimeBloodPressure.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -1298,6 +1334,10 @@ private open class YuchengBleApiPigeonCodec : StandardMessageCodec() {
         stream.write(157)
         writeValue(stream, value.toList())
       }
+      is RealTimeBloodPressure -> {
+        stream.write(158)
+        writeValue(stream, value.toList())
+      }
       else -> super.writeValue(stream, value)
     }
   }
@@ -1359,6 +1399,9 @@ interface YuchengHostApi {
    */
   fun setHealthMonitorInterval(interval: Long, callback: (Result<Boolean>) -> Unit)
   fun getRealTimeHealthRecord(callback: (Result<YuchengHealthSportData>) -> Unit)
+  fun getRealTimeBloodOxygen(callback: (Result<Long>) -> Unit)
+  fun getRealTimeHeart(callback: (Result<Long>) -> Unit)
+  fun getRealTimeBloodPressure(callback: (Result<RealTimeBloodPressure>) -> Unit)
 
   companion object {
     /** The codec used by YuchengHostApi. */
@@ -1702,6 +1745,60 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.getRealTimeHealthRecord{ result: Result<YuchengHealthSportData> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodOxygen$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getRealTimeBloodOxygen{ result: Result<Long> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeHeart$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getRealTimeHeart{ result: Result<Long> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(YuchengBleApiPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodPressure$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getRealTimeBloodPressure{ result: Result<RealTimeBloodPressure> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(YuchengBleApiPigeonUtils.wrapError(error))
