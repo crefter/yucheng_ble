@@ -1,6 +1,7 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
 
+import RealTimeBloodPressure
 import YuchengAllData
 import YuchengAllDataEvent
 import YuchengAllErrorEvent
@@ -76,8 +77,7 @@ class YuchengApiImpl(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startScanDevices(
-        scanTimeInSeconds: Double?,
-        callback: (Result<List<YuchengDevice>>) -> Unit
+        scanTimeInSeconds: Double?, callback: (Result<List<YuchengDevice>>) -> Unit
     ) {
         if (YCBTClient.isScaning()) {
             YCBTClient.stopScanBle()
@@ -97,8 +97,7 @@ class YuchengApiImpl(
                     devices.add(ycDevice)
                     Log.d(YuchengBlePlugin.PLUGIN_TAG, "name: " + device.deviceName)
                     Log.d(
-                        YuchengBlePlugin.PLUGIN_TAG,
-                        "address: " + device.deviceMac
+                        YuchengBlePlugin.PLUGIN_TAG, "address: " + device.deviceMac
                     )
                     onDevice(
                         YuchengDeviceDataEvent(
@@ -177,9 +176,7 @@ class YuchengApiImpl(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun connect(
-        device: YuchengDevice,
-        connectTimeInSeconds: Long?,
-        callback: (Result<Boolean>) -> Unit
+        device: YuchengDevice, connectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit
     ) {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start connect")
         val macAddress = device.uuid
@@ -218,8 +215,7 @@ class YuchengApiImpl(
                     val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
                     val macAddress = YCBTClient.getBindDeviceMac()
                     val deviceName = YCBTClient.getBindDeviceName()
-                    val ycDevice =
-                        YuchengDevice(index++, deviceName, macAddress, true)
+                    val ycDevice = YuchengDevice(index++, deviceName, macAddress, true)
                     selectedDevice = ycDevice
                     onDevice(
                         YuchengDeviceDataEvent(
@@ -339,8 +335,7 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 val default = StartEndTimestamp.default()
-                val start: Long =
-                    startTimestamp ?: default.start
+                val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
                 val sleepData = getSleepData(startTimestamp = start, endTimestamp = end)
                 callback(Result.success(sleepData))
@@ -362,8 +357,7 @@ class YuchengApiImpl(
                 callback(Result.success(null))
                 return
             }
-            val ycDevice =
-                YuchengDevice(index++, deviceName, macAddress, false)
+            val ycDevice = YuchengDevice(index++, deviceName, macAddress, false)
             selectedDevice = ycDevice
             callback(Result.success(ycDevice))
         } catch (e: Exception) {
@@ -476,8 +470,7 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 val default = StartEndTimestamp.default()
-                val start: Long =
-                    startTimestamp ?: default.start
+                val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
                 val healthData = getHealthSportData(startTimestamp = start, endTimestamp = end)
                 callback(Result.success(healthData))
@@ -503,17 +496,13 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 val default = StartEndTimestamp.default()
-                val start: Long =
-                    startTimestamp ?: default.start
+                val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
                 val sleepData =
                     getSleepData(skipHandler = true, startTimestamp = start, endTimestamp = end)
-                val healthData =
-                    getHealthSportData(
-                        skipHandler = true,
-                        startTimestamp = start,
-                        endTimestamp = end
-                    )
+                val healthData = getHealthSportData(
+                    skipHandler = true, startTimestamp = start, endTimestamp = end
+                )
                 val sleepHealthData = YuchengAllData(sleepData, healthData)
                 Log.d(GET_SLEEP_HEALTH_DATA, "Sleep Health data = $sleepHealthData")
                 if (!sleepHealthDataCompleter.isCompleted) {
@@ -563,8 +552,7 @@ class YuchengApiImpl(
                         val batteryLevel = dataMap["deviceBatteryValue"].toString().toLong()
                         val firmwareVersion = dataMap["deviceVersion"].toString()
                         val settings = YuchengDeviceSettings(
-                            batteryValue = batteryLevel,
-                            firmwareVersion = firmwareVersion
+                            batteryValue = batteryLevel, firmwareVersion = firmwareVersion
                         )
                         if (!completer.isCompleted) {
                             completer.complete(settings)
@@ -731,9 +719,7 @@ class YuchengApiImpl(
     @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(DelicateCoroutinesApi::class)
     override fun updateFirmware(
-        device: YuchengDevice,
-        pathToFile: String,
-        callback: (Result<Boolean>) -> Unit
+        device: YuchengDevice, pathToFile: String, callback: (Result<Boolean>) -> Unit
     ) {
         if (activity == null) {
             Log.e(UPDATE_FIRMWARE, "Activity is null")
@@ -747,10 +733,7 @@ class YuchengApiImpl(
         val macAddress = device.uuid
         val deviceName = device.deviceName
         deviceToUpdate = YuchengDevice(
-            device.index,
-            device.deviceName,
-            device.uuid,
-            device.isReconnected
+            device.index, device.deviceName, device.uuid, device.isReconnected
         )
         Log.d(UPDATE_FIRMWARE, "MacAddress = $macAddress, DeviceName = $deviceName")
         upgrade(callback)
@@ -798,11 +781,10 @@ class YuchengApiImpl(
                     }, 1500)
                     errorUpdateCount = 0
                     isCompleted = true
-                    val date =
-                        Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime()
-                            .toEpochSecond(
-                                ZoneOffset.UTC
-                            ).toLong()
+                    val date = Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime()
+                        .toEpochSecond(
+                            ZoneOffset.UTC
+                        ).toLong()
                     onUpdate(YuchengUpdateCompleteEvent(date))
                     callback(Result.success(true))
                 }
@@ -888,8 +870,7 @@ class YuchengApiImpl(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun setHealthMonitorInterval(
-        interval: Long,
-        callback: (Result<Boolean>) -> Unit
+        interval: Long, callback: (Result<Boolean>) -> Unit
     ) {
         val heartCompleter = CompletableDeferred<Boolean>()
         val bloodCompleter = CompletableDeferred<Boolean>()
@@ -930,8 +911,7 @@ class YuchengApiImpl(
     }
 
     private data class MeanBloodPressure(
-        val sbp: Long,
-        val dbp: Long
+        val sbp: Long, val dbp: Long
     )
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -997,7 +977,11 @@ class YuchengApiImpl(
                                         val meanSbp = sumSbp / count
                                         Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
                                         Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
-                                        bloodPressureCompleter.complete(MeanBloodPressure(sbp = meanSbp, dbp = meanDbp))
+                                        bloodPressureCompleter.complete(
+                                            MeanBloodPressure(
+                                                sbp = meanSbp, dbp = meanDbp
+                                            )
+                                        )
                                     }
                                 }
                             }
@@ -1010,7 +994,10 @@ class YuchengApiImpl(
                             steps = (data["sportStep"] as Int).toLong()
                             calories = (data["sportCalorie"] as Int).toLong()
                             distance = (data["sportDistance"] as Int).toLong()
-                            Log.d(YUCHENG_API, "Sport data: steps = $steps, calories = $calories, distance = $distance")
+                            Log.d(
+                                YUCHENG_API,
+                                "Sport data: steps = $steps, calories = $calories, distance = $distance"
+                            )
                             sportCompleter.complete(true)
                             completer.complete(true)
                         }
@@ -1029,7 +1016,11 @@ class YuchengApiImpl(
                             val sbp = data["bloodSBP"] as Int
                             Log.d(YUCHENG_API, "blood DBP = $dbp")
                             Log.d(YUCHENG_API, "blood SBP = $sbp")
-                            bloodPressures.add(MeanBloodPressure(sbp = sbp.toLong(), dbp = dbp.toLong()))
+                            bloodPressures.add(
+                                MeanBloodPressure(
+                                    sbp = sbp.toLong(), dbp = dbp.toLong()
+                                )
+                            )
                         }
                     }
                 }
@@ -1093,8 +1084,7 @@ class YuchengApiImpl(
                     startTimeStamp, startTimeStamp, distance, steps, calories
                 )
                 val healthSportData = YuchengHealthSportData(
-                    listOf(healthData),
-                    listOf(sportData)
+                    listOf(healthData), listOf(sportData)
                 )
                 onHealthData(
                     YuchengHealthDataEvent(
@@ -1114,6 +1104,244 @@ class YuchengApiImpl(
 
             callback(Result.failure(Exception("Timeout")))
         }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun getRealTimeBloodOxygen(callback: (Result<Long>) -> Unit) {
+        Log.d(YUCHENG_API, "START getRealTimeBloodOxygen")
+        val bloodOxygenType = 2
+        val completer = CompletableDeferred<Boolean>()
+
+        GlobalScope.launch {
+            try {
+                val value = getRealTimeData(
+                    measureDataType = bloodOxygenType,
+                    sdkDataType = Constants.DATATYPE.Real_UploadBloodOxygen,
+                    onReduce = { values ->
+                        val sum = values.reduce { prev, next -> prev + next }
+                        var count = values.count()
+                        count = if (count < 1) 1 else count
+                        val mean = sum / count
+                        Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
+                        return@getRealTimeData mean
+                    },
+                    convert = { data ->
+                        if (data == null) {
+                            return@getRealTimeData 0
+                        }
+                        val value = data["bloodOxygenValue"] as Int
+                        Log.d(YUCHENG_API, "blood oxygen = $value")
+                        return@getRealTimeData value.toLong()
+                    },
+                )
+                Log.d(YUCHENG_API, "Blood oxygen = $value")
+                callback(Result.success(value))
+                if (!completer.isCompleted) completer.complete(true)
+            } catch (e: Exception) {
+                Log.d(YUCHENG_API, "ERROR = $e")
+                callback(Result.failure(e))
+                if (!completer.isCompleted) completer.complete(true)
+            }
+        }
+        GlobalScope.launch {
+            delay(1000 * 120)
+            if (completer.isCompleted) return@launch
+
+            callback(Result.failure(Exception("Timeout")))
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun getRealTimeHeart(callback: (Result<Long>) -> Unit) {
+        Log.d(YUCHENG_API, "START getRealTimeHeart")
+        val heartRateType = 0
+        val completer = CompletableDeferred<Boolean>()
+
+        GlobalScope.launch {
+            try {
+                val value = getRealTimeData(
+                    measureDataType = heartRateType,
+                    sdkDataType = Constants.DATATYPE.Real_UploadHeart,
+                    onReduce = { values ->
+                        val sum = values.reduce { prev, next -> prev + next }
+                        var count = values.count()
+                        count = if (count < 1) 1 else count
+                        val mean = sum / count
+                        Log.d(YUCHENG_API, "Heart rate mean: $mean")
+                        return@getRealTimeData mean
+                    },
+                    convert = { data ->
+                        if (data == null) {
+                            return@getRealTimeData 0
+                        }
+                        val value = data["heartValue"] as Int
+                        Log.d(YUCHENG_API, "heart rate = $value")
+                        return@getRealTimeData value.toLong()
+                    },
+                )
+                callback(Result.success(value))
+                if (!completer.isCompleted) completer.complete(true)
+            } catch (e: Exception) {
+                Log.d(YUCHENG_API, "ERROR = $e")
+                callback(Result.failure(e))
+                if (!completer.isCompleted) completer.complete(true)
+            }
+        }
+        GlobalScope.launch {
+            delay(1000 * 120)
+            if (completer.isCompleted) return@launch
+
+            callback(Result.failure(Exception("Timeout")))
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun getRealTimeBloodPressure(callback: (Result<RealTimeBloodPressure>) -> Unit) {
+        Log.d(YUCHENG_API, "START getRealTimeBloodPressure")
+        val bloodPressureType = 1
+        val completer = CompletableDeferred<Boolean>()
+
+        GlobalScope.launch {
+            try {
+                val value = getRealTimeData(
+                    measureDataType = bloodPressureType,
+                    sdkDataType = Constants.DATATYPE.Real_UploadBlood,
+                    onReduce = { values ->
+                        var count = values.count()
+                        count = if (count < 1) 1 else count
+                        val sumDbp = values.sumOf { item -> item.dbp }
+                        val meanDbp = sumDbp / count
+                        val sumSbp = values.sumOf { item -> item.sbp }
+                        val meanSbp = sumSbp / count
+                        Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
+                        Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
+                        return@getRealTimeData MeanBloodPressure(sbp = meanSbp, dbp = meanDbp)
+                    },
+                    convert = { data ->
+                        if (data == null) {
+                            return@getRealTimeData MeanBloodPressure(sbp = 0, dbp = 0)
+                        }
+                        val dbp = data["bloodDBP"] as Int
+                        val sbp = data["bloodSBP"] as Int
+                        Log.d(YUCHENG_API, "blood DBP = $dbp")
+                        Log.d(YUCHENG_API, "blood SBP = $sbp")
+                        return@getRealTimeData MeanBloodPressure(
+                            sbp = sbp.toLong(), dbp = dbp.toLong()
+                        )
+                    })
+                val result = RealTimeBloodPressure(
+                    dbp = value.dbp, sbp = value.sbp
+                )
+                callback(Result.success(result))
+                if (!completer.isCompleted) completer.complete(true)
+            } catch (e: Exception) {
+                Log.d(YUCHENG_API, "ERROR = $e")
+                callback(Result.failure(e))
+                if (!completer.isCompleted) completer.complete(true)
+            }
+        }
+        GlobalScope.launch {
+            delay(1000 * 120)
+            if (completer.isCompleted) return@launch
+
+            callback(Result.failure(Exception("Timeout")))
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun calibrateBloodPressure(
+        sbp: Long,
+        dbp: Long,
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        Log.d(YUCHENG_API, "START calibrateBloodPressure sbp = $sbp dbp = $dbp")
+        val completed = CompletableDeferred<Boolean>()
+        YCBTClient.appBloodCalibration(sbp.toInt(), dbp.toInt(), { code, ratio, data ->
+            if (completed.isCompleted) return@appBloodCalibration
+            val isCompleted = code == 0
+            if (isCompleted) {
+                Log.d(YUCHENG_API, "Calibration is completed")
+            } else {
+                Log.d(YUCHENG_API, "Calibration is NOT completed")
+            }
+            completed.complete(isCompleted)
+        })
+
+        GlobalScope.launch {
+            try {
+                val result = completed.await()
+                callback(Result.success(result))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+
+        GlobalScope.launch {
+            delay(1000 * TIME_TO_TIMEOUT)
+            if (completed.isCompleted) return@launch
+
+            callback(Result.failure(Exception("Timeout")))
+        }
+    }
+
+    private suspend fun <T> getRealTimeData(
+        measureDataType: Int,
+        sdkDataType: Int,
+        onReduce: (List<T>) -> T,
+        convert: (HashMap<*, *>?) -> T,
+    ): T {
+        val values: MutableList<T> = mutableListOf()
+        var meanValue: T
+        val valueCompleter = CompletableDeferred<T>()
+
+        try {
+            YCBTClient.deviceToApp { code, data ->
+                Log.d(YUCHENG_API, "DEVICETOAPP code = $code data = $data")
+                if (code == 0 && data != null) {
+                    val dataType = data["dataType"] as Int
+                    Log.d(YUCHENG_API, "DEVICETOAPP dataType = $dataType")
+                    if (dataType == Constants.DATATYPE.DeviceMeasurementResult) {
+                        val datas = data["datas"] as ByteArray
+                        Log.d(YUCHENG_API, "DEVICETOAPP datas = $datas")
+                        if (datas.isNotEmpty()) {
+                            val type = datas[0].toInt()
+                            val result = datas[1].toInt()
+                            Log.d(YUCHENG_API, "DEVICETOAPP type = $type")
+                            Log.d(YUCHENG_API, "DEVICETOAPP result = $result")
+                            if (result == 1) {
+                                if (type == measureDataType) {
+                                    val mean = onReduce(values)
+                                    Log.d(YUCHENG_API, "Mean value: $mean")
+                                    valueCompleter.complete(mean)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            YCBTClient.appRegisterRealDataCallBack { type, data ->
+                if (data != null) {
+                    if (type == sdkDataType) {
+                        val value = convert(data)
+                        Log.d(YUCHENG_API, "value = $value")
+                        values.add(value)
+                    }
+                }
+            }
+
+            YCBTClient.appStartMeasurement(1, measureDataType) { code, ratio, data ->
+                Log.d(YUCHENG_API, "START MEASURE")
+            }
+            Log.d(YUCHENG_API, "WAITING MEASURE")
+            meanValue = valueCompleter.await()
+            Log.d(YUCHENG_API, "MEAN VALUE = $meanValue")
+        } catch (e: Exception) {
+            Log.d(YUCHENG_API, "ERROR = $e")
+            throw e
+        }
+
+
+        return meanValue
     }
 
     companion object {

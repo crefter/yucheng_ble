@@ -434,8 +434,8 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
             var sleepDataList: [YuchengSleepData] = []
             let device = YCProduct.shared.currentPeripheral;
-            let mac = device?.macAddress
-            let name = device?.name
+            let _ = device?.macAddress
+            let _ = device?.name
             
             YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.sleep) { state, response in
                 if state == .succeed, let datas = response as? [YCHealthDataSleep] {
@@ -703,8 +703,8 @@ final class YuchengHostApiImpl : YuchengHostApi {
         
         do {
             let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
-            let mac = device?.macAddress
-            let name = device?.name
+            let _ = device?.macAddress
+            let _ = device?.name
             YCProduct.queryDeviceBasicInfo(device, completion: {state, response in
                 if state == .succeed, let data = response as? YCDeviceBasicInfo {
                     let batteryValue = data.batteryPower
@@ -743,17 +743,19 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var isCompleted = false
         do {
             let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
-            let mac = selectedDevice?.macAddress
+            let _ = selectedDevice?.macAddress
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.sleep) { state, response in
                 let isDeleted = state == YCProductState.succeed
                 DispatchQueue.main.async {
                     completion(.success(isDeleted))
                 }
+                isCompleted = true
             }
         } catch {
             DispatchQueue.main.async {
                 completion(.failure(error))
             }
+            isCompleted = true
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
             if (isCompleted) {
@@ -770,11 +772,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var isSportDeleted = false
         do {
             let selectedDevice = self.currentDevice ?? YCProduct.shared.currentPeripheral
-            let mac = selectedDevice?.macAddress
+            let _ = selectedDevice?.macAddress
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.step) {
                 state, response in
                 let isDeleted = state == YCProductState.succeed
-                isSportDeleted = true
+                isSportDeleted = isDeleted
                 if (isHealthDeleted && isSportDeleted) {
                     DispatchQueue.main.async {
                         completion(.success(true))
@@ -783,7 +785,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
             YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.combinedData) { state, response in
                 let isDeleted = state == YCProductState.succeed
-                isHealthDeleted = true
+                isHealthDeleted = isDeleted
                 if (isHealthDeleted && isSportDeleted) {
                     DispatchQueue.main.async {
                         completion(.success(true))
@@ -803,85 +805,6 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.success(false))
             }
         })
-    }
-    
-    func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, any Error>) -> Void) {
-        var isCompleted = false
-        bloodOxygenCompleter = Completer<Bool>();
-        bloodPressureCompleter = Completer<Bool>();
-        
-        do {
-            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
-            let _ = device?.macAddress
-            let _ = device?.name
-            YCProduct.realTimeDataUplod(device, isEnable: true, dataType: YCRealTimeDataType.step) { state, response in
-                if (state == YCProductState.succeed) {
-                    print("Successfully")
-                } else {
-                    print("Not successfully")
-                }
-            }
-            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
-            }
-            bloodPressureCompleter?.future.sink(receiveCompletion: { result in
-                switch (result) {
-                case .finished:
-                    YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
-                    }
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }, receiveValue: { value in
-            
-            }).store(in: &cancellables)
-            bloodOxygenCompleter?.future.sink(receiveCompletion: {result in
-                switch (result) {
-                case .finished:
-                    DispatchQueue.main.async(execute: {
-                        let startTimeStamp = Int64(Date().timeIntervalSince1970).toMilliseconds()
-                        let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
-                        let sbpMean = self.calculateMean(collection: self.sbps)
-                        let dbpMean = self.calculateMean(collection: self.dbps)
-                        let heartRateMean = self.calculateMean(collection: self.heartRates)
-                        let healthData = YuchengHealthData(heartValue: heartRateMean, hrvValue: 0, cvrrValue: 0, OOValue: bloodOxygenMean, stepValue: self.steps, DBPValue: dbpMean, tempIntValue: 0, tempFloatValue: 0, startTimestamp: startTimeStamp, SBPValue: sbpMean, respiratoryRateValue: 0, bodyFatIntValue: 0, bodyFatFloatValue: 0, bloodSugarValue: 0)
-                        let sportData = YuchengSportData(startTimeStamp: startTimeStamp, endTimeStamp: startTimeStamp, distance: self.distance, steps: self.steps, calories: self.calories)
-                        let data = YuchengHealthSportData(healthData: [healthData], sportData: [sportData])
-                        if (isCompleted) { return }
-                        completion(.success(data))
-                        isCompleted = true
-                        self.cancellables.removeAll()
-                        self.sbps.removeAll()
-                        self.dbps.removeAll()
-                        self.heartRates.removeAll()
-                        self.bloodOxygens.removeAll()
-                    })
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }, receiveValue: { value in
-            }).store(in: &cancellables)
-        } catch {
-            if (isCompleted) { return }
-            completion(.failure(error))
-            isCompleted = true
-            self.cancellables.removeAll()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 180, execute: {
-            if (isCompleted) { return }
-            completion(.success(YuchengHealthSportData(healthData: [], sportData: [])))
-            isCompleted = true
-            self.cancellables.removeAll()
-        })
-    }
-    
-    private func calculateMean(collection: [Int64]) -> Int64 {
-        let sum =  collection.reduce(0) { partialResult, item in
-            partialResult + item
-        }
-        var count = Int64(collection.count)
-        count = count < 1 ? 1 : count
-        let mean = sum / count
-        return mean
     }
     
     func deleteAllData(completion: @escaping (Result<Bool, any Error>) -> Void) {
@@ -1171,6 +1094,238 @@ final class YuchengHostApiImpl : YuchengHostApi {
         DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
             if isCompleted { return }
             completion(.success(false))
+        })
+    }
+    
+    func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, any Error>) -> Void) {
+        var isCompleted = false
+        bloodOxygenCompleter = Completer<Bool>();
+        bloodPressureCompleter = Completer<Bool>();
+        
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            let _ = device?.name
+            YCProduct.realTimeDataUplod(device, isEnable: true, dataType: YCRealTimeDataType.step) { state, response in
+                if (state == YCProductState.succeed) {
+                    print("Successfully")
+                } else {
+                    print("Not successfully")
+                }
+            }
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
+            }
+            bloodPressureCompleter?.future.sink(receiveCompletion: { result in
+                switch (result) {
+                case .finished:
+                    YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
+                    }
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }, receiveValue: { value in
+            
+            }).store(in: &cancellables)
+            bloodOxygenCompleter?.future.sink(receiveCompletion: {result in
+                switch (result) {
+                case .finished:
+                    DispatchQueue.main.async(execute: {
+                        let startTimeStamp = Int64(Date().timeIntervalSince1970).toMilliseconds()
+                        let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
+                        let sbpMean = self.calculateMean(collection: self.sbps)
+                        let dbpMean = self.calculateMean(collection: self.dbps)
+                        let heartRateMean = self.calculateMean(collection: self.heartRates)
+                        let healthData = YuchengHealthData(heartValue: heartRateMean, hrvValue: 0, cvrrValue: 0, OOValue: bloodOxygenMean, stepValue: self.steps, DBPValue: dbpMean, tempIntValue: 0, tempFloatValue: 0, startTimestamp: startTimeStamp, SBPValue: sbpMean, respiratoryRateValue: 0, bodyFatIntValue: 0, bodyFatFloatValue: 0, bloodSugarValue: 0)
+                        let sportData = YuchengSportData(startTimeStamp: startTimeStamp, endTimeStamp: startTimeStamp, distance: self.distance, steps: self.steps, calories: self.calories)
+                        let data = YuchengHealthSportData(healthData: [healthData], sportData: [sportData])
+                        if (isCompleted) { return }
+                        completion(.success(data))
+                        isCompleted = true
+                        self.cancellables.removeAll()
+                        self.sbps.removeAll()
+                        self.dbps.removeAll()
+                        self.heartRates.removeAll()
+                        self.bloodOxygens.removeAll()
+                    })
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }, receiveValue: { value in
+            }).store(in: &cancellables)
+        } catch {
+            if (isCompleted) { return }
+            completion(.failure(error))
+            isCompleted = true
+            self.cancellables.removeAll()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 180, execute: {
+            if (isCompleted) { return }
+            completion(.success(YuchengHealthSportData(healthData: [], sportData: [])))
+            isCompleted = true
+            self.cancellables.removeAll()
+        })
+    }
+    
+    func getRealTimeBloodOxygen(completion: @escaping (Result<Int64, any Error>) -> Void) {
+        var isCompleted = false
+        bloodOxygenCompleter = Completer<Bool>();
+
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            let _ = device?.name
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
+            }
+            bloodOxygenCompleter?.future.sink(receiveCompletion: {result in
+                switch (result) {
+                case .finished:
+                    DispatchQueue.main.async(execute: {
+                        let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
+                        if (isCompleted) { return }
+                        completion(.success(bloodOxygenMean))
+                        isCompleted = true
+                        self.cancellables.removeAll()
+                        self.bloodOxygens.removeAll()
+                    })
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }, receiveValue: { value in
+            }).store(in: &cancellables)
+        } catch {
+            if (isCompleted) { return }
+            completion(.failure(error))
+            isCompleted = true
+            self.cancellables.removeAll()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+            if (isCompleted) { return }
+            completion(.success(0))
+            isCompleted = true
+            self.cancellables.removeAll()
+        })
+    }
+    
+    func getRealTimeHeart(completion: @escaping (Result<Int64, any Error>) -> Void) {
+        var isCompleted = false
+        bloodPressureCompleter = Completer<Bool>();
+        
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            let _ = device?.name
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
+            }
+            bloodPressureCompleter?.future.sink(receiveCompletion: { result in
+                switch (result) {
+                case .finished:
+                    DispatchQueue.main.async(execute: {
+                        let heartRateMean = self.calculateMean(collection: self.heartRates)
+                        if (isCompleted) { return }
+                        completion(.success(heartRateMean))
+                        isCompleted = true
+                        self.cancellables.removeAll()
+                        self.heartRates.removeAll()
+                        self.sbps.removeAll()
+                        self.dbps.removeAll()
+                    });
+                case .failure(let error):
+                    completion(.failure(error));
+                }}, receiveValue: { value in
+            }).store(in: &cancellables)
+        } catch {
+            if (isCompleted) { return }
+            completion(.failure(error))
+            isCompleted = true
+            self.cancellables.removeAll()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+            if (isCompleted) { return }
+            completion(.success(0))
+            isCompleted = true
+            self.cancellables.removeAll()
+        })
+    }
+    
+    func getRealTimeBloodPressure(completion: @escaping (Result<RealTimeBloodPressure, any Error>) -> Void) {
+        var isCompleted = false
+        bloodPressureCompleter = Completer<Bool>();
+        
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
+            }
+            bloodPressureCompleter?.future.sink(receiveCompletion: { result in
+                switch (result) {
+                case .finished:
+                    DispatchQueue.main.async(execute: {
+                        let sbpMean = self.calculateMean(collection: self.sbps)
+                        let dbpMean = self.calculateMean(collection: self.dbps)
+                        if (isCompleted) { return }
+                        completion(.success(RealTimeBloodPressure(dbp: Int64(dbpMean), sbp: Int64(sbpMean))))
+                        isCompleted = true
+                        self.cancellables.removeAll()
+                        self.sbps.removeAll()
+                        self.dbps.removeAll()
+                        self.heartRates.removeAll()
+                    })
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }, receiveValue: { value in
+            }).store(in: &cancellables)
+        } catch {
+            if (isCompleted) { return }
+            completion(.failure(error))
+            isCompleted = true
+            self.cancellables.removeAll()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+            if (isCompleted) { return }
+            completion(.success(RealTimeBloodPressure(dbp: 0, sbp: 0)))
+            isCompleted = true
+            self.cancellables.removeAll()
+        })
+    }
+    
+    private func calculateMean(collection: [Int64]) -> Int64 {
+        var sum = 0.0
+        for item in collection {
+            sum += Double(item)
+        }
+        var count = Double(collection.count)
+        count = count < 1 ? 1 : count
+        let mean = (sum / count).rounded(.toNearestOrAwayFromZero)
+        return Int64(mean)
+    }
+    
+    func calibrateBloodPressure(sbp: Int64, dbp: Int64, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isCompleted = false
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            YCProduct.deviceBloodPressureCalibration(device, systolicBloodPressure: UInt8(sbp), diastolicBloodPressure: UInt8(dbp)) { state, response in
+                if (isCompleted) {
+                    return
+                }
+                let result = state == YCProductState.succeed
+                completion(.success(result))
+                isCompleted = true
+            }
+        } catch {
+            if (isCompleted) {
+                return
+            }
+            completion(Result.failure(error))
+            isCompleted = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + TIME_TO_TIMEOUT, execute: {
+            if (isCompleted) {
+                return
+            }
+            completion(Result.success(false))
         })
     }
 }

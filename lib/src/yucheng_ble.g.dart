@@ -1377,6 +1377,52 @@ class YuchengUpdateErrorEvent extends YuchengUpdateEvent {
 ;
 }
 
+class RealTimeBloodPressure {
+  RealTimeBloodPressure({
+    required this.dbp,
+    required this.sbp,
+  });
+
+  int dbp;
+
+  int sbp;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      dbp,
+      sbp,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static RealTimeBloodPressure decode(Object result) {
+    result as List<Object?>;
+    return RealTimeBloodPressure(
+      dbp: result[0]! as int,
+      sbp: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! RealTimeBloodPressure || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1472,6 +1518,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is YuchengUpdateErrorEvent) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
+    }    else if (value is RealTimeBloodPressure) {
+      buffer.putUint8(158);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1540,6 +1589,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return YuchengUpdateCompleteEvent.decode(readValue(buffer)!);
       case 157: 
         return YuchengUpdateErrorEvent.decode(readValue(buffer)!);
+      case 158: 
+        return RealTimeBloodPressure.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2067,6 +2118,118 @@ class YuchengHostApi {
       );
     } else {
       return (pigeonVar_replyList[0] as YuchengHealthSportData?)!;
+    }
+  }
+
+  Future<int> getRealTimeBloodOxygen() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodOxygen$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as int?)!;
+    }
+  }
+
+  Future<int> getRealTimeHeart() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeHeart$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as int?)!;
+    }
+  }
+
+  Future<RealTimeBloodPressure> getRealTimeBloodPressure() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodPressure$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as RealTimeBloodPressure?)!;
+    }
+  }
+
+  Future<bool> calibrateBloodPressure(int sbp, int dbp) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.calibrateBloodPressure$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sbp, dbp]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as bool?)!;
     }
   }
 }

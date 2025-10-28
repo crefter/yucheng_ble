@@ -172,7 +172,7 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             info[YCReceivedRealTimeDataType.realTimeMonitoringMode.toString] as?
             YCReceivedDeviceReportInfo {
            let device = response.device
-            print("REAL TIME MONITORING MODE", response.data)
+            print("REAL TIME MONITORING MODE", response.data ?? "")
                if let data = response.data as? YCReceivedMonitoringModeInfo {
                    print("MODE:", device?.name ?? "",
                          data.startTimeStamp,

@@ -77,10 +77,19 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   YuchengDevice? selectedDevice;
   YuchengHealthSportData? realData;
   bool measuring = false;
+  int? bloodOxygen;
+  int? heartValue;
+  RealTimeBloodPressure? bloodPressure;
+  int? sbp;
+  int? dbp;
+  late final TextEditingController sbpController;
+  late final TextEditingController dbpController;
 
   @override
   void initState() {
     super.initState();
+    sbpController = TextEditingController();
+    dbpController = TextEditingController();
     _service
       ..listenAll(() => setState(() {}))
       ..init(
@@ -354,8 +363,133 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                             measuring = false;
                           });
                         },
-                        child: const Text('Получить данные в реальном времени'),
+                        child: const Text(
+                            'Получить все данные в реальном времени'),
                       ),
+              ),
+            if (_service.isReconnected || _service.isAnyDeviceConnected)
+              SliverToBoxAdapter(
+                child: measuring
+                    ? const Center(child: CircularProgressIndicator())
+                    : TextButton(
+                        onPressed: () async {
+                          setState(() {
+                            measuring = true;
+                            realData = null;
+                          });
+                          final data = await _service.getRealTimeBloodOxygen();
+                          print(data);
+                          setState(() {
+                            bloodOxygen = data;
+                            measuring = false;
+                          });
+                        },
+                        child:
+                            const Text('Получить сатурацию в реальном времени'),
+                      ),
+              ),
+            if (_service.isReconnected || _service.isAnyDeviceConnected)
+              SliverToBoxAdapter(
+                child: measuring
+                    ? const Center(child: CircularProgressIndicator())
+                    : TextButton(
+                        onPressed: () async {
+                          setState(() {
+                            measuring = true;
+                            realData = null;
+                          });
+                          final data = await _service.getRealTimeHeart();
+                          print(data);
+                          setState(() {
+                            heartValue = data;
+                            measuring = false;
+                          });
+                        },
+                        child: const Text('Получить пульс в реальном времени'),
+                      ),
+              ),
+            if (_service.isReconnected || _service.isAnyDeviceConnected)
+              SliverToBoxAdapter(
+                child: measuring
+                    ? const Center(child: CircularProgressIndicator())
+                    : TextButton(
+                        onPressed: () async {
+                          setState(() {
+                            measuring = true;
+                            realData = null;
+                          });
+                          final data =
+                              await _service.getRealTimeBloodPressure();
+                          print(data);
+                          setState(() {
+                            bloodPressure = data;
+                            measuring = false;
+                          });
+                        },
+                        child: const Text(
+                            'Получить кровяное давление в реальном времени'),
+                      ),
+              ),
+            if (bloodPressure != null)
+              SliverToBoxAdapter(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Colors.green.shade600),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Builder(
+                      builder: (context) {
+                        final dbp = bloodPressure!.dbp;
+                        final sbp = bloodPressure!.sbp;
+                        if (dbp == 0 && sbp == 0) {
+                          return Text('NO DATA!');
+                        }
+                        return Text(
+                          'Blood pressure: $sbp/$dbp',
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            if (bloodOxygen != null)
+              SliverToBoxAdapter(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Colors.blue.shade600),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Builder(
+                      builder: (context) {
+                        final value = bloodOxygen!;
+                        if (value == 0) {
+                          return Text('NO DATA!');
+                        }
+                        return Text(
+                          'Blood oxygen: $value',
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            if (heartValue != null)
+              SliverToBoxAdapter(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Colors.red.shade600),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Builder(
+                      builder: (context) {
+                        final value = heartValue!;
+                        if (value == 0) {
+                          return Text('NO DATA!');
+                        }
+                        return Text(
+                          'Heart value: $value',
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             if (realData != null)
               SliverToBoxAdapter(
@@ -406,6 +540,60 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                       },
                     ),
                   ),
+                ),
+              ),
+            if (_service.isReconnected || _service.isAnyDeviceConnected)
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    TextButton(
+                      onPressed: () async {
+                        if (sbp == null || dbp == null) {
+                          return;
+                        }
+                        final successful =
+                            await _service.calibrateBloodPressure(sbp!, dbp!);
+                        print(successful);
+                        if (successful && context.mounted) {
+                          _showSnackBar(context, 'Калибровка прошла успешно!');
+                        }
+                        setState(() {
+                          sbpController.clear();
+                          dbpController.clear();
+                          measuring = false;
+                        });
+                      },
+                      child: const Text('Калибровка кровяного давления'),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            key: const ValueKey('sbp'),
+                            children: [
+                              Text('SBP'),
+                              TextField(
+                                controller: sbpController,
+                                onChanged: (value) => sbp = int.tryParse(value),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            key: const ValueKey('dbp'),
+                            children: [
+                              Text('DBP'),
+                              TextField(
+                                controller: dbpController,
+                                onChanged: (value) => dbp = int.tryParse(value),
+                              ),
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  ],
                 ),
               ),
             if (_service.isReconnected || _service.isAnyDeviceConnected) ...[

@@ -372,6 +372,16 @@ class YuchengUpdateErrorEvent extends YuchengUpdateEvent {
   });
 }
 
+class RealTimeBloodPressure {
+  final int dbp;
+  final int sbp;
+
+  const RealTimeBloodPressure({
+    required this.dbp,
+    required this.sbp,
+  });
+}
+
 @HostApi()
 abstract class YuchengHostApi {
   /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
@@ -461,6 +471,18 @@ abstract class YuchengHostApi {
 
   @async
   YuchengHealthSportData getRealTimeHealthRecord();
+
+  @async
+  int getRealTimeBloodOxygen();
+
+  @async
+  int getRealTimeHeart();
+
+  @async
+  RealTimeBloodPressure getRealTimeBloodPressure();
+
+  @async
+  bool calibrateBloodPressure(int sbp, int dbp);
 }
 
 @EventChannelApi()
