@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:yucheng_ble/export.dart';
 import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
 import 'mixin/yucheng_service_bluetooth_mixin.dart';
 import 'mixin/yucheng_service_notifiers_mixin.dart';
+
+class YuchengUserExitedMeasurementException implements Exception {
+  const YuchengUserExitedMeasurementException();
+}
 
 class YuchengServiceException implements Exception {
   final String message;
@@ -452,6 +456,11 @@ final class YuchengService
     try {
       return await _ble.getRealTimeHealthRecord();
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserExitedMeasurementException();
+        }
+      }
       rethrow;
     }
   }
@@ -460,6 +469,11 @@ final class YuchengService
     try {
       return await _ble.getRealTimeBloodOxygen();
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserExitedMeasurementException();
+        }
+      }
       rethrow;
     }
   }
@@ -468,6 +482,11 @@ final class YuchengService
     try {
       return await _ble.getRealTimeHeart();
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserExitedMeasurementException();
+        }
+      }
       rethrow;
     }
   }
@@ -476,6 +495,11 @@ final class YuchengService
     try {
       return await _ble.getRealTimeBloodPressure();
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserExitedMeasurementException();
+        }
+      }
       rethrow;
     }
   }

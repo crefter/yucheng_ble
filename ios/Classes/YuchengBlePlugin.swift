@@ -114,9 +114,18 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             let state = data.state
             let type = data.dataType
             if (type == YCAppControlMeasureHealthDataType.bloodPressure) {
-                YuchengBlePlugin.api!.bloodPressureCompleter?.complete(true)
+                if (state == YCAppControlMeasureHealthDataResult.exit || state == YCAppControlMeasureHealthDataResult.fail) {
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.completeError(UserExitedMeasurementException())
+                } else {
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.complete(true)
+                }
             } else if (type == YCAppControlMeasureHealthDataType.bloodOxygen) {
-                YuchengBlePlugin.api!.bloodOxygenCompleter?.complete(true)
+                if (state == YCAppControlMeasureHealthDataResult.exit || state == YCAppControlMeasureHealthDataResult.fail) {
+                    YuchengBlePlugin.api!.bloodOxygenCompleter?.completeError(UserExitedMeasurementException())
+                } else {
+                    YuchengBlePlugin.api!.bloodOxygenCompleter?.complete(true)
+                }
+
             }
             let description = data.description
             print("CONTROL DATA RESULT",device.name ?? "",

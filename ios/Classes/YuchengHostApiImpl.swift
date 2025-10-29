@@ -84,6 +84,8 @@ enum UpgradeFirmwareError: Error {
     case unknown(String)
 }
 
+class UserExitedMeasurementException: Error {}
+
 final class YuchengHostApiImpl : YuchengHostApi {
     typealias DeviceHandler = (any YuchengDeviceEvent) -> Void
     typealias StateHandler = (any YuchengDeviceStateEvent) -> Void
@@ -1121,7 +1123,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.single, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
                     }
                 case .failure(let error):
+                    if (isCompleted) { return }
                     completion(.failure(error))
+                    isCompleted = true
+                    self.cancellables.removeAll()
+                    self.bloodOxygens.removeAll()
                 }
             }, receiveValue: { value in
             
@@ -1148,7 +1154,14 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         self.bloodOxygens.removeAll()
                     })
                 case .failure(let error):
+                    if (isCompleted) { return }
                     completion(.failure(error))
+                    isCompleted = true
+                    self.cancellables.removeAll()
+                    self.sbps.removeAll()
+                    self.dbps.removeAll()
+                    self.heartRates.removeAll()
+                    self.bloodOxygens.removeAll()
                 }
             }, receiveValue: { value in
             }).store(in: &cancellables)
@@ -1188,7 +1201,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         self.bloodOxygens.removeAll()
                     })
                 case .failure(let error):
+                    if (isCompleted) { return }
                     completion(.failure(error))
+                    isCompleted = true
+                    self.cancellables.removeAll()
+                    self.bloodOxygens.removeAll()
                 }
             }, receiveValue: { value in
             }).store(in: &cancellables)
@@ -1230,7 +1247,13 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         self.dbps.removeAll()
                     });
                 case .failure(let error):
-                    completion(.failure(error));
+                    if (isCompleted) { return }
+                    completion(.failure(error))
+                    isCompleted = true
+                    self.cancellables.removeAll()
+                    self.heartRates.removeAll()
+                    self.sbps.removeAll()
+                    self.dbps.removeAll()
                 }}, receiveValue: { value in
             }).store(in: &cancellables)
         } catch {
@@ -1271,7 +1294,13 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         self.heartRates.removeAll()
                     })
                 case .failure(let error):
+                    if (isCompleted) { return }
                     completion(.failure(error))
+                    isCompleted = true
+                    self.cancellables.removeAll()
+                    self.sbps.removeAll()
+                    self.dbps.removeAll()
+                    self.heartRates.removeAll()
                 }
             }, receiveValue: { value in
             }).store(in: &cancellables)

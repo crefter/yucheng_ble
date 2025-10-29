@@ -55,6 +55,8 @@ private const val SCAN_PERIOD: Int = 15
 private const val TIME_TO_TIMEOUT: Long = 15
 private const val TIME_TO_TIMEOUT_RESET: Long = 30
 
+class UserExitedMeasurementException : Exception()
+
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
     private val onSleepData: (sleepData: YuchengSleepEvent) -> Unit,
@@ -1308,7 +1310,11 @@ class YuchengApiImpl(
                             val result = datas[1].toInt()
                             Log.d(YUCHENG_API, "DEVICETOAPP type = $type")
                             Log.d(YUCHENG_API, "DEVICETOAPP result = $result")
-                            if (result == 1) {
+                            if (result != 1) {
+                                if (!valueCompleter.isCompleted) valueCompleter.completeExceptionally(
+                                    UserExitedMeasurementException()
+                                )
+                            } else {
                                 if (type == measureDataType) {
                                     val mean = onReduce(values)
                                     Log.d(YUCHENG_API, "Mean value: $mean")

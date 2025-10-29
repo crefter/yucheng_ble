@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:yucheng_ble/export.dart';
 
 extension SleepTypeX on YuchengSleepType {
@@ -377,12 +378,30 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                             measuring = true;
                             realData = null;
                           });
-                          final data = await _service.getRealTimeBloodOxygen();
-                          print(data);
-                          setState(() {
-                            bloodOxygen = data;
-                            measuring = false;
-                          });
+                          try {
+                            final data =
+                                await _service.getRealTimeBloodOxygen();
+                            print(data);
+                            setState(() {
+                              bloodOxygen = data;
+                              measuring = false;
+                            });
+                          } catch (e) {
+                            if (e is PlatformException) {
+                              final code = e.code;
+                              final det = e.details;
+                              print(
+                                  'PLATFORM EXCEPTION WHEN MEASURING: ' + code);
+                              final a = 10;
+                            } else {
+                              print(
+                                  'EXCEPTION WHEN MEASURING: ' + e.toString());
+                            }
+                            setState(() {
+                              heartValue = null;
+                              measuring = false;
+                            });
+                          }
                         },
                         child:
                             const Text('Получить сатурацию в реальном времени'),
@@ -398,12 +417,29 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                             measuring = true;
                             realData = null;
                           });
-                          final data = await _service.getRealTimeHeart();
-                          print(data);
-                          setState(() {
-                            heartValue = data;
-                            measuring = false;
-                          });
+                          try {
+                            final data = await _service.getRealTimeHeart();
+                            print(data);
+                            setState(() {
+                              heartValue = data;
+                              measuring = false;
+                            });
+                          } catch (e) {
+                            if (e is PlatformException) {
+                              final code = e.code;
+                              final det = e.details;
+                              print(
+                                  'PLATFORM EXCEPTION WHEN MEASURING: ' + code);
+                              final a = 10;
+                            } else {
+                              print(
+                                  'EXCEPTION WHEN MEASURING: ' + e.toString());
+                            }
+                            setState(() {
+                              heartValue = null;
+                              measuring = false;
+                            });
+                          }
                         },
                         child: const Text('Получить пульс в реальном времени'),
                       ),
