@@ -103,14 +103,14 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
       _api.getRealTimeHealthRecord();
 
   @override
-  Future<RealTimeBloodPressure> startMeasurementBloodPressure() =>
+  Future<RealTimeBloodPressure?> startMeasurementBloodPressure() =>
       _api.startMeasurementBloodPressure();
 
   @override
-  Future<int> startMeasurementHeart() => _api.startMeasurementHeart();
+  Future<int?> startMeasurementHeart() => _api.startMeasurementHeart();
 
   @override
-  Future<int> startMeasurementBloodOxygen() =>
+  Future<int?> startMeasurementBloodOxygen() =>
       _api.startMeasurementBloodOxygen();
 
   @override

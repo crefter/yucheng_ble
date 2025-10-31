@@ -1184,7 +1184,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         })
     }
     
-    func startMeasurementBloodOxygen(completion: @escaping (Result<Int64, any Error>) -> Void) {
+    func startMeasurementBloodOxygen(completion: @escaping (Result<Int64?, any Error>) -> Void) {
         var isCompleted = false
         bloodOxygenCompleter = Completer<Bool>();
 
@@ -1197,14 +1197,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             bloodOxygenCompleter?.future.sink(receiveCompletion: {result in
                 switch (result) {
                 case .finished:
-                    DispatchQueue.main.async(execute: {
-                        let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
-                        if (isCompleted) { return }
-                        completion(.success(bloodOxygenMean))
-                        isCompleted = true
-                        self.cancellables.removeAll()
-                        self.bloodOxygens.removeAll()
-                    })
+                    break
                 case .failure(let error):
                     if (isCompleted) { return }
                     DispatchQueue.main.async(execute: {
@@ -1215,6 +1208,18 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     self.bloodOxygens.removeAll()
                 }
             }, receiveValue: { value in
+                DispatchQueue.main.async(execute: {
+                    let bloodOxygenMean = self.calculateMean(collection: self.bloodOxygens)
+                    if (isCompleted) { return }
+                    if (value) {
+                        completion(.success(bloodOxygenMean))
+                    } else {
+                        completion(.success(nil))
+                    }
+                    isCompleted = true
+                    self.cancellables.removeAll()
+                    self.bloodOxygens.removeAll()
+                })
             }).store(in: &cancellables)
         } catch {
             if (isCompleted) { return }
@@ -1226,13 +1231,13 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
             if (isCompleted) { return }
-            completion(.success(0))
+            completion(.success(nil))
             isCompleted = true
             self.cancellables.removeAll()
         })
     }
     
-    func startMeasurementHeart(completion: @escaping (Result<Int64, any Error>) -> Void) {
+    func startMeasurementHeart(completion: @escaping (Result<Int64?, any Error>) -> Void) {
         var isCompleted = false
         bloodPressureCompleter = Completer<Bool>();
         
@@ -1245,16 +1250,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             bloodPressureCompleter?.future.sink(receiveCompletion: { result in
                 switch (result) {
                 case .finished:
-                    DispatchQueue.main.async(execute: {
-                        let heartRateMean = self.calculateMean(collection: self.heartRates)
-                        if (isCompleted) { return }
-                        completion(.success(heartRateMean))
-                        isCompleted = true
-                        self.cancellables.removeAll()
-                        self.heartRates.removeAll()
-                        self.sbps.removeAll()
-                        self.dbps.removeAll()
-                    });
+                    break;
                 case .failure(let error):
                     if (isCompleted) { return }
                     DispatchQueue.main.async(execute: {
@@ -1266,6 +1262,20 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     self.sbps.removeAll()
                     self.dbps.removeAll()
                 }}, receiveValue: { value in
+                    DispatchQueue.main.async(execute: {
+                        if (isCompleted) { return }
+                        let heartRateMean = self.calculateMean(collection: self.heartRates)
+                        if (value) {
+                            completion(.success(heartRateMean))
+                        } else {
+                            completion(.success(nil))
+                        }
+                        isCompleted = true
+                        self.cancellables.removeAll()
+                        self.heartRates.removeAll()
+                        self.sbps.removeAll()
+                        self.dbps.removeAll()
+                    });
             }).store(in: &cancellables)
         } catch {
             if (isCompleted) { return }
@@ -1275,13 +1285,13 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
             if (isCompleted) { return }
-            completion(.success(0))
+            completion(.success(nil))
             isCompleted = true
             self.cancellables.removeAll()
         })
     }
     
-    func startMeasurementBloodPressure(completion: @escaping (Result<RealTimeBloodPressure, any Error>) -> Void) {
+    func startMeasurementBloodPressure(completion: @escaping (Result<RealTimeBloodPressure?, any Error>) -> Void) {
         var isCompleted = false
         bloodPressureCompleter = Completer<Bool>();
         
@@ -1293,17 +1303,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             bloodPressureCompleter?.future.sink(receiveCompletion: { result in
                 switch (result) {
                 case .finished:
-                    DispatchQueue.main.async(execute: {
-                        let sbpMean = self.calculateMean(collection: self.sbps)
-                        let dbpMean = self.calculateMean(collection: self.dbps)
-                        if (isCompleted) { return }
-                        completion(.success(RealTimeBloodPressure(dbp: Int64(dbpMean), sbp: Int64(sbpMean))))
-                        isCompleted = true
-                        self.cancellables.removeAll()
-                        self.sbps.removeAll()
-                        self.dbps.removeAll()
-                        self.heartRates.removeAll()
-                    })
+                    break;
                 case .failure(let error):
                     if (isCompleted) { return }
                     DispatchQueue.main.async(execute: {
@@ -1316,6 +1316,21 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     self.heartRates.removeAll()
                 }
             }, receiveValue: { value in
+                DispatchQueue.main.async(execute: {
+                    if (isCompleted) { return }
+                    let sbpMean = self.calculateMean(collection: self.sbps)
+                    let dbpMean = self.calculateMean(collection: self.dbps)
+                    if (value) {
+                        completion(.success(RealTimeBloodPressure(dbp: Int64(dbpMean), sbp: Int64(sbpMean))))
+                    } else {
+                        completion(.success(nil))
+                    }
+                    isCompleted = true
+                    self.cancellables.removeAll()
+                    self.sbps.removeAll()
+                    self.dbps.removeAll()
+                    self.heartRates.removeAll()
+                })
             }).store(in: &cancellables)
         } catch {
             if (isCompleted) { return }
@@ -1327,7 +1342,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
             if (isCompleted) { return }
-            completion(.success(RealTimeBloodPressure(dbp: 0, sbp: 0)))
+            completion(.success(nil))
             isCompleted = true
             self.cancellables.removeAll()
         })
@@ -1343,6 +1358,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 if (isCompleted) { return }
                 isCompleted = true
                 let result = state == .succeed
+                if (result) {
+                    self.bloodOxygenCompleter?.complete(false)
+                }
                 DispatchQueue.main.async(execute: {
                     completion(.success(result))
                 })
@@ -1370,6 +1388,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 if (isCompleted) { return }
                 isCompleted = true
                 let result = state == .succeed
+                if (result) {
+                    self.bloodPressureCompleter?.complete(false)
+                }
                 DispatchQueue.main.async(execute: {
                     completion(.success(result))
                 })
@@ -1401,6 +1422,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 if (isCompleted) { return }
                 isCompleted = true
                 let result = state == .succeed
+                if (result) {
+                    self.bloodPressureCompleter?.complete(false)
+                }
                 DispatchQueue.main.async(execute: {
                     completion(.success(result))
                 })

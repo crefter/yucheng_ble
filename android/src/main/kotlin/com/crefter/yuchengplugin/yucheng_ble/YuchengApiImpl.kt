@@ -1107,7 +1107,7 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun startMeasurementBloodOxygen(callback: (Result<Long>) -> Unit) {
+    override fun startMeasurementBloodOxygen(callback: (Result<Long?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodOxygen")
         val completer = CompletableDeferred<Boolean>()
 
@@ -1146,12 +1146,12 @@ class YuchengApiImpl(
             delay(1000 * 120)
             if (completer.isCompleted) return@launch
 
-            callback(Result.failure(Exception("Timeout")))
+            callback(Result.success(null))
         }
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun startMeasurementHeart(callback: (Result<Long>) -> Unit) {
+    override fun startMeasurementHeart(callback: (Result<Long?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeHeart")
         val completer = CompletableDeferred<Boolean>()
 
@@ -1189,12 +1189,12 @@ class YuchengApiImpl(
             delay(1000 * 120)
             if (completer.isCompleted) return@launch
 
-            callback(Result.failure(Exception("Timeout")))
+            callback(Result.success(null))
         }
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun startMeasurementBloodPressure(callback: (Result<RealTimeBloodPressure>) -> Unit) {
+    override fun startMeasurementBloodPressure(callback: (Result<RealTimeBloodPressure?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodPressure")
         val completer = CompletableDeferred<Boolean>()
 
@@ -1241,7 +1241,7 @@ class YuchengApiImpl(
             delay(1000 * 120)
             if (completer.isCompleted) return@launch
 
-            callback(Result.failure(Exception("Timeout")))
+            callback(Result.success(null))
         }
     }
 

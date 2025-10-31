@@ -133,16 +133,16 @@ abstract class YuchengBlePlatform extends PlatformInterface {
         'getRealTimeHealthRecord has not been implemented.');
   }
 
-  Future<int> startMeasurementBloodOxygen() {
+  Future<int?> startMeasurementBloodOxygen() {
     throw UnimplementedError(
         'startMeasurementBloodOxygen has not been implemented.');
   }
 
-  Future<int> startMeasurementHeart() {
+  Future<int?> startMeasurementHeart() {
     throw UnimplementedError('startMeasurementHeart has not been implemented.');
   }
 
-  Future<RealTimeBloodPressure> startMeasurementBloodPressure() {
+  Future<RealTimeBloodPressure?> startMeasurementBloodPressure() {
     throw UnimplementedError(
         'startMeasurementBloodPressure has not been implemented.');
   }

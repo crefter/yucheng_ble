@@ -473,13 +473,13 @@ abstract class YuchengHostApi {
   YuchengHealthSportData getRealTimeHealthRecord();
 
   @async
-  int startMeasurementBloodOxygen();
+  int? startMeasurementBloodOxygen();
 
   @async
-  int startMeasurementHeart();
+  int? startMeasurementHeart();
 
   @async
-  RealTimeBloodPressure startMeasurementBloodPressure();
+  RealTimeBloodPressure? startMeasurementBloodPressure();
   @async
   bool stopMeasurementBloodOxygen();
   @async

@@ -469,7 +469,7 @@ final class YuchengService
     }
   }
 
-  Future<int> startMeasurementBloodOxygen() async {
+  Future<int?> startMeasurementBloodOxygen() async {
     try {
       return await _ble.startMeasurementBloodOxygen();
     } catch (e) {
@@ -484,7 +484,7 @@ final class YuchengService
     }
   }
 
-  Future<int> startMeasurementHeart() async {
+  Future<int?> startMeasurementHeart() async {
     try {
       return await _ble.startMeasurementHeart();
     } catch (e) {
@@ -499,7 +499,7 @@ final class YuchengService
     }
   }
 
-  Future<RealTimeBloodPressure> startMeasurementBloodPressure() async {
+  Future<RealTimeBloodPressure?> startMeasurementBloodPressure() async {
     try {
       return await _ble.startMeasurementBloodPressure();
     } catch (e) {
