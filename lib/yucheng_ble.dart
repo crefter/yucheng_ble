@@ -104,14 +104,23 @@ class YuchengBle {
   Future<YuchengHealthSportData> getRealTimeHealthRecord() =>
       YuchengBlePlatform.instance.getRealTimeHealthRecord();
 
-  Future<RealTimeBloodPressure> getRealTimeBloodPressure() =>
-      YuchengBlePlatform.instance.getRealTimeBloodPressure();
+  Future<RealTimeBloodPressure> startMeasurementBloodPressure() =>
+      YuchengBlePlatform.instance.startMeasurementBloodPressure();
 
-  Future<int> getRealTimeHeart() =>
-      YuchengBlePlatform.instance.getRealTimeHeart();
+  Future<int> startMeasurementHeart() =>
+      YuchengBlePlatform.instance.startMeasurementHeart();
 
-  Future<int> getRealTimeBloodOxygen() =>
-      YuchengBlePlatform.instance.getRealTimeBloodOxygen();
+  Future<int> startMeasurementBloodOxygen() =>
+      YuchengBlePlatform.instance.startMeasurementBloodOxygen();
+
+  Future<bool> stopMeasurementBloodOxygen() =>
+      YuchengBlePlatform.instance.stopMeasurementBloodOxygen();
+
+  Future<bool> stopMeasurementBloodPressure() =>
+      YuchengBlePlatform.instance.stopMeasurementBloodPressure();
+
+  Future<bool> stopMeasurementHeart() =>
+      YuchengBlePlatform.instance.stopMeasurementHeart();
 
   Future<bool> calibrateBloodPressure(int sbp, int dbp) =>
       YuchengBlePlatform.instance.calibrateBloodPressure(sbp, dbp);

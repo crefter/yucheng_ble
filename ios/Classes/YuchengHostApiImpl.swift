@@ -85,6 +85,7 @@ enum UpgradeFirmwareError: Error {
 }
 
 class UserExitedMeasurementException: Error {}
+class RealTimeMeasurementFailedException: Error {}
 
 final class YuchengHostApiImpl : YuchengHostApi {
     typealias DeviceHandler = (any YuchengDeviceEvent) -> Void
@@ -1155,7 +1156,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     })
                 case .failure(let error):
                     if (isCompleted) { return }
-                    completion(.failure(error))
+                    DispatchQueue.main.async(execute: {
+                        completion(.failure(error))
+                    })
                     isCompleted = true
                     self.cancellables.removeAll()
                     self.sbps.removeAll()
@@ -1167,7 +1170,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }).store(in: &cancellables)
         } catch {
             if (isCompleted) { return }
-            completion(.failure(error))
+            DispatchQueue.main.async(execute: {
+                completion(.failure(error))
+            })
             isCompleted = true
             self.cancellables.removeAll()
         }
@@ -1179,7 +1184,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         })
     }
     
-    func getRealTimeBloodOxygen(completion: @escaping (Result<Int64, any Error>) -> Void) {
+    func startMeasurementBloodOxygen(completion: @escaping (Result<Int64, any Error>) -> Void) {
         var isCompleted = false
         bloodOxygenCompleter = Completer<Bool>();
 
@@ -1202,7 +1207,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     })
                 case .failure(let error):
                     if (isCompleted) { return }
-                    completion(.failure(error))
+                    DispatchQueue.main.async(execute: {
+                        completion(.failure(error))
+                    })
                     isCompleted = true
                     self.cancellables.removeAll()
                     self.bloodOxygens.removeAll()
@@ -1211,7 +1218,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }).store(in: &cancellables)
         } catch {
             if (isCompleted) { return }
-            completion(.failure(error))
+            DispatchQueue.main.async(execute: {
+                completion(.failure(error))
+            })
             isCompleted = true
             self.cancellables.removeAll()
         }
@@ -1223,7 +1232,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         })
     }
     
-    func getRealTimeHeart(completion: @escaping (Result<Int64, any Error>) -> Void) {
+    func startMeasurementHeart(completion: @escaping (Result<Int64, any Error>) -> Void) {
         var isCompleted = false
         bloodPressureCompleter = Completer<Bool>();
         
@@ -1248,7 +1257,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     });
                 case .failure(let error):
                     if (isCompleted) { return }
-                    completion(.failure(error))
+                    DispatchQueue.main.async(execute: {
+                        completion(.failure(error))
+                    })
                     isCompleted = true
                     self.cancellables.removeAll()
                     self.heartRates.removeAll()
@@ -1270,7 +1281,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         })
     }
     
-    func getRealTimeBloodPressure(completion: @escaping (Result<RealTimeBloodPressure, any Error>) -> Void) {
+    func startMeasurementBloodPressure(completion: @escaping (Result<RealTimeBloodPressure, any Error>) -> Void) {
         var isCompleted = false
         bloodPressureCompleter = Completer<Bool>();
         
@@ -1295,7 +1306,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     })
                 case .failure(let error):
                     if (isCompleted) { return }
-                    completion(.failure(error))
+                    DispatchQueue.main.async(execute: {
+                        completion(.failure(error))
+                    })
                     isCompleted = true
                     self.cancellables.removeAll()
                     self.sbps.removeAll()
@@ -1306,7 +1319,9 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }).store(in: &cancellables)
         } catch {
             if (isCompleted) { return }
-            completion(.failure(error))
+            DispatchQueue.main.async(execute: {
+                completion(.failure(error))
+            })
             isCompleted = true
             self.cancellables.removeAll()
         }
@@ -1316,6 +1331,95 @@ final class YuchengHostApiImpl : YuchengHostApi {
             isCompleted = true
             self.cancellables.removeAll()
         })
+    }
+    
+    func stopMeasurementBloodOxygen(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isCompleted = false
+        
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.off, dataType: YCAppControlMeasureHealthDataType.bloodOxygen) { state, response in
+                if (isCompleted) { return }
+                isCompleted = true
+                let result = state == .succeed
+                DispatchQueue.main.async(execute: {
+                    completion(.success(result))
+                })
+                self.cancellables.removeAll()
+                self.bloodOxygens.removeAll()
+            }
+        } catch {
+            if (isCompleted) { return }
+            DispatchQueue.main.async(execute: {
+                completion(.failure(error))
+            })
+            isCompleted = true
+            self.cancellables.removeAll()
+            self.bloodOxygens.removeAll()
+        }
+    }
+    
+    func stopMeasurementBloodPressure(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isCompleted = false
+        
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.off, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
+                if (isCompleted) { return }
+                isCompleted = true
+                let result = state == .succeed
+                DispatchQueue.main.async(execute: {
+                    completion(.success(result))
+                })
+                self.cancellables.removeAll()
+                self.dbps.removeAll()
+                self.sbps.removeAll()
+                self.heartRates.removeAll()
+            }
+        } catch {
+            if (isCompleted) { return }
+            DispatchQueue.main.async(execute: {
+                completion(.failure(error))
+            })
+            isCompleted = true
+            self.cancellables.removeAll()
+            self.dbps.removeAll()
+            self.sbps.removeAll()
+            self.heartRates.removeAll()
+        }
+    }
+    
+    func stopMeasurementHeart(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        var isCompleted = false
+        
+        do {
+            let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+            let _ = device?.macAddress
+            YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.off, dataType: YCAppControlMeasureHealthDataType.bloodPressure) { state, response in
+                if (isCompleted) { return }
+                isCompleted = true
+                let result = state == .succeed
+                DispatchQueue.main.async(execute: {
+                    completion(.success(result))
+                })
+                self.cancellables.removeAll()
+                self.dbps.removeAll()
+                self.sbps.removeAll()
+                self.heartRates.removeAll()
+            }
+        } catch {
+            if (isCompleted) { return }
+            DispatchQueue.main.async(execute: {
+                completion(.failure(error))
+            })
+            isCompleted = true
+            self.cancellables.removeAll()
+            self.dbps.removeAll()
+            self.sbps.removeAll()
+            self.heartRates.removeAll()
+        }
     }
     
     private func calculateMean(collection: [Int64]) -> Int64 {

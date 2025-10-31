@@ -114,14 +114,18 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             let state = data.state
             let type = data.dataType
             if (type == YCAppControlMeasureHealthDataType.bloodPressure) {
-                if (state == YCAppControlMeasureHealthDataResult.exit || state == YCAppControlMeasureHealthDataResult.fail) {
+                if (state == YCAppControlMeasureHealthDataResult.exit) {
                     YuchengBlePlugin.api!.bloodPressureCompleter?.completeError(UserExitedMeasurementException())
+                } else if (state == YCAppControlMeasureHealthDataResult.fail) {
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.completeError(RealTimeMeasurementFailedException())
                 } else {
                     YuchengBlePlugin.api!.bloodPressureCompleter?.complete(true)
                 }
             } else if (type == YCAppControlMeasureHealthDataType.bloodOxygen) {
-                if (state == YCAppControlMeasureHealthDataResult.exit || state == YCAppControlMeasureHealthDataResult.fail) {
+                if (state == YCAppControlMeasureHealthDataResult.exit) {
                     YuchengBlePlugin.api!.bloodOxygenCompleter?.completeError(UserExitedMeasurementException())
+                } else if (state == YCAppControlMeasureHealthDataResult.fail) {
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.completeError(RealTimeMeasurementFailedException())
                 } else {
                     YuchengBlePlugin.api!.bloodOxygenCompleter?.complete(true)
                 }

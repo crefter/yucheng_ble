@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:yucheng_ble/export.dart';
 
 extension SleepTypeX on YuchengSleepType {
@@ -78,6 +77,9 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   YuchengDevice? selectedDevice;
   YuchengHealthSportData? realData;
   bool measuring = false;
+  bool isMeasureOxygen = false;
+  bool isMeasureHeart = false;
+  bool isMeasureBP = false;
   int? bloodOxygen;
   int? heartValue;
   RealTimeBloodPressure? bloodPressure;
@@ -370,36 +372,32 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
               ),
             if (_service.isReconnected || _service.isAnyDeviceConnected)
               SliverToBoxAdapter(
-                child: measuring
+                child: isMeasureOxygen
                     ? const Center(child: CircularProgressIndicator())
                     : TextButton(
                         onPressed: () async {
                           setState(() {
-                            measuring = true;
+                            isMeasureOxygen = true;
                             realData = null;
                           });
                           try {
                             final data =
-                                await _service.getRealTimeBloodOxygen();
+                                await _service.startMeasurementBloodOxygen();
                             print(data);
                             setState(() {
                               bloodOxygen = data;
-                              measuring = false;
+                              isMeasureOxygen = false;
                             });
                           } catch (e) {
-                            if (e is PlatformException) {
-                              final code = e.code;
-                              final det = e.details;
-                              print(
-                                  'PLATFORM EXCEPTION WHEN MEASURING: ' + code);
-                              final a = 10;
-                            } else {
-                              print(
-                                  'EXCEPTION WHEN MEASURING: ' + e.toString());
+                            if (e is YuchengUserCanceledMeasurementException) {
+                              print('USER EXITED MEASUREMENT');
+                            } else if (e
+                                is YuchengRealTimeMeasurementFailedException) {
+                              print('MEASUREMENT FAILED');
                             }
                             setState(() {
-                              heartValue = null;
-                              measuring = false;
+                              bloodOxygen = null;
+                              isMeasureOxygen = false;
                             });
                           }
                         },
@@ -407,64 +405,156 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                             const Text('Получить сатурацию в реальном времени'),
                       ),
               ),
+            if (isMeasureOxygen)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    try {
+                      final isStopped =
+                          await _service.stopMeasurementBloodOxygen();
+                      if (isStopped) {
+                        if (!context.mounted) return;
+                        _showSnackBar(context, 'Измерение остановлено!');
+                        setState(() {
+                          bloodOxygen = null;
+                          isMeasureOxygen = false;
+                        });
+                      } else {
+                        if (!context.mounted) return;
+                        _showSnackBar(context, 'Измерение не остановлено!');
+                      }
+                    } catch (e) {
+                      setState(() {
+                        bloodOxygen = null;
+                        isMeasureOxygen = false;
+                      });
+                    }
+                  },
+                  child: const Text('Остановить измерение сатурации'),
+                ),
+              ),
             if (_service.isReconnected || _service.isAnyDeviceConnected)
               SliverToBoxAdapter(
-                child: measuring
+                child: isMeasureHeart
                     ? const Center(child: CircularProgressIndicator())
                     : TextButton(
                         onPressed: () async {
                           setState(() {
-                            measuring = true;
+                            isMeasureHeart = true;
                             realData = null;
                           });
                           try {
-                            final data = await _service.getRealTimeHeart();
+                            final data = await _service.startMeasurementHeart();
                             print(data);
                             setState(() {
                               heartValue = data;
-                              measuring = false;
+                              isMeasureHeart = false;
                             });
                           } catch (e) {
-                            if (e is PlatformException) {
-                              final code = e.code;
-                              final det = e.details;
-                              print(
-                                  'PLATFORM EXCEPTION WHEN MEASURING: ' + code);
-                              final a = 10;
-                            } else {
-                              print(
-                                  'EXCEPTION WHEN MEASURING: ' + e.toString());
+                            if (e is YuchengUserCanceledMeasurementException) {
+                              print('USER EXITED MEASUREMENT');
+                            } else if (e
+                                is YuchengRealTimeMeasurementFailedException) {
+                              print('MEASUREMENT FAILED');
                             }
                             setState(() {
                               heartValue = null;
-                              measuring = false;
+                              isMeasureHeart = false;
                             });
                           }
                         },
                         child: const Text('Получить пульс в реальном времени'),
                       ),
               ),
+            if (isMeasureHeart)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    try {
+                      final isStopped = await _service.stopMeasurementHeart();
+                      if (isStopped) {
+                        if (!context.mounted) return;
+                        _showSnackBar(context, 'Измерение остановлено!');
+                        setState(() {
+                          heartValue = null;
+                          isMeasureHeart = false;
+                        });
+                      } else {
+                        if (!context.mounted) return;
+                        _showSnackBar(context, 'Измерение не остановлено!');
+                      }
+                    } catch (e) {
+                      setState(() {
+                        heartValue = null;
+                        isMeasureHeart = false;
+                      });
+                    }
+                  },
+                  child: const Text('Остановить измерение пульса'),
+                ),
+              ),
             if (_service.isReconnected || _service.isAnyDeviceConnected)
               SliverToBoxAdapter(
-                child: measuring
+                child: isMeasureBP
                     ? const Center(child: CircularProgressIndicator())
                     : TextButton(
                         onPressed: () async {
                           setState(() {
-                            measuring = true;
+                            isMeasureBP = true;
                             realData = null;
                           });
-                          final data =
-                              await _service.getRealTimeBloodPressure();
-                          print(data);
-                          setState(() {
-                            bloodPressure = data;
-                            measuring = false;
-                          });
+                          try {
+                            final data =
+                                await _service.startMeasurementBloodPressure();
+                            print(data);
+                            setState(() {
+                              bloodPressure = data;
+                              isMeasureBP = false;
+                            });
+                          } catch (e) {
+                            if (e is YuchengUserCanceledMeasurementException) {
+                              print('USER EXITED MEASUREMENT');
+                            } else if (e
+                                is YuchengRealTimeMeasurementFailedException) {
+                              print('MEASUREMENT FAILED');
+                            }
+                            setState(() {
+                              bloodPressure = null;
+                              isMeasureBP = false;
+                            });
+                          }
                         },
                         child: const Text(
                             'Получить кровяное давление в реальном времени'),
                       ),
+              ),
+            if (isMeasureBP)
+              SliverToBoxAdapter(
+                child: TextButton(
+                  onPressed: () async {
+                    try {
+                      final isStopped =
+                          await _service.stopMeasurementBloodPressure();
+                      if (isStopped) {
+                        if (!context.mounted) return;
+                        _showSnackBar(context, 'Измерение остановлено!');
+                        setState(() {
+                          bloodOxygen = null;
+                          isMeasureBP = false;
+                        });
+                      } else {
+                        if (!context.mounted) return;
+                        _showSnackBar(context, 'Измерение не остановлено!');
+                      }
+                    } catch (e) {
+                      setState(() {
+                        bloodOxygen = null;
+                        isMeasureBP = false;
+                      });
+                    }
+                  },
+                  child: const Text('Остановить измерение давления'),
+                ),
               ),
             if (bloodPressure != null)
               SliverToBoxAdapter(

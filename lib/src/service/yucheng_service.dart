@@ -9,8 +9,12 @@ import 'package:yucheng_ble/yucheng_ble.dart';
 import 'mixin/yucheng_service_bluetooth_mixin.dart';
 import 'mixin/yucheng_service_notifiers_mixin.dart';
 
-class YuchengUserExitedMeasurementException implements Exception {
-  const YuchengUserExitedMeasurementException();
+class YuchengUserCanceledMeasurementException implements Exception {
+  const YuchengUserCanceledMeasurementException();
+}
+
+class YuchengRealTimeMeasurementFailedException implements Exception {
+  const YuchengRealTimeMeasurementFailedException();
 }
 
 class YuchengServiceException implements Exception {
@@ -458,48 +462,78 @@ final class YuchengService
     } catch (e) {
       if (e is PlatformException) {
         if (e.code.contains('UserExitedMeasurementException')) {
-          throw const YuchengUserExitedMeasurementException();
+          throw const YuchengUserCanceledMeasurementException();
         }
       }
       rethrow;
     }
   }
 
-  Future<int> getRealTimeBloodOxygen() async {
+  Future<int> startMeasurementBloodOxygen() async {
     try {
-      return await _ble.getRealTimeBloodOxygen();
+      return await _ble.startMeasurementBloodOxygen();
     } catch (e) {
       if (e is PlatformException) {
         if (e.code.contains('UserExitedMeasurementException')) {
-          throw const YuchengUserExitedMeasurementException();
+          throw const YuchengUserCanceledMeasurementException();
+        } else if (e.code.contains('RealTimeMeasurementFailedException')) {
+          throw const YuchengRealTimeMeasurementFailedException();
         }
       }
       rethrow;
     }
   }
 
-  Future<int> getRealTimeHeart() async {
+  Future<int> startMeasurementHeart() async {
     try {
-      return await _ble.getRealTimeHeart();
+      return await _ble.startMeasurementHeart();
     } catch (e) {
       if (e is PlatformException) {
         if (e.code.contains('UserExitedMeasurementException')) {
-          throw const YuchengUserExitedMeasurementException();
+          throw const YuchengUserCanceledMeasurementException();
+        } else if (e.code.contains('RealTimeMeasurementFailedException')) {
+          throw const YuchengRealTimeMeasurementFailedException();
         }
       }
       rethrow;
     }
   }
 
-  Future<RealTimeBloodPressure> getRealTimeBloodPressure() async {
+  Future<RealTimeBloodPressure> startMeasurementBloodPressure() async {
     try {
-      return await _ble.getRealTimeBloodPressure();
+      return await _ble.startMeasurementBloodPressure();
     } catch (e) {
       if (e is PlatformException) {
         if (e.code.contains('UserExitedMeasurementException')) {
-          throw const YuchengUserExitedMeasurementException();
+          throw const YuchengUserCanceledMeasurementException();
+        } else if (e.code.contains('RealTimeMeasurementFailedException')) {
+          throw const YuchengRealTimeMeasurementFailedException();
         }
       }
+      rethrow;
+    }
+  }
+
+  Future<bool> stopMeasurementBloodOxygen() async {
+    try {
+      return await _ble.stopMeasurementBloodOxygen();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> stopMeasurementBloodPressure() async {
+    try {
+      return await _ble.stopMeasurementBloodPressure();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> stopMeasurementHeart() async {
+    try {
+      return await _ble.stopMeasurementHeart();
+    } catch (e) {
       rethrow;
     }
   }

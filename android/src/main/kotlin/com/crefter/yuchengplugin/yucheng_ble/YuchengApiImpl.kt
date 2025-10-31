@@ -56,6 +56,7 @@ private const val TIME_TO_TIMEOUT: Long = 15
 private const val TIME_TO_TIMEOUT_RESET: Long = 30
 
 class UserExitedMeasurementException : Exception()
+class RealTimeMeasurementFailedException : Exception()
 
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
@@ -920,9 +921,6 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun getRealTimeHealthRecord(callback: (Result<YuchengHealthSportData>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeHealthRecord")
-        val heartRateType = 0
-        val bloodPressureType = 1
-        val bloodOxygenType = 2
         val heartRates: MutableList<Long> = mutableListOf()
         val bloodPressures: MutableList<MeanBloodPressure> = mutableListOf()
         val bloodOxygens: MutableList<Long> = mutableListOf()
@@ -956,21 +954,21 @@ class YuchengApiImpl(
                                 Log.d(YUCHENG_API, "DEVICETOAPP type = $type")
                                 Log.d(YUCHENG_API, "DEVICETOAPP result = $result")
                                 if (result == 1) {
-                                    if (type == heartRateType) {
+                                    if (type == REAL_HEART_RATE_TYPE) {
                                         val sum = heartRates.reduce { prev, next -> prev + next }
                                         var count = heartRates.count()
                                         count = if (count < 1) 1 else count
                                         val mean = sum / count
                                         Log.d(YUCHENG_API, "Heart rate mean: $mean")
                                         heartRateCompleter.complete(mean)
-                                    } else if (type == bloodOxygenType) {
+                                    } else if (type == REAL_BLOOD_OXYGEN_TYPE) {
                                         val sum = bloodOxygens.reduce { prev, next -> prev + next }
                                         var count = bloodOxygens.count()
                                         count = if (count < 1) 1 else count
                                         val mean = sum / count
                                         Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
                                         bloodOxygenCompleter.complete(mean)
-                                    } else if (type == bloodPressureType) {
+                                    } else if (type == REAL_BLOOD_PRESSURE_TYPE) {
                                         var count = bloodPressures.count()
                                         count = if (count < 1) 1 else count
                                         val sumDbp = bloodPressures.sumOf { item -> item.dbp }
@@ -1027,20 +1025,20 @@ class YuchengApiImpl(
                     }
                 }
 
-                YCBTClient.appStartMeasurement(1, heartRateType) { code, ratio, data ->
+                YCBTClient.appStartMeasurement(1, REAL_HEART_RATE_TYPE) { code, ratio, data ->
                     Log.d(YUCHENG_API, "START HEART RATE MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING HEART RATE")
                 heartRate = heartRateCompleter.await()
                 Log.d(YUCHENG_API, "HEART RATE = $heartRate")
-                YCBTClient.appStartMeasurement(1, bloodPressureType) { code, ratio, data ->
+                YCBTClient.appStartMeasurement(1, REAL_BLOOD_PRESSURE_TYPE) { code, ratio, data ->
                     Log.d(YUCHENG_API, "START BLOOD PRESSURE MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING BLOOD PRESSURE")
                 bloodPressure = bloodPressureCompleter.await()
                 Log.d(YUCHENG_API, "BLOOD PRESSURE = $bloodPressure")
 
-                YCBTClient.appStartMeasurement(1, bloodOxygenType) { code, ratio, data ->
+                YCBTClient.appStartMeasurement(1, REAL_BLOOD_OXYGEN_TYPE) { code, ratio, data ->
                     Log.d(YUCHENG_API, "START BLOOD OXYGEN MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING BLOOD OXYGEN")
@@ -1109,15 +1107,14 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun getRealTimeBloodOxygen(callback: (Result<Long>) -> Unit) {
+    override fun startMeasurementBloodOxygen(callback: (Result<Long>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodOxygen")
-        val bloodOxygenType = 2
         val completer = CompletableDeferred<Boolean>()
 
         GlobalScope.launch {
             try {
                 val value = getRealTimeData(
-                    measureDataType = bloodOxygenType,
+                    measureDataType = REAL_BLOOD_OXYGEN_TYPE,
                     sdkDataType = Constants.DATATYPE.Real_UploadBloodOxygen,
                     onReduce = { values ->
                         val sum = values.reduce { prev, next -> prev + next }
@@ -1154,15 +1151,14 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun getRealTimeHeart(callback: (Result<Long>) -> Unit) {
+    override fun startMeasurementHeart(callback: (Result<Long>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeHeart")
-        val heartRateType = 0
         val completer = CompletableDeferred<Boolean>()
 
         GlobalScope.launch {
             try {
                 val value = getRealTimeData(
-                    measureDataType = heartRateType,
+                    measureDataType = REAL_HEART_RATE_TYPE,
                     sdkDataType = Constants.DATATYPE.Real_UploadHeart,
                     onReduce = { values ->
                         val sum = values.reduce { prev, next -> prev + next }
@@ -1198,15 +1194,14 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun getRealTimeBloodPressure(callback: (Result<RealTimeBloodPressure>) -> Unit) {
+    override fun startMeasurementBloodPressure(callback: (Result<RealTimeBloodPressure>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodPressure")
-        val bloodPressureType = 1
         val completer = CompletableDeferred<Boolean>()
 
         GlobalScope.launch {
             try {
                 val value = getRealTimeData(
-                    measureDataType = bloodPressureType,
+                    measureDataType = REAL_BLOOD_PRESSURE_TYPE,
                     sdkDataType = Constants.DATATYPE.Real_UploadBlood,
                     onReduce = { values ->
                         var count = values.count()
@@ -1248,6 +1243,71 @@ class YuchengApiImpl(
 
             callback(Result.failure(Exception("Timeout")))
         }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun stopMeasurementBloodOxygen(callback: (Result<Boolean>) -> Unit) {
+        Log.d(YUCHENG_API, "START stopMeasurementBloodOxygen")
+        GlobalScope.launch {
+            try {
+                val result = stopMeasurementByType(REAL_BLOOD_OXYGEN_TYPE)
+                if (result) {
+                    Log.d(YUCHENG_API, "STOPPED stopMeasurementBloodOxygen")
+                } else {
+                    Log.d(YUCHENG_API, "NOT STOPPED stopMeasurementBloodOxygen")
+                }
+                callback(Result.success(result))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun stopMeasurementBloodPressure(callback: (Result<Boolean>) -> Unit) {
+        Log.d(YUCHENG_API, "START stopMeasurementBloodPressure")
+        GlobalScope.launch {
+            try {
+                val result = stopMeasurementByType(REAL_BLOOD_PRESSURE_TYPE)
+                if (result) {
+                    Log.d(YUCHENG_API, "STOPPED stopMeasurementBloodPressure")
+                } else {
+                    Log.d(YUCHENG_API, "NOT STOPPED stopMeasurementBloodPressure")
+                }
+                callback(Result.success(result))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    override fun stopMeasurementHeart(callback: (Result<Boolean>) -> Unit) {
+        Log.d(YUCHENG_API, "START stopMeasurementHeart")
+        GlobalScope.launch {
+            try {
+                val result = stopMeasurementByType(REAL_HEART_RATE_TYPE)
+                if (result) {
+                    Log.d(YUCHENG_API, "STOPPED stopMeasurementHeart")
+                } else {
+                    Log.d(YUCHENG_API, "NOT STOPPED stopMeasurementHeart")
+                }
+                callback(Result.success(result))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    private suspend fun stopMeasurementByType(type: Int): Boolean {
+        val completed = CompletableDeferred<Boolean>()
+
+        YCBTClient.appStartMeasurement(0, type) { code, ratio, data ->
+            Log.d(YUCHENG_API, "STOP MEASURE")
+            completed.complete(code == 0)
+        }
+
+        return completed.await()
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -1310,11 +1370,18 @@ class YuchengApiImpl(
                             val result = datas[1].toInt()
                             Log.d(YUCHENG_API, "DEVICETOAPP type = $type")
                             Log.d(YUCHENG_API, "DEVICETOAPP result = $result")
-                            if (result != 1) {
+                            if (result == 0) {
+                                Log.d(YUCHENG_API, "result = 0: UserExitedMeasurementException")
                                 if (!valueCompleter.isCompleted) valueCompleter.completeExceptionally(
                                     UserExitedMeasurementException()
                                 )
+                            } else if (result == 2) {
+                                Log.d(YUCHENG_API, "result = 2: UserExitedMeasurementException")
+                                if (!valueCompleter.isCompleted) valueCompleter.completeExceptionally(
+                                    RealTimeMeasurementFailedException()
+                                )
                             } else {
+                                Log.d(YUCHENG_API, "result = 1: GOOD")
                                 if (type == measureDataType) {
                                     val mean = onReduce(values)
                                     Log.d(YUCHENG_API, "Mean value: $mean")
@@ -1351,6 +1418,9 @@ class YuchengApiImpl(
     }
 
     companion object {
+        private const val REAL_BLOOD_OXYGEN_TYPE = 2
+        private const val REAL_HEART_RATE_TYPE = 0
+        private const val REAL_BLOOD_PRESSURE_TYPE = 1
         private const val YUCHENG_API = "YUCH_API"
         private const val GET_SLEEP_DATA = "$YUCHENG_API GET_SLEEP_DATA"
         private const val GET_HEALTH_DATA = "$YUCHENG_API GET_HEALTH_DAT"
