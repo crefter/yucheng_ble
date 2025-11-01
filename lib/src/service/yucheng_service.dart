@@ -194,6 +194,7 @@ final class YuchengService
       if (scannedDevices.isEmpty) {
         setReconnecting(false);
         setReconnected(false);
+        onFailedReconnect?.call();
         return false;
       }
       final device = scannedDevices.firstWhereOrNull(
@@ -201,6 +202,7 @@ final class YuchengService
       if (device == null) {
         setReconnecting(false);
         setReconnected(false);
+        onFailedReconnect?.call();
         return false;
       }
       final isConnected = await tryConnectToDevice(device);
