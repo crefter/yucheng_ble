@@ -114,9 +114,28 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             let state = data.state
             let type = data.dataType
             if (type == YCAppControlMeasureHealthDataType.bloodPressure) {
-                YuchengBlePlugin.api!.bloodPressureCompleter?.complete(true)
+                if (state == YCAppControlMeasureHealthDataResult.exit) {
+                    print("BLOOD PRESSURE/HEART EXIT")
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.completeError(UserExitedMeasurementException())
+                } else if (state == YCAppControlMeasureHealthDataResult.fail) {
+                    print("BLOOD PRESSURE/HEART FAILED")
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.completeError(RealTimeMeasurementFailedException())
+                } else {
+                    print("BLOOD PRESSURE/HEART COMPLETE")
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.complete(true)
+                }
             } else if (type == YCAppControlMeasureHealthDataType.bloodOxygen) {
-                YuchengBlePlugin.api!.bloodOxygenCompleter?.complete(true)
+                if (state == YCAppControlMeasureHealthDataResult.exit) {
+                    print("BLOOD OXYGEN EXIT")
+                    YuchengBlePlugin.api!.bloodOxygenCompleter?.completeError(UserExitedMeasurementException())
+                } else if (state == YCAppControlMeasureHealthDataResult.fail) {
+                    print("BLOOD OXYGEN FAILED")
+                    YuchengBlePlugin.api!.bloodPressureCompleter?.completeError(RealTimeMeasurementFailedException())
+                } else {
+                    print("BLOOD OXYGEN COMPLETE")
+                    YuchengBlePlugin.api!.bloodOxygenCompleter?.complete(true)
+                }
+
             }
             let description = data.description
             print("CONTROL DATA RESULT",device.name ?? "",

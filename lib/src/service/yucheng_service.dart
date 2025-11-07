@@ -1,13 +1,21 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:yucheng_ble/export.dart';
 import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
 import 'mixin/yucheng_service_bluetooth_mixin.dart';
 import 'mixin/yucheng_service_notifiers_mixin.dart';
+
+class YuchengUserCanceledMeasurementException implements Exception {
+  const YuchengUserCanceledMeasurementException();
+}
+
+class YuchengRealTimeMeasurementFailedException implements Exception {
+  const YuchengRealTimeMeasurementFailedException();
+}
 
 class YuchengServiceException implements Exception {
   final String message;
@@ -186,6 +194,7 @@ final class YuchengService
       if (scannedDevices.isEmpty) {
         setReconnecting(false);
         setReconnected(false);
+        onFailedReconnect?.call();
         return false;
       }
       final device = scannedDevices.firstWhereOrNull(
@@ -193,6 +202,7 @@ final class YuchengService
       if (device == null) {
         setReconnecting(false);
         setReconnected(false);
+        onFailedReconnect?.call();
         return false;
       }
       final isConnected = await tryConnectToDevice(device);
@@ -452,29 +462,79 @@ final class YuchengService
     try {
       return await _ble.getRealTimeHealthRecord();
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserCanceledMeasurementException();
+        }
+      }
       rethrow;
     }
   }
 
-  Future<int> getRealTimeBloodOxygen() async {
+  Future<int?> startMeasurementBloodOxygen() async {
     try {
-      return await _ble.getRealTimeBloodOxygen();
+      return await _ble.startMeasurementBloodOxygen();
+    } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserCanceledMeasurementException();
+        } else if (e.code.contains('RealTimeMeasurementFailedException')) {
+          throw const YuchengRealTimeMeasurementFailedException();
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<int?> startMeasurementHeart() async {
+    try {
+      return await _ble.startMeasurementHeart();
+    } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserCanceledMeasurementException();
+        } else if (e.code.contains('RealTimeMeasurementFailedException')) {
+          throw const YuchengRealTimeMeasurementFailedException();
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<RealTimeBloodPressure?> startMeasurementBloodPressure() async {
+    try {
+      return await _ble.startMeasurementBloodPressure();
+    } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('UserExitedMeasurementException')) {
+          throw const YuchengUserCanceledMeasurementException();
+        } else if (e.code.contains('RealTimeMeasurementFailedException')) {
+          throw const YuchengRealTimeMeasurementFailedException();
+        }
+      }
+      rethrow;
+    }
+  }
+
+  Future<bool> stopMeasurementBloodOxygen() async {
+    try {
+      return await _ble.stopMeasurementBloodOxygen();
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<int> getRealTimeHeart() async {
+  Future<bool> stopMeasurementBloodPressure() async {
     try {
-      return await _ble.getRealTimeHeart();
+      return await _ble.stopMeasurementBloodPressure();
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<RealTimeBloodPressure> getRealTimeBloodPressure() async {
+  Future<bool> stopMeasurementHeart() async {
     try {
-      return await _ble.getRealTimeBloodPressure();
+      return await _ble.stopMeasurementHeart();
     } catch (e) {
       rethrow;
     }

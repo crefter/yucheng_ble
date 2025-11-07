@@ -1290,9 +1290,12 @@ protocol YuchengHostApi {
   /// false - не успех
   func setHealthMonitorInterval(interval: Int64, completion: @escaping (Result<Bool, Error>) -> Void)
   func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, Error>) -> Void)
-  func getRealTimeBloodOxygen(completion: @escaping (Result<Int64, Error>) -> Void)
-  func getRealTimeHeart(completion: @escaping (Result<Int64, Error>) -> Void)
-  func getRealTimeBloodPressure(completion: @escaping (Result<RealTimeBloodPressure, Error>) -> Void)
+  func startMeasurementBloodOxygen(completion: @escaping (Result<Int64?, Error>) -> Void)
+  func startMeasurementHeart(completion: @escaping (Result<Int64?, Error>) -> Void)
+  func startMeasurementBloodPressure(completion: @escaping (Result<RealTimeBloodPressure?, Error>) -> Void)
+  func stopMeasurementBloodOxygen(completion: @escaping (Result<Bool, Error>) -> Void)
+  func stopMeasurementBloodPressure(completion: @escaping (Result<Bool, Error>) -> Void)
+  func stopMeasurementHeart(completion: @escaping (Result<Bool, Error>) -> Void)
   func calibrateBloodPressure(sbp: Int64, dbp: Int64, completion: @escaping (Result<Bool, Error>) -> Void)
 }
 
@@ -1620,10 +1623,10 @@ class YuchengHostApiSetup {
     } else {
       getRealTimeHealthRecordChannel.setMessageHandler(nil)
     }
-    let getRealTimeBloodOxygenChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodOxygen\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let startMeasurementBloodOxygenChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.startMeasurementBloodOxygen\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getRealTimeBloodOxygenChannel.setMessageHandler { _, reply in
-        api.getRealTimeBloodOxygen { result in
+      startMeasurementBloodOxygenChannel.setMessageHandler { _, reply in
+        api.startMeasurementBloodOxygen { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1633,12 +1636,12 @@ class YuchengHostApiSetup {
         }
       }
     } else {
-      getRealTimeBloodOxygenChannel.setMessageHandler(nil)
+      startMeasurementBloodOxygenChannel.setMessageHandler(nil)
     }
-    let getRealTimeHeartChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeHeart\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let startMeasurementHeartChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.startMeasurementHeart\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getRealTimeHeartChannel.setMessageHandler { _, reply in
-        api.getRealTimeHeart { result in
+      startMeasurementHeartChannel.setMessageHandler { _, reply in
+        api.startMeasurementHeart { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1648,12 +1651,12 @@ class YuchengHostApiSetup {
         }
       }
     } else {
-      getRealTimeHeartChannel.setMessageHandler(nil)
+      startMeasurementHeartChannel.setMessageHandler(nil)
     }
-    let getRealTimeBloodPressureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.getRealTimeBloodPressure\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let startMeasurementBloodPressureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.startMeasurementBloodPressure\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      getRealTimeBloodPressureChannel.setMessageHandler { _, reply in
-        api.getRealTimeBloodPressure { result in
+      startMeasurementBloodPressureChannel.setMessageHandler { _, reply in
+        api.startMeasurementBloodPressure { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1663,7 +1666,52 @@ class YuchengHostApiSetup {
         }
       }
     } else {
-      getRealTimeBloodPressureChannel.setMessageHandler(nil)
+      startMeasurementBloodPressureChannel.setMessageHandler(nil)
+    }
+    let stopMeasurementBloodOxygenChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.stopMeasurementBloodOxygen\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopMeasurementBloodOxygenChannel.setMessageHandler { _, reply in
+        api.stopMeasurementBloodOxygen { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopMeasurementBloodOxygenChannel.setMessageHandler(nil)
+    }
+    let stopMeasurementBloodPressureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.stopMeasurementBloodPressure\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopMeasurementBloodPressureChannel.setMessageHandler { _, reply in
+        api.stopMeasurementBloodPressure { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopMeasurementBloodPressureChannel.setMessageHandler(nil)
+    }
+    let stopMeasurementHeartChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.stopMeasurementHeart\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopMeasurementHeartChannel.setMessageHandler { _, reply in
+        api.stopMeasurementHeart { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopMeasurementHeartChannel.setMessageHandler(nil)
     }
     let calibrateBloodPressureChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.yucheng_ble.YuchengHostApi.calibrateBloodPressure\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
