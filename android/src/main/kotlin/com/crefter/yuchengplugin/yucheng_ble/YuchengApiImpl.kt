@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlin.math.roundToLong
 
 
 private const val SCAN_PERIOD: Int = 15
@@ -1117,10 +1118,10 @@ class YuchengApiImpl(
                     measureDataType = REAL_BLOOD_OXYGEN_TYPE,
                     sdkDataType = Constants.DATATYPE.Real_UploadBloodOxygen,
                     onReduce = { values ->
-                        val sum = values.reduce { prev, next -> prev + next }
+                        val sum = values.reduce { prev, next -> prev + next }.toDouble()
                         var count = values.count()
                         count = if (count < 1) 1 else count
-                        val mean = sum / count
+                        val mean = (sum / count).roundToLong()
                         Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
                         return@getRealTimeData mean
                     },
@@ -1161,10 +1162,10 @@ class YuchengApiImpl(
                     measureDataType = REAL_HEART_RATE_TYPE,
                     sdkDataType = Constants.DATATYPE.Real_UploadHeart,
                     onReduce = { values ->
-                        val sum = values.reduce { prev, next -> prev + next }
+                        val sum = values.reduce { prev, next -> prev + next }.toDouble()
                         var count = values.count()
                         count = if (count < 1) 1 else count
-                        val mean = sum / count
+                        val mean = (sum / count).roundToLong()
                         Log.d(YUCHENG_API, "Heart rate mean: $mean")
                         return@getRealTimeData mean
                     },
@@ -1206,10 +1207,10 @@ class YuchengApiImpl(
                     onReduce = { values ->
                         var count = values.count()
                         count = if (count < 1) 1 else count
-                        val sumDbp = values.sumOf { item -> item.dbp }
-                        val meanDbp = sumDbp / count
-                        val sumSbp = values.sumOf { item -> item.sbp }
-                        val meanSbp = sumSbp / count
+                        val sumDbp = values.sumOf { item -> item.dbp }.toDouble()
+                        val meanDbp = (sumDbp / count).roundToLong()
+                        val sumSbp = values.sumOf { item -> item.sbp }.toDouble()
+                        val meanSbp = (sumSbp / count).roundToLong()
                         Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
                         Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
                         return@getRealTimeData MeanBloodPressure(sbp = meanSbp, dbp = meanDbp)
@@ -1401,7 +1402,6 @@ class YuchengApiImpl(
                     }
                 }
             }
-
             YCBTClient.appStartMeasurement(1, measureDataType) { code, ratio, data ->
                 Log.d(YUCHENG_API, "START MEASURE")
             }
