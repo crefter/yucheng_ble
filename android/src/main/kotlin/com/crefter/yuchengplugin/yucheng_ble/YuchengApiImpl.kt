@@ -243,7 +243,7 @@ class YuchengApiImpl(
             }
         }
         GlobalScope.launch {
-            val timeout = (reconnectTimeInSeconds ?: (TIME_TO_TIMEOUT * 3))
+            val timeout = (reconnectTimeInSeconds ?: (TIME_TO_TIMEOUT * 6))
             delay(1000 * timeout)
             if (completer.isCompleted) return@launch
             onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))

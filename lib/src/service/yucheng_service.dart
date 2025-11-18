@@ -142,7 +142,7 @@ final class YuchengService
   }
 
   Future<bool> tryReconnect({
-    int reconnectTimeInSeconds = 30,
+    int reconnectTimeInSeconds = 45,
     String? macAddress,
     String? deviceName,
     VoidCallback? onBluetoothNotSupported,
