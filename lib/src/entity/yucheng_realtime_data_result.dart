@@ -2,13 +2,13 @@ sealed class YuchengRealtimeDataResult {
   const YuchengRealtimeDataResult();
 }
 
-class YuchengRealtimeDataSingleResult {
+class YuchengRealtimeDataSingleResult extends YuchengRealtimeDataResult {
   final num value;
 
   const YuchengRealtimeDataSingleResult({required this.value});
 }
 
-class YuchengRealtimeDataBloodPressureResult {
+class YuchengRealtimeDataBloodPressureResult extends YuchengRealtimeDataResult {
   final int sbp;
   final int dbp;
 
