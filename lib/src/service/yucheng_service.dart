@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:yucheng_ble/export.dart';
+import 'package:yucheng_ble/src/entity/yucheng_realtime_data_result.dart';
 import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
@@ -471,9 +472,11 @@ final class YuchengService
     }
   }
 
-  Future<int?> startMeasurementBloodOxygen() async {
+  Future<YuchengRealtimeDataSingleResult?> startMeasurementBloodOxygen() async {
     try {
-      return await _ble.startMeasurementBloodOxygen();
+      final data = await _ble.startMeasurementBloodOxygen();
+      if (data == null) return null;
+      return YuchengRealtimeDataSingleResult(value: data);
     } catch (e) {
       if (e is PlatformException) {
         if (e.code.contains('UserExitedMeasurementException')) {
@@ -486,9 +489,11 @@ final class YuchengService
     }
   }
 
-  Future<int?> startMeasurementHeart() async {
+  Future<YuchengRealtimeDataSingleResult?> startMeasurementHeart() async {
     try {
-      return await _ble.startMeasurementHeart();
+      final data = await _ble.startMeasurementHeart();
+      if (data == null) return null;
+      return YuchengRealtimeDataSingleResult(value: data);
     } catch (e) {
       if (e is PlatformException) {
         if (e.code.contains('UserExitedMeasurementException')) {
@@ -501,9 +506,13 @@ final class YuchengService
     }
   }
 
-  Future<RealTimeBloodPressure?> startMeasurementBloodPressure() async {
+  Future<YuchengRealtimeDataBloodPressureResult?>
+      startMeasurementBloodPressure() async {
     try {
-      return await _ble.startMeasurementBloodPressure();
+      final data = await _ble.startMeasurementBloodPressure();
+      if (data == null) return null;
+      return YuchengRealtimeDataBloodPressureResult(
+          sbp: data.sbp, dbp: data.dbp);
     } catch (e) {
       if (e is PlatformException) {
         if (e.code.contains('UserExitedMeasurementException')) {

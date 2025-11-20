@@ -385,7 +385,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                                 await _service.startMeasurementBloodOxygen();
                             print(data);
                             setState(() {
-                              bloodOxygen = data;
+                              bloodOxygen = data?.value.toInt();
                               isMeasureOxygen = false;
                             });
                           } catch (e) {
@@ -447,7 +447,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                             final data = await _service.startMeasurementHeart();
                             print(data);
                             setState(() {
-                              heartValue = data;
+                              heartValue = data?.value.toInt();
                               isMeasureHeart = false;
                             });
                           } catch (e) {
@@ -508,7 +508,12 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                                 await _service.startMeasurementBloodPressure();
                             print(data);
                             setState(() {
-                              bloodPressure = data;
+                              bloodPressure = data == null
+                                  ? null
+                                  : RealTimeBloodPressure(
+                                      dbp: data.dbp,
+                                      sbp: data.sbp,
+                                    );
                               isMeasureBP = false;
                             });
                           } catch (e) {
