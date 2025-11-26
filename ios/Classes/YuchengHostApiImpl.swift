@@ -154,6 +154,184 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
             }
         })
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.deviceStateChange(_:)),
+            name: YCProduct.deviceStateNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(receiveRealTimeData(_:)),
+            name: YCProduct.receivedRealTimeNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(deviceDataStateChanged(_:)),
+            name: YCProduct.deviceControlNotification,
+            object: nil
+        )
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: YCProduct.deviceStateNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.removeObserver(
+            self,
+            name: YCProduct.receivedRealTimeNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.removeObserver(
+            self,
+            name: YCProduct.deviceControlNotification,
+            object: nil
+        )
+    }
+    
+    @objc func deviceDataStateChanged(_ ntf: Notification) {
+        guard let info = ntf.userInfo else {
+            return
+        }
+        if let response = info[YCDeviceControlType.healthDataMeasurementResult.toString] as?
+            YCReceivedDeviceReportInfo,
+           let device = response.device,
+           let data = response.data as? YCDeviceControlMeasureHealthDataResultInfo {
+            let state = data.state
+            let type = data.dataType
+            if (type == YCAppControlMeasureHealthDataType.bloodPressure) {
+                if (state == YCAppControlMeasureHealthDataResult.exit) {
+                    print("BLOOD PRESSURE/HEART EXIT")
+                    self.bloodPressureCompleter?.completeError(UserExitedMeasurementException())
+                } else if (state == YCAppControlMeasureHealthDataResult.fail) {
+                    print("BLOOD PRESSURE/HEART FAILED")
+                    self.bloodPressureCompleter?.completeError(RealTimeMeasurementFailedException())
+                } else {
+                    print("BLOOD PRESSURE/HEART COMPLETE")
+                    self.bloodPressureCompleter?.complete(true)
+                }
+            } else if (type == YCAppControlMeasureHealthDataType.bloodOxygen) {
+                if (state == YCAppControlMeasureHealthDataResult.exit) {
+                    print("BLOOD OXYGEN EXIT")
+                    self.bloodOxygenCompleter?.completeError(UserExitedMeasurementException())
+                } else if (state == YCAppControlMeasureHealthDataResult.fail) {
+                    print("BLOOD OXYGEN FAILED")
+                    self.bloodPressureCompleter?.completeError(RealTimeMeasurementFailedException())
+                } else {
+                    print("BLOOD OXYGEN COMPLETE")
+                    self.bloodOxygenCompleter?.complete(true)
+                }
+
+            }
+            let description = data.description
+            print("CONTROL DATA RESULT",device.name ?? "",
+                  state,
+                  type,
+                  description
+            )
+        }
+    }
+    
+    @objc func deviceStateChange(_ ntf: Notification) {
+        guard let info = ntf.userInfo as? [String: Any],
+              let state = info[YCProduct.connecteStateKey] as? YCProductState else {
+            return
+        }
+        if (state == YCProductState.connected) {
+            self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.connected))
+        } else if (state == YCProductState.connectedFailed) {
+            self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.connectedFailed))
+        } else if (state == YCProductState.disconnected) {
+            self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.disconnected))
+        } else if (state == YCProductState.unavailable) {
+            self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.unavailable))
+        } else if (state == YCProductState.timeout) {
+            self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.timeOut))
+        } else if (state == YCProductState.succeed) {
+            self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.readWriteOK))
+        } else {
+            self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.unknown))
+        }
+        print("STATE: " + state.toString)
+    }
+    
+    @objc func receiveRealTimeData(_ notification: Notification) {
+        guard let info = notification.userInfo else {
+            return
+        }
+        if let response = info[YCReceivedRealTimeDataType.step.toString] as?
+            YCReceivedDeviceReportInfo,
+           let device = response.device,
+           let sportInfo = response.data as? YCReceivedRealTimeStepInfo {
+            print("STEPS", device.name ?? ""
+                  ,
+                  sportInfo.step,
+                  sportInfo.calories,
+                  sportInfo.distance
+            )
+            self.setSteps(steps: Int64(sportInfo.step))
+            self.setCalories(calories: Int64(sportInfo.calories))
+            self.setDistance(distance: Int64(sportInfo.distance))
+        }
+        if let response =
+            info[YCReceivedRealTimeDataType.realTimeMonitoringMode.toString] as?
+            YCReceivedDeviceReportInfo {
+           let device = response.device
+            print("REAL TIME MONITORING MODE", response.data ?? "")
+               if let data = response.data as? YCReceivedMonitoringModeInfo {
+                   print("MODE:", device?.name ?? "",
+                         data.startTimeStamp,
+                         data.modeStep,
+                         data.modeCalories,
+                         data.modeCalories
+                   )
+               }
+        }
+        // Blood pressure data
+        if let response =
+            info[YCReceivedRealTimeDataType.bloodPressure.toString] as?
+            YCReceivedDeviceReportInfo
+        {
+            let device = response.device
+            if let healthData = response.data as? YCReceivedRealTimeBloodPressureInfo {
+                let heartRate = healthData.heartRate
+                let systolicBloodPressure =
+                healthData.systolicBloodPressure
+                let diastolicBloodPressure =
+                healthData.diastolicBloodPressure
+                print("BLOOD PRESSURE", device?.name ?? "",
+                      heartRate,
+                      systolicBloodPressure,
+                      diastolicBloodPressure
+                )
+                self.heartRates.append(Int64(heartRate))
+                self.dbps.append(Int64(diastolicBloodPressure))
+                self.sbps.append(Int64(systolicBloodPressure))
+            }
+        }
+        if let response =
+            info[YCReceivedRealTimeDataType.bloodOxygen.toString] as?
+            YCReceivedDeviceReportInfo
+        {
+            let device = response.device
+            let data = response.data
+            if (data != nil) {
+                let dataString = String(describing: data!)
+                let bloodOxygen = Int64(dataString) ?? 0
+                self.bloodOxygens.append(bloodOxygen)
+                print("BLOOD OXYGEN INT", device?.name ?? "",
+                      response.data ?? "no blood oxygen data"
+                )
+            }
+        }
     }
     
     func addBlooxOxygen(item: Int64) {
