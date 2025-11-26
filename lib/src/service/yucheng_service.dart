@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:yucheng_ble/export.dart';
-import 'package:yucheng_ble/src/entity/yucheng_realtime_data_result.dart';
 import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
@@ -31,6 +30,8 @@ final class YuchengService
         YuchengServiceNotifiersMixin,
         YuchengServiceBluetoothMixin,
         YuchengServicePermissionsMixin {
+  bool _hasDeviceReconnected = false;
+
   final YuchengBle _ble = const YuchengBle();
 
   YuchengService();
@@ -91,7 +92,10 @@ final class YuchengService
               isReconnected: isReconnected,
             ));
             setDeviceConnected(isReconnected);
-            onSuccessfulReconnect?.call();
+            if (!_hasDeviceReconnected) {
+              onSuccessfulReconnect?.call();
+              _hasDeviceReconnected = true;
+            }
           }
         }
       },
@@ -212,6 +216,7 @@ final class YuchengService
       setDeviceConnected(isConnected);
       switch (isConnected) {
         case true:
+          _hasDeviceReconnected = true;
           onSuccessfulReconnect?.call();
         case false:
           onFailedReconnect?.call();
@@ -226,6 +231,7 @@ final class YuchengService
     setDeviceConnected(isBleReconnected);
     switch (isBleReconnected) {
       case true:
+        _hasDeviceReconnected = true;
         onSuccessfulReconnect?.call();
       case false:
         onFailedReconnect?.call();
