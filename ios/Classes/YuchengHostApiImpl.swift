@@ -499,23 +499,109 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(TIME_TO_QUERY_MAC_ADDR)) {
                 YCProduct.queryDeviceMacAddress { state, response in
+                    self.currentDevice = YCProduct.shared.currentPeripheral
                     if state == YCProductState.succeed,
                        let macAddress = response as? String {
+                        print("Reconnect: state == success")
                         self.currentDevice = YCProduct.shared.currentPeripheral
                         let device = self.currentDevice
                         let deviceMacAddress = device?.macAddress
                         let isReconnected = deviceMacAddress != nil
                         let isDevice = device != nil
                         if (isDevice) {
+                            print("Reconnect: state == success, isDevice = true")
                             let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device?.name ?? "", uuid: deviceMacAddress ?? macAddress, isReconnected: isReconnected)
                             DispatchQueue.main.async {
                                 self.onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
                                 self.onDevice(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
                             }
+                            completion(.success(isDevice))
+                            self.index += 1
+                            isCompleted = true
+                        } else {
+                            print("Reconnect: state == success, isDevice = false, try forward connect")
+                            YCProduct.connectDevice(self.currentDevice!) { state, error in
+                                if let error = error {
+                                    print("Reconnect: state == success, forward connect with error")
+                                    isCompleted = true
+                                    completion(.failure(error));
+                                } else {
+                                    if state == .connected {
+                                        print("Reconnect: state == success, connected!")
+                                        let device = YCProduct.shared.currentPeripheral;
+                                        let mac = device?.macAddress ?? "";
+                                        let name = device?.name ?? "";
+                                        isCompleted = true
+                                        completion(.success(true));
+                                        if (device != nil) {
+                                            self.currentDevice = device
+                                            let isOtaForce = YCProduct.isJLDeviceForceOTA()
+                                            if (isOtaForce) {
+                                                self.reconnectMacAddress = mac
+                                                self.connectForceOtaDevice { res in }
+                                            }
+                                            DispatchQueue.main.async(execute:  {
+                                                self.onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
+                                                self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: mac, isReconnected: true, deviceName: name))
+                                            })
+                                            self.index += 1
+                                        }
+                                    } else {
+                                        print("Reconnect: state == success, cant connect")
+                                        if (!isCompleted) {
+                                            isCompleted = true
+                                            completion(.success(false))
+                                        }
+                                    }
+                                }
+                                self.index += 1
+                                isCompleted = true
+                            }
                         }
-                        completion(.success(isDevice))
-                        self.index += 1
-                        isCompleted = true
+                    } else {
+                        print("Reconnect: state != success")
+                        if self.currentDevice == nil {
+                            print("Reconnect: state != success, currentDevice == nil")
+                            completion(.success(false))
+                            isCompleted = true
+                            return
+                        }
+                        print("Reconnect: state != success, try forward connect")
+                        YCProduct.connectDevice(self.currentDevice!) { state, error in
+                            if let error = error {
+                                print("Reconnect: state != success, try forward connect, done = error")
+                                isCompleted = true
+                                completion(.failure(error));
+                            } else {
+                                if state == .connected {
+                                    print("Reconnect: state != success, try forward connect, connected!")
+                                    let device = YCProduct.shared.currentPeripheral;
+                                    let mac = device?.macAddress ?? "";
+                                    let name = device?.name ?? "";
+                                    isCompleted = true
+                                    completion(.success(true));
+                                    if (device != nil) {
+                                        self.currentDevice = device
+                                        let isOtaForce = YCProduct.isJLDeviceForceOTA()
+                                        if (isOtaForce) {
+                                            self.reconnectMacAddress = mac
+                                            self.connectForceOtaDevice { res in }
+                                        }
+                                        DispatchQueue.main.async(execute:  {
+                                            self.onState(YuchengDeviceStateDataEvent(state: .readWriteOK))
+                                            self.onDevice(YuchengDeviceDataEvent(index: Int64(self.index), mac: mac, isReconnected: true, deviceName: name))
+                                        })
+                                        self.index += 1
+                                    }
+                                } else {
+                                    print("Reconnect: state != success, try forward connect, NOT connected!")
+                                    if (!isCompleted) {
+                                        isCompleted = true
+                                        completion(.success(false))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -523,8 +609,8 @@ final class YuchengHostApiImpl : YuchengHostApi {
             isCompleted = true
             completion(.failure(error))
         }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(TIME_TO_RECONNECT), execute: {
+        let seconds = reconnectTimeInSeconds == nil ? DispatchTimeInterval.seconds(TIME_TO_RECONNECT) : DispatchTimeInterval.seconds(Int(reconnectTimeInSeconds!))
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: {
             if (isCompleted) {
                 return
             }

@@ -370,6 +370,7 @@ final class YuchengService
       setReconnected(false);
       setSelectedDevice(null);
       setDeviceConnected(false);
+      setDeviceSettings(null);
     } catch (e) {
       rethrow;
     }
