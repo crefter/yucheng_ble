@@ -58,6 +58,7 @@ private const val TIME_TO_TIMEOUT_RESET: Long = 30
 
 class UserExitedMeasurementException : Exception()
 class RealTimeMeasurementFailedException : Exception()
+class NoConnectionException : Exception()
 
 class YuchengApiImpl(
     private val onDevice: (device: YuchengDeviceEvent) -> Unit,
@@ -323,7 +324,8 @@ class YuchengApiImpl(
     ): List<YuchengSleepData> {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get sleep data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
-            return listOf()
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "No connection")
+            throw NoConnectionException()
         }
         val sleepDataCompleter = CompletableDeferred<List<YuchengSleepData>>()
         val sleepDataList: MutableList<YuchengSleepData> = mutableListOf()
@@ -430,7 +432,8 @@ class YuchengApiImpl(
     ): YuchengHealthSportData {
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get health data")
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
-            return YuchengHealthSportData(listOf(), listOf())
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "No connection")
+            throw NoConnectionException()
         }
         val healthDataCompleter = CompletableDeferred<List<YuchengHealthData>>()
         val healthDataList: MutableList<YuchengHealthData> = mutableListOf()
@@ -546,8 +549,8 @@ class YuchengApiImpl(
         Log.d(GET_SLEEP_HEALTH_DATA, "Start get sleep health data")
         val empty = YuchengAllData(listOf(), YuchengHealthSportData(listOf(), listOf()))
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
-            callback(Result.success(empty))
-            return
+            Log.d(GET_SLEEP_HEALTH_DATA, "No connection")
+            throw NoConnectionException()
         }
         val sleepHealthDataCompleter = CompletableDeferred<YuchengAllData>()
         GlobalScope.launch {
@@ -599,7 +602,7 @@ class YuchengApiImpl(
 
         if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
             Log.d(YUCHENG_API, "Device not connected")
-            completer.complete(null)
+            throw NoConnectionException()
         }
         GlobalScope.launch {
             try {
@@ -669,12 +672,6 @@ class YuchengApiImpl(
             return result
         } catch (e: Exception) {
             throw e
-        }
-
-        GlobalScope.launch {
-            delay(1000 * TIME_TO_TIMEOUT)
-            if (completer.isCompleted) return@launch
-            completer.complete(false)
         }
     }
 
@@ -1163,6 +1160,10 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun startMeasurementBloodOxygen(callback: (Result<Long?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodOxygen")
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            Log.d(YUCHENG_API, "Device not connected")
+            throw NoConnectionException()
+        }
         val completer = CompletableDeferred<Boolean>()
 
         GlobalScope.launch {
@@ -1207,6 +1208,10 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun startMeasurementHeart(callback: (Result<Long?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeHeart")
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            Log.d(YUCHENG_API, "Device not connected")
+            throw NoConnectionException()
+        }
         val completer = CompletableDeferred<Boolean>()
 
         GlobalScope.launch {
@@ -1250,6 +1255,10 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun startMeasurementBloodPressure(callback: (Result<RealTimeBloodPressure?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodPressure")
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            Log.d(YUCHENG_API, "Device not connected")
+            throw NoConnectionException()
+        }
         val completer = CompletableDeferred<Boolean>()
 
         GlobalScope.launch {
@@ -1371,6 +1380,10 @@ class YuchengApiImpl(
         callback: (Result<Boolean>) -> Unit
     ) {
         Log.d(YUCHENG_API, "START calibrateBloodPressure sbp = $sbp dbp = $dbp")
+        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+            Log.d(YUCHENG_API, "Device not connected")
+            throw NoConnectionException()
+        }
         val completed = CompletableDeferred<Boolean>()
         YCBTClient.appBloodCalibration(sbp.toInt(), dbp.toInt(), { code, ratio, data ->
             if (completed.isCompleted) return@appBloodCalibration
