@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:yucheng_ble/export.dart';
+import 'package:yucheng_ble/export_service.dart';
 
 extension SleepTypeX on YuchengSleepType {
   ({int r, int g, int b}) toColor() => switch (this) {

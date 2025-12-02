@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 
+@internal
 base mixin YuchengServiceNotifiersMixin {
   bool wasDisposed = false;
   final ValueNotifier<YuchengDevice?> selectedDeviceNotifier =

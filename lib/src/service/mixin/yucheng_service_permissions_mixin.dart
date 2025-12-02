@@ -1,8 +1,10 @@
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:meta/meta.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+@internal
 base mixin YuchengServicePermissionsMixin {
   final _deviceInfo = DeviceInfoPlugin();
   String? _deviceId;

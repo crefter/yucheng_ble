@@ -6,6 +6,7 @@ import 'package:yucheng_ble/export.dart';
 import 'package:yucheng_ble/src/service/mixin/yucheng_service_permissions_mixin.dart';
 import 'package:yucheng_ble/yucheng_ble.dart';
 
+import '../entity/yucheng_realtime_data_result.dart';
 import 'mixin/yucheng_service_bluetooth_mixin.dart';
 import 'mixin/yucheng_service_notifiers_mixin.dart';
 

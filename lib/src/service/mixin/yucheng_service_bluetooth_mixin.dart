@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:meta/meta.dart';
 
+@internal
 base mixin YuchengServiceBluetoothMixin {
   StreamSubscription<BluetoothAdapterState>? _bluetoothStateSub;
 
