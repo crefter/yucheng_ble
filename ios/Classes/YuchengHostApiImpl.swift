@@ -86,6 +86,7 @@ enum UpgradeFirmwareError: Error {
 
 class UserExitedMeasurementException: Error {}
 class RealTimeMeasurementFailedException: Error {}
+class NoConnectionException : Error {}
 
 final class YuchengHostApiImpl : YuchengHostApi {
     typealias DeviceHandler = (any YuchengDeviceEvent) -> Void
@@ -107,6 +108,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     public var bloodOxygenCompleter: Completer<Bool>? = nil;
     
     private var cancellables = Set<AnyCancellable>()
+    private var ringState: YuchengDeviceState = YuchengDeviceState.unknown;
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
     private let onState: StateHandler;
@@ -246,18 +248,25 @@ final class YuchengHostApiImpl : YuchengHostApi {
             return
         }
         if (state == YCProductState.connected) {
+            self.ringState = YuchengDeviceState.connected
             self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.connected))
         } else if (state == YCProductState.connectedFailed) {
+            self.ringState = YuchengDeviceState.connectedFailed
             self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.connectedFailed))
         } else if (state == YCProductState.disconnected) {
+            self.ringState = YuchengDeviceState.disconnected
             self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.disconnected))
         } else if (state == YCProductState.unavailable) {
+            self.ringState = YuchengDeviceState.unavailable
             self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.unavailable))
         } else if (state == YCProductState.timeout) {
+            self.ringState = YuchengDeviceState.timeOut
             self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.timeOut))
         } else if (state == YCProductState.succeed) {
+            self.ringState = YuchengDeviceState.readWriteOK
             self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.readWriteOK))
         } else {
+            self.ringState = YuchengDeviceState.unknown
             self.onState(YuchengDeviceStateDataEvent(state: YuchengDeviceState.unknown))
         }
         print("STATE: " + state.toString)
@@ -414,6 +423,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, any Error>) -> Void)
     {
         do {
+            if self.ringState == YuchengDeviceState.connected || self.ringState == YuchengDeviceState.readWriteOK {
+                completion(.success(true))
+                return
+            }
             let lastConnectedDevice = YCProduct.shared.currentPeripheral;
             if (device == nil) {
                 completion(.success(lastConnectedDevice != nil))
@@ -691,6 +704,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     
     func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<[(YuchengSleepData)], any Error>) -> Void) {
         let defaultDate = getDefaultStartAndEndDate()
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         let start = startTimestamp ?? defaultDate.start
         let end = endTimestamp ?? defaultDate.end
         var isCompleted = false
@@ -751,6 +768,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     
     func getHealthSportData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengHealthSportData, any Error>) -> Void) {
         let defaultDate = getDefaultStartAndEndDate()
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         let start = startTimestamp ?? defaultDate.start
         let end = endTimestamp ?? defaultDate.end
         var isHealthCompleted = false
@@ -829,6 +850,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func getAllData(startTimestamp: Int64?, endTimestamp: Int64?, completion: @escaping (Result<YuchengAllData, any Error>) -> Void) {
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         let empty = YuchengAllData(sleepData: [], healthSportData: YuchengHealthSportData(healthData: [], sportData: []))
         let defaultDate = getDefaultStartAndEndDate()
         let start = startTimestamp ?? defaultDate.start
@@ -962,6 +987,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func getDeviceSettings(completion: @escaping (Result<YuchengDeviceSettings?, any Error>) -> Void) {
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         if (currentDevice == nil) {
             completion(.success(nil))
         }
@@ -1365,6 +1394,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func getRealTimeHealthRecord(completion: @escaping (Result<YuchengHealthSportData, any Error>) -> Void) {
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         var isCompleted = false
         bloodOxygenCompleter = Completer<Bool>();
         bloodPressureCompleter = Completer<Bool>();
@@ -1449,6 +1482,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func startMeasurementBloodOxygen(completion: @escaping (Result<Int64?, any Error>) -> Void) {
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         var isCompleted = false
         bloodOxygenCompleter = Completer<Bool>();
 
@@ -1502,6 +1539,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func startMeasurementHeart(completion: @escaping (Result<Int64?, any Error>) -> Void) {
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         var isCompleted = false
         bloodPressureCompleter = Completer<Bool>();
         
@@ -1556,6 +1597,10 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func startMeasurementBloodPressure(completion: @escaping (Result<RealTimeBloodPressure?, any Error>) -> Void) {
+        if ringState != YuchengDeviceState.connected && ringState != YuchengDeviceState.readWriteOK {
+            completion(.failure(NoConnectionException()))
+            return
+        }
         var isCompleted = false
         bloodPressureCompleter = Completer<Bool>();
         

@@ -17,6 +17,10 @@ class YuchengRealTimeMeasurementFailedException implements Exception {
   const YuchengRealTimeMeasurementFailedException();
 }
 
+class YuchengNoConnectionException implements Exception {
+  const YuchengNoConnectionException();
+}
+
 class YuchengServiceException implements Exception {
   final String message;
 
@@ -68,6 +72,7 @@ final class YuchengService
 
     _deviceStateSub = deviceStateStream.listen(
       (event) {
+        print("DEVICE STATE STREAM: $event");
         if (event is YuchengDeviceStateDataEvent) {
           if (event.state == YuchengDeviceState.readWriteOK) {
             setDeviceConnected(true);
@@ -135,6 +140,8 @@ final class YuchengService
         onBluetoothOff?.call();
         setDeviceScanning(false);
         setReconnecting(false);
+        setDeviceConnected(false);
+        setReconnected(false);
       },
     );
   }
@@ -162,6 +169,7 @@ final class YuchengService
     if (!isSupported) {
       setReconnecting(false);
       setReconnected(false);
+      setDeviceConnected(false);
       onBluetoothNotSupported?.call();
       return false;
     }
@@ -170,6 +178,7 @@ final class YuchengService
     if (!isBleOn) {
       setReconnecting(false);
       setReconnected(false);
+      setDeviceConnected(false);
       onBluetoothOff?.call();
       return false;
     }
@@ -178,6 +187,7 @@ final class YuchengService
     if (!isGranted) {
       setReconnecting(false);
       setReconnected(false);
+      setDeviceConnected(false);
       onPermissionsNotGranted?.call();
       return false;
     }
@@ -312,6 +322,11 @@ final class YuchengService
           data.where((e) => e.isInRange(startDate, endDate)).toList();
       return filteredData;
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('NoConnectionException')) {
+          throw const YuchengNoConnectionException();
+        }
+      }
       rethrow;
     }
   }
@@ -332,6 +347,11 @@ final class YuchengService
       final filteredData = data.inDateRange(startDate, endDate);
       return filteredData;
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('NoConnectionException')) {
+          throw const YuchengNoConnectionException();
+        }
+      }
       rethrow;
     }
   }
@@ -352,6 +372,11 @@ final class YuchengService
       final filteredData = data.inDateRange(startDate, endDate);
       return filteredData;
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('NoConnectionException')) {
+          throw const YuchengNoConnectionException();
+        }
+      }
       rethrow;
     }
   }
@@ -390,6 +415,11 @@ final class YuchengService
       setDeviceSettings(await _ble.getDeviceSettings());
       return deviceSettings;
     } catch (e) {
+      if (e is PlatformException) {
+        if (e.code.contains('NoConnectionException')) {
+          throw const YuchengNoConnectionException();
+        }
+      }
       rethrow;
     }
   }
@@ -490,6 +520,8 @@ final class YuchengService
           throw const YuchengUserCanceledMeasurementException();
         } else if (e.code.contains('RealTimeMeasurementFailedException')) {
           throw const YuchengRealTimeMeasurementFailedException();
+        } else if (e.code.contains('NoConnectionException')) {
+          throw const YuchengNoConnectionException();
         }
       }
       rethrow;
@@ -507,6 +539,8 @@ final class YuchengService
           throw const YuchengUserCanceledMeasurementException();
         } else if (e.code.contains('RealTimeMeasurementFailedException')) {
           throw const YuchengRealTimeMeasurementFailedException();
+        } else if (e.code.contains('NoConnectionException')) {
+          throw const YuchengNoConnectionException();
         }
       }
       rethrow;
@@ -526,6 +560,8 @@ final class YuchengService
           throw const YuchengUserCanceledMeasurementException();
         } else if (e.code.contains('RealTimeMeasurementFailedException')) {
           throw const YuchengRealTimeMeasurementFailedException();
+        } else if (e.code.contains('NoConnectionException')) {
+          throw const YuchengNoConnectionException();
         }
       }
       rethrow;
