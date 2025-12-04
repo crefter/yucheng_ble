@@ -107,7 +107,8 @@ final class YuchengHostApiImpl : YuchengHostApi {
     public var bloodPressureCompleter: Completer<Bool>? = nil;
     public var bloodOxygenCompleter: Completer<Bool>? = nil;
     
-    private var cancellables = Set<AnyCancellable>()
+    private var bloodPressureCancellables = Set<AnyCancellable>()
+    private var oxygenCancellables = Set<AnyCancellable>()
     private var ringState: YuchengDeviceState = YuchengDeviceState.unknown;
     private let onDevice: DeviceHandler;
     private let onSleepData: SleepHandler;
@@ -131,6 +132,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
     private let TIME_TO_QUERY_MAC_ADDR = 10;
     /// Limit on number of repeated scans
     private let REPEAT_SCAN_JL_FORCE_OTA_COUNT = 10
+    private let REALTIME_TIMEOUT = 90;
     /// Number of repeated scans
     private var repeatScanJLCount: Int = 0
     /// Connect back to device address
@@ -1424,12 +1426,12 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     if (isCompleted) { return }
                     completion(.failure(error))
                     isCompleted = true
-                    self.cancellables.removeAll()
+                    self.bloodPressureCancellables.removeAll()
                     self.bloodOxygens.removeAll()
                 }
             }, receiveValue: { value in
             
-            }).store(in: &cancellables)
+            }).store(in: &bloodPressureCancellables)
             bloodOxygenCompleter?.future.sink(receiveCompletion: {result in
                 switch (result) {
                 case .finished:
@@ -1445,7 +1447,8 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         if (isCompleted) { return }
                         completion(.success(data))
                         isCompleted = true
-                        self.cancellables.removeAll()
+                        self.bloodPressureCancellables.removeAll()
+                        self.oxygenCancellables.removeAll()
                         self.sbps.removeAll()
                         self.dbps.removeAll()
                         self.heartRates.removeAll()
@@ -1457,27 +1460,32 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         completion(.failure(error))
                     })
                     isCompleted = true
-                    self.cancellables.removeAll()
+                    self.bloodPressureCancellables.removeAll()
+                    self.oxygenCancellables.removeAll()
                     self.sbps.removeAll()
                     self.dbps.removeAll()
                     self.heartRates.removeAll()
                     self.bloodOxygens.removeAll()
                 }
             }, receiveValue: { value in
-            }).store(in: &cancellables)
+            }).store(in: &oxygenCancellables)
         } catch {
             if (isCompleted) { return }
             DispatchQueue.main.async(execute: {
                 completion(.failure(error))
             })
             isCompleted = true
-            self.cancellables.removeAll()
+            self.bloodPressureCancellables.removeAll()
+            self.oxygenCancellables.removeAll()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 180, execute: {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(REALTIME_TIMEOUT * 2), execute: {
             if (isCompleted) { return }
-            completion(.success(YuchengHealthSportData(healthData: [], sportData: [])))
+            completion(.failure(RealTimeMeasurementFailedException()))
+            self.stopMeasurementByType(YCAppControlMeasureHealthDataType.bloodPressure)
+            self.stopMeasurementByType(YCAppControlMeasureHealthDataType.bloodOxygen)
             isCompleted = true
-            self.cancellables.removeAll()
+            self.bloodPressureCancellables.removeAll()
+            self.oxygenCancellables.removeAll()
         })
     }
     
@@ -1505,7 +1513,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         completion(.failure(error))
                     })
                     isCompleted = true
-                    self.cancellables.removeAll()
+                    self.oxygenCancellables.removeAll()
                     self.bloodOxygens.removeAll()
                 }
             }, receiveValue: { value in
@@ -1518,23 +1526,25 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         completion(.success(nil))
                     }
                     isCompleted = true
-                    self.cancellables.removeAll()
+                    self.oxygenCancellables.removeAll()
                     self.bloodOxygens.removeAll()
                 })
-            }).store(in: &cancellables)
+            }).store(in: &oxygenCancellables)
         } catch {
             if (isCompleted) { return }
             DispatchQueue.main.async(execute: {
                 completion(.failure(error))
             })
             isCompleted = true
-            self.cancellables.removeAll()
+            self.oxygenCancellables.removeAll()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(REALTIME_TIMEOUT), execute: {
             if (isCompleted) { return }
-            completion(.success(nil))
+            completion(.failure(RealTimeMeasurementFailedException()))
             isCompleted = true
-            self.cancellables.removeAll()
+            self.bloodOxygens.removeAll()
+            self.stopMeasurementByType(YCAppControlMeasureHealthDataType.bloodOxygen)
+            self.oxygenCancellables.removeAll()
         })
     }
     
@@ -1562,7 +1572,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         completion(.failure(error))
                     })
                     isCompleted = true
-                    self.cancellables.removeAll()
+                    self.bloodPressureCancellables.removeAll()
                     self.heartRates.removeAll()
                     self.sbps.removeAll()
                     self.dbps.removeAll()
@@ -1576,23 +1586,27 @@ final class YuchengHostApiImpl : YuchengHostApi {
                             completion(.success(nil))
                         }
                         isCompleted = true
-                        self.cancellables.removeAll()
+                        self.bloodPressureCancellables.removeAll()
                         self.heartRates.removeAll()
                         self.sbps.removeAll()
                         self.dbps.removeAll()
                     });
-            }).store(in: &cancellables)
+            }).store(in: &bloodPressureCancellables)
         } catch {
             if (isCompleted) { return }
             completion(.failure(error))
             isCompleted = true
-            self.cancellables.removeAll()
+            self.bloodPressureCancellables.removeAll()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(REALTIME_TIMEOUT), execute: {
             if (isCompleted) { return }
-            completion(.success(nil))
+            self.heartRates.removeAll()
+            self.sbps.removeAll()
+            self.dbps.removeAll()
+            completion(.failure(RealTimeMeasurementFailedException()))
             isCompleted = true
-            self.cancellables.removeAll()
+            self.stopMeasurementByType(YCAppControlMeasureHealthDataType.bloodPressure)
+            self.bloodPressureCancellables.removeAll()
         })
     }
     
@@ -1619,7 +1633,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         completion(.failure(error))
                     })
                     isCompleted = true
-                    self.cancellables.removeAll()
+                    self.bloodPressureCancellables.removeAll()
                     self.sbps.removeAll()
                     self.dbps.removeAll()
                     self.heartRates.removeAll()
@@ -1635,25 +1649,29 @@ final class YuchengHostApiImpl : YuchengHostApi {
                         completion(.success(nil))
                     }
                     isCompleted = true
-                    self.cancellables.removeAll()
+                    self.bloodPressureCancellables.removeAll()
                     self.sbps.removeAll()
                     self.dbps.removeAll()
                     self.heartRates.removeAll()
                 })
-            }).store(in: &cancellables)
+            }).store(in: &bloodPressureCancellables)
         } catch {
             if (isCompleted) { return }
             DispatchQueue.main.async(execute: {
                 completion(.failure(error))
             })
             isCompleted = true
-            self.cancellables.removeAll()
+            self.bloodPressureCancellables.removeAll()
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 120, execute: {
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(REALTIME_TIMEOUT), execute: {
             if (isCompleted) { return }
-            completion(.success(nil))
+            completion(.failure(RealTimeMeasurementFailedException()))
             isCompleted = true
-            self.cancellables.removeAll()
+            self.sbps.removeAll()
+            self.dbps.removeAll()
+            self.heartRates.removeAll()
+            self.stopMeasurementByType(YCAppControlMeasureHealthDataType.bloodPressure)
+            self.bloodPressureCancellables.removeAll()
         })
     }
     
@@ -1673,7 +1691,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 DispatchQueue.main.async(execute: {
                     completion(.success(result))
                 })
-                self.cancellables.removeAll()
+                self.oxygenCancellables.removeAll()
                 self.bloodOxygens.removeAll()
             }
         } catch {
@@ -1682,7 +1700,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.failure(error))
             })
             isCompleted = true
-            self.cancellables.removeAll()
+            self.oxygenCancellables.removeAll()
             self.bloodOxygens.removeAll()
         }
     }
@@ -1703,7 +1721,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 DispatchQueue.main.async(execute: {
                     completion(.success(result))
                 })
-                self.cancellables.removeAll()
+                self.bloodPressureCancellables.removeAll()
                 self.dbps.removeAll()
                 self.sbps.removeAll()
                 self.heartRates.removeAll()
@@ -1714,7 +1732,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.failure(error))
             })
             isCompleted = true
-            self.cancellables.removeAll()
+            self.bloodPressureCancellables.removeAll()
             self.dbps.removeAll()
             self.sbps.removeAll()
             self.heartRates.removeAll()
@@ -1737,7 +1755,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 DispatchQueue.main.async(execute: {
                     completion(.success(result))
                 })
-                self.cancellables.removeAll()
+                self.bloodPressureCancellables.removeAll()
                 self.dbps.removeAll()
                 self.sbps.removeAll()
                 self.heartRates.removeAll()
@@ -1748,10 +1766,18 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 completion(.failure(error))
             })
             isCompleted = true
-            self.cancellables.removeAll()
+            self.bloodPressureCancellables.removeAll()
             self.dbps.removeAll()
             self.sbps.removeAll()
             self.heartRates.removeAll()
+        }
+    }
+    
+    private func stopMeasurementByType(_ type: YCAppControlMeasureHealthDataType) {
+        let device = self.currentDevice ?? YCProduct.shared.currentPeripheral;
+        let _ = device?.macAddress
+        YCProduct.controlMeasureHealthData(device, measureType: YCAppControlHealthDataMeasureType.off, dataType: type) { state, response in
+            
         }
     }
     
