@@ -1494,7 +1494,6 @@ class YuchengApiImpl(
         } catch (e: Exception) {
             Log.d(YUCHENG_API, "ERROR = $e")
             if (e is TimeoutCancellationException) {
-                stopMeasurementByType(measureDataType)
                 Log.d(YUCHENG_API, "Timeout!")
                 throw RealTimeMeasurementFailedException()
             }
