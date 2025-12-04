@@ -1193,11 +1193,15 @@ class YuchengApiImpl(
                 )
                 Log.d(YUCHENG_API, "Blood oxygen = $value")
                 callback(Result.success(value))
-                if (!completer.isCompleted) completer.complete(true)
+                if (!completer.isCompleted) { callback(Result.success(value))
+                    completer.complete(true)
+                }
             } catch (e: Exception) {
                 Log.d(YUCHENG_API, "ERROR = $e")
-                callback(Result.failure(e))
-                if (!completer.isCompleted) completer.complete(true)
+                if (!completer.isCompleted) {
+                    callback(Result.failure(e))
+                    completer.complete(true)
+                }
             }
         }
         GlobalScope.launch {
@@ -1239,12 +1243,16 @@ class YuchengApiImpl(
                         return@getRealTimeData value.toLong()
                     },
                 )
-                callback(Result.success(value))
-                if (!completer.isCompleted) completer.complete(true)
+                if (!completer.isCompleted) {
+                    callback(Result.success(value))
+                    completer.complete(true)
+                }
             } catch (e: Exception) {
                 Log.d(YUCHENG_API, "ERROR = $e")
-                callback(Result.failure(e))
-                if (!completer.isCompleted) completer.complete(true)
+                if (!completer.isCompleted) {
+                    callback(Result.failure(e))
+                    completer.complete(true)
+                }
             }
         }
         GlobalScope.launch {
@@ -1295,12 +1303,16 @@ class YuchengApiImpl(
                 val result = RealTimeBloodPressure(
                     dbp = value.dbp, sbp = value.sbp
                 )
-                callback(Result.success(result))
-                if (!completer.isCompleted) completer.complete(true)
+                if (!completer.isCompleted) {
+                    callback(Result.success(result))
+                    completer.complete(true)
+                }
             } catch (e: Exception) {
                 Log.d(YUCHENG_API, "ERROR = $e")
-                callback(Result.failure(e))
-                if (!completer.isCompleted) completer.complete(true)
+                if (!completer.isCompleted) {
+                    callback(Result.failure(e))
+                    completer.complete(true)
+                }
             }
         }
         GlobalScope.launch {
