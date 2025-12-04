@@ -44,8 +44,10 @@ import com.yucheng.ycbtsdk.upgrade.DfuCallBack
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -55,6 +57,7 @@ import kotlin.math.roundToLong
 private const val SCAN_PERIOD: Int = 15
 private const val TIME_TO_TIMEOUT: Long = 15
 private const val TIME_TO_TIMEOUT_RESET: Long = 30
+private const val REAL_MEASUREMENT_TIMEOUT_MILLIS: Long = 90 * 1000
 
 class UserExitedMeasurementException : Exception()
 class RealTimeMeasurementFailedException : Exception()
@@ -1443,7 +1446,7 @@ class YuchengApiImpl(
                                     UserExitedMeasurementException()
                                 )
                             } else if (result == 2) {
-                                Log.d(YUCHENG_API, "result = 2: UserExitedMeasurementException")
+                                Log.d(YUCHENG_API, "result = 2: RealTimeMeasurementFailedException")
                                 if (!valueCompleter.isCompleted) valueCompleter.completeExceptionally(
                                     RealTimeMeasurementFailedException()
                                 )
@@ -1472,13 +1475,19 @@ class YuchengApiImpl(
                 Log.d(YUCHENG_API, "START MEASURE")
             }
             Log.d(YUCHENG_API, "WAITING MEASURE")
-            meanValue = valueCompleter.await()
+            meanValue = withTimeout(REAL_MEASUREMENT_TIMEOUT_MILLIS) {
+                valueCompleter.await()
+            }
             Log.d(YUCHENG_API, "MEAN VALUE = $meanValue")
         } catch (e: Exception) {
             Log.d(YUCHENG_API, "ERROR = $e")
+            if (e is TimeoutCancellationException) {
+                stopMeasurementByType(measureDataType)
+                Log.d(YUCHENG_API, "Timeout!")
+                throw RealTimeMeasurementFailedException()
+            }
             throw e
         }
-
 
         return meanValue
     }
