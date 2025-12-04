@@ -131,6 +131,7 @@ final class YuchengService
           onBluetoothNotSupported: onBluetoothNotSupported,
           onDeviceConnectedYet: onDeviceConnectedYet,
           onFailedReconnect: onFailedReconnect,
+          onSuccessfulReconnect: onSuccessfulReconnect,
           onBluetoothOff: onBluetoothOff,
           macAddress: macAddress,
           deviceName: deviceName,
