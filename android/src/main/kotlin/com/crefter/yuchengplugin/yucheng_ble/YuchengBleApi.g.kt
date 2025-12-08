@@ -1364,7 +1364,7 @@ interface YuchengHostApi {
   fun isDeviceConnected(device: YuchengDevice?, callback: (Result<Boolean>) -> Unit)
   /** Подключить девайс к сдк */
   fun connect(device: YuchengDevice, connectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit)
-  fun reconnect(reconnectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit)
+  fun reconnect(uuid: String?, reconnectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit)
   /** Отключить девайс от сдк */
   fun disconnect(callback: (Result<Unit>) -> Unit)
   /**
@@ -1482,8 +1482,9 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val reconnectTimeInSecondsArg = args[0] as Long?
-            api.reconnect(reconnectTimeInSecondsArg) { result: Result<Boolean> ->
+            val uuidArg = args[0] as String?
+            val reconnectTimeInSecondsArg = args[1] as Long?
+            api.reconnect(uuidArg, reconnectTimeInSecondsArg) { result: Result<Boolean> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(YuchengBleApiPigeonUtils.wrapError(error))

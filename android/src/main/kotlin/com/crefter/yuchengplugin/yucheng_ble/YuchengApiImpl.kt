@@ -39,7 +39,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
-import com.yucheng.ycbtsdk.response.BleScanResponse
+import com.yucheng.ycbtsdk.bean.ScanDeviceBean
 import com.yucheng.ycbtsdk.upgrade.DfuCallBack
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -82,6 +82,7 @@ class YuchengApiImpl(
     private var deviceToUpdate: YuchengDevice? = null
     private var pathToUpdate: String = ""
     private var errorUpdateCount = 0
+    private var scannedDevices = mutableSetOf<ScanDeviceBean>()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startScanDevices(
@@ -94,12 +95,13 @@ class YuchengApiImpl(
         val completer = CompletableDeferred<List<YuchengDevice>>()
         try {
             Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start scan")
-            YCBTClient.startScanBle(BleScanResponse { _, device ->
+            YCBTClient.startScanBle( { _, device ->
                 if (device == null) {
                     onDevice(YuchengDeviceCompleteEvent(completed = true))
                     if (!completer.isCompleted) completer.complete(devices)
                     Log.d(YuchengBlePlugin.PLUGIN_TAG, "End scan")
                 } else {
+                    scannedDevices.add(device)
                     val ycDevice =
                         YuchengDevice(index++, device.deviceName, device.deviceMac, false)
                     devices.add(ycDevice)
@@ -193,8 +195,13 @@ class YuchengApiImpl(
             return
         }
         selectedDevice = device
+        val bleDevice = scannedDevices.find { it.deviceMac == selectedDevice!!.uuid }
+        if (bleDevice == null) {
+            callback(Result.success(false))
+            return
+        }
         val completer = CompletableDeferred<Boolean>()
-        YCBTClient.connectBle(macAddress) { code ->
+        YCBTClient.connectBleDevice(bleDevice.device) { code ->
             if (code == 0) {
                 Log.d("AAAAAAAAAAAAAAAAA", 0.toString())
                 val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
@@ -214,40 +221,16 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun reconnect(reconnectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit) {
+    override fun reconnect(uuid: String?, reconnectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit) {
+        val macAddress = uuid ?: YCBTClient.getBindDeviceMac()
         Log.e(YUCHENG_API, "START RECONNECT")
         val completer = CompletableDeferred<Boolean>()
         try {
-            YCBTClient.reconnectBle { code ->
+            YCBTClient.reconnectDevice(macAddress) { code ->
                 Log.e(YUCHENG_API, "RECONNECT, CODE = $code")
                 if (code == 0) {
                     val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
-                    if (!isConnected) {
-                        Log.d(YUCHENG_API, "Test when isConnected = false")
-                        val macAddress = YCBTClient.getBindDeviceMac()
-                        YCBTClient.connectBle(macAddress) { code ->
-                            if (code == 0) {
-                                val isConnected =
-                                    YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
-                                Log.d(YUCHENG_API, "Code = 0, isConnected = false, but CONNECTED!")
-                                val macAddress = YCBTClient.getBindDeviceMac()
-                                val deviceName = YCBTClient.getBindDeviceName()
-                                val ycDevice = YuchengDevice(index++, deviceName, macAddress, true)
-                                selectedDevice = ycDevice
-                                onDevice(
-                                    YuchengDeviceDataEvent(
-                                        ycDevice.index,
-                                        ycDevice.uuid,
-                                        ycDevice.isReconnected,
-                                        ycDevice.deviceName,
-                                    )
-                                )
-                                if (!completer.isCompleted) completer.complete(isConnected)
-                            } else {
-                                Log.d(YUCHENG_API, "Code != 0, isConnected = false, cant connect")
-                            }
-                        }
-                    } else {
+                    if (isConnected) {
                         Log.d(YUCHENG_API, "NORMAL RECONNECT")
                         val macAddress = YCBTClient.getBindDeviceMac()
                         val deviceName = YCBTClient.getBindDeviceName()
@@ -261,40 +244,10 @@ class YuchengApiImpl(
                                 ycDevice.deviceName,
                             )
                         )
-                        if (!completer.isCompleted) completer.complete(isConnected)
                     }
-                } else {
-                    Log.d(YUCHENG_API, "Test when cant reconnect (code != 0)")
-                    val macAddress = YCBTClient.getBindDeviceMac()
-                    YCBTClient.connectBle(macAddress) { code ->
-                        if (code == 0) {
-                            Log.d(
-                                YUCHENG_API,
-                                "Test when cant reconnect (code != 0) code == 0, CONNECTED!"
-                            )
-                            val isConnected =
-                                YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
-                            val macAddress = YCBTClient.getBindDeviceMac()
-                            val deviceName = YCBTClient.getBindDeviceName()
-                            val ycDevice = YuchengDevice(index++, deviceName, macAddress, true)
-                            selectedDevice = ycDevice
-                            onDevice(
-                                YuchengDeviceDataEvent(
-                                    ycDevice.index,
-                                    ycDevice.uuid,
-                                    ycDevice.isReconnected,
-                                    ycDevice.deviceName,
-                                )
-                            )
-                            if (!completer.isCompleted) completer.complete(isConnected)
-                        } else {
-                            Log.d(
-                                YUCHENG_API,
-                                "Test when cant reconnect (code != 0) code != 0, NOT connected!"
-                            )
-                        }
-                    }
+                    if (!completer.isCompleted) completer.complete(isConnected)
                 }
+                if (!completer.isCompleted) completer.complete(false)
             }
         } catch (e: Exception) {
             if (!completer.isCompleted) completer.completeExceptionally(e)
@@ -827,7 +780,7 @@ class YuchengApiImpl(
         val timestamp =
             Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime().toEpochSecond(
                 ZoneOffset.UTC
-            ).toLong()
+            )
         onUpdate(YuchengUpdateStartEvent(timestamp))
         YCBTClient.upgradeFirmware(
             activity, deviceToUpdate!!.uuid, deviceToUpdate!!.deviceName, pathToUpdate,
@@ -849,7 +802,7 @@ class YuchengApiImpl(
                     val date = Instant.now().atZone(ZoneId.systemDefault()).toLocalDateTime()
                         .toEpochSecond(
                             ZoneOffset.UTC
-                        ).toLong()
+                        )
                     onUpdate(YuchengUpdateCompleteEvent(date))
                     callback(Result.success(true))
                 }
@@ -874,6 +827,10 @@ class YuchengApiImpl(
 
                 override fun disconnect() {
                     Log.d(UPDATE_FIRMWARE, "Disconnect")
+                }
+
+                override fun onNeedReconnect(p0: String?, p1: Boolean) {
+                    Log.d(UPDATE_FIRMWARE, "ON NEED RECONNECT")
                 }
 
                 override fun connecting() {

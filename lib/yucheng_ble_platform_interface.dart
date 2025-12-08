@@ -90,7 +90,7 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('updateData has not been implemented.');
   }
 
-  Future<bool> reconnect(int? reconnectTimeInSeconds) {
+  Future<bool> reconnect(String? uuid, [int? reconnectTimeInSeconds]) {
     throw UnimplementedError('reconnect has not been implemented.');
   }
 

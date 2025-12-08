@@ -76,8 +76,10 @@ class YuchengBle {
   Stream<YuchengUpdateEvent> updateDataStream() =>
       YuchengBlePlatform.instance.updateDataStream();
 
-  Future<bool> reconnect(int? reconnectTimeInSeconds) =>
-      YuchengBlePlatform.instance.reconnect(reconnectTimeInSeconds);
+  Future<bool> reconnect(String? uuid, [int? reconnectTimeInSeconds]) =>
+      uuid == null
+          ? Future.value(false)
+          : YuchengBlePlatform.instance.reconnect(uuid, reconnectTimeInSeconds);
 
   Future<YuchengDeviceSettings?> getDeviceSettings() =>
       YuchengBlePlatform.instance.getDeviceSettings();
