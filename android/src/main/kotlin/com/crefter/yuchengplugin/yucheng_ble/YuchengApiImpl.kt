@@ -227,7 +227,8 @@ class YuchengApiImpl(
                         val macAddress = YCBTClient.getBindDeviceMac()
                         YCBTClient.connectBle(macAddress) { code ->
                             if (code == 0) {
-                                val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+                                val isConnected =
+                                    YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
                                 Log.d(YUCHENG_API, "Code = 0, isConnected = false, but CONNECTED!")
                                 val macAddress = YCBTClient.getBindDeviceMac()
                                 val deviceName = YCBTClient.getBindDeviceName()
@@ -267,8 +268,12 @@ class YuchengApiImpl(
                     val macAddress = YCBTClient.getBindDeviceMac()
                     YCBTClient.connectBle(macAddress) { code ->
                         if (code == 0) {
-                            Log.d(YUCHENG_API, "Test when cant reconnect (code != 0) code == 0, CONNECTED!")
-                            val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+                            Log.d(
+                                YUCHENG_API,
+                                "Test when cant reconnect (code != 0) code == 0, CONNECTED!"
+                            )
+                            val isConnected =
+                                YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
                             val macAddress = YCBTClient.getBindDeviceMac()
                             val deviceName = YCBTClient.getBindDeviceName()
                             val ycDevice = YuchengDevice(index++, deviceName, macAddress, true)
@@ -283,7 +288,10 @@ class YuchengApiImpl(
                             )
                             if (!completer.isCompleted) completer.complete(isConnected)
                         } else {
-                            Log.d(YUCHENG_API, "Test when cant reconnect (code != 0) code != 0, NOT connected!")
+                            Log.d(
+                                YUCHENG_API,
+                                "Test when cant reconnect (code != 0) code != 0, NOT connected!"
+                            )
                         }
                     }
                 }
@@ -1192,8 +1200,8 @@ class YuchengApiImpl(
                     },
                 )
                 Log.d(YUCHENG_API, "Blood oxygen = $value")
-                callback(Result.success(value))
-                if (!completer.isCompleted) { callback(Result.success(value))
+                if (!completer.isCompleted) {
+                    callback(Result.success(value))
                     completer.complete(true)
                 }
             } catch (e: Exception) {

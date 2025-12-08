@@ -544,7 +544,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                         }
                       },
                       child: const Text(
-                          'Получить кровяное давление в реальном времени'),
+                        'Получить кровяное давление в реальном времени',
+                      ),
                     ),
             ),
             if (isMeasureBP)
