@@ -54,7 +54,7 @@ import java.time.ZoneOffset
 import kotlin.math.roundToLong
 
 
-private const val SCAN_PERIOD: Int = 15
+private const val SCAN_PERIOD: Int = 20
 private const val TIME_TO_TIMEOUT: Long = 15
 private const val TIME_TO_TIMEOUT_RESET: Long = 30
 private const val REAL_MEASUREMENT_TIMEOUT_MILLIS: Long = 90 * 1000
@@ -160,7 +160,7 @@ class YuchengApiImpl(
             if (device == null) {
                 try {
                     val isCurrentConnected =
-                        YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+                        isConnected()
                     callback(Result.success(isCurrentConnected))
                 } catch (e: Exception) {
                     callback(Result.failure(e))
@@ -177,7 +177,7 @@ class YuchengApiImpl(
     private fun isDeviceConnected(device: YuchengDevice): Boolean {
         return try {
             val isConnected =
-                YCBTClient.connectState() == Constants.BLEState.ReadWriteOK && selectedDevice?.uuid == device.uuid
+                isConnected() && selectedDevice?.uuid == device.uuid
             return isConnected
         } catch (_: Exception) {
             false
@@ -201,10 +201,16 @@ class YuchengApiImpl(
             return
         }
         val completer = CompletableDeferred<Boolean>()
+        val state = YCBTClient.connectState()
+        Log.d(YUCHENG_API, "Connect state = $state")
         YCBTClient.connectBleDevice(bleDevice.device) { code ->
+            val state = YCBTClient.connectState()
+            Log.d(YUCHENG_API, "Connect state = $state")
             if (code == 0) {
-                Log.d("AAAAAAAAAAAAAAAAA", 0.toString())
-                val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
+                Log.d(YUCHENG_API, "CONNECTED")
+                val state = YCBTClient.connectState()
+                val isConnected = isConnected()
+                Log.d(YUCHENG_API, "connectState() == $state")
                 if (!completer.isCompleted) completer.complete(isConnected)
             }
         }
@@ -222,15 +228,74 @@ class YuchengApiImpl(
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun reconnect(uuid: String?, reconnectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit) {
-        val macAddress = uuid ?: YCBTClient.getBindDeviceMac()
+        val bindMac = YCBTClient.getBindDeviceMac()
+        if (uuid == bindMac && isConnected()) {
+            Log.d(YUCHENG_API, "UUID == BIND MAC and CONNECTED!")
+            val macAddress = bindMac
+            val deviceName = YCBTClient.getBindDeviceName()
+            val ycDevice = YuchengDevice(index++, deviceName, macAddress, true)
+            selectedDevice = ycDevice
+            onDevice(
+                YuchengDeviceDataEvent(
+                    ycDevice.index,
+                    ycDevice.uuid,
+                    ycDevice.isReconnected,
+                    ycDevice.deviceName,
+                )
+            )
+            callback(Result.success(true))
+            return
+        }
+        val macAddress = uuid ?: bindMac
         Log.e(YUCHENG_API, "START RECONNECT")
         val completer = CompletableDeferred<Boolean>()
         try {
             YCBTClient.reconnectDevice(macAddress) { code ->
+                Log.e("RECONNECT BLE", "CODE = $code")
                 Log.e(YUCHENG_API, "RECONNECT, CODE = $code")
                 if (code == 0) {
-                    val isConnected = YCBTClient.connectState() == Constants.BLEState.ReadWriteOK
-                    if (isConnected) {
+                    val isConnected = isConnected()
+                    if (!isConnected) {
+                        Log.d(YUCHENG_API, "Test when isConnected = false")
+                        YCBTClient.startScanBle( { _, device ->
+                            if (device.deviceMac == macAddress) {
+                                YCBTClient.connectBleDevice(device.device) { code ->
+                                    if (code == 0) {
+                                        val isConnected = isConnected()
+                                        if (isConnected) {
+                                            Log.d(
+                                                YUCHENG_API,
+                                                "Code = 0, isConnected = false, but CONNECTED!"
+                                            )
+                                            val macAddress = device.deviceMac
+                                            val deviceName = device.deviceName
+                                            val ycDevice =
+                                                YuchengDevice(index++, deviceName, macAddress, true)
+                                            selectedDevice = ycDevice
+                                            onDevice(
+                                                YuchengDeviceDataEvent(
+                                                    ycDevice.index,
+                                                    ycDevice.uuid,
+                                                    ycDevice.isReconnected,
+                                                    ycDevice.deviceName,
+                                                )
+                                            )
+                                            if (!completer.isCompleted) completer.complete(
+                                                true
+                                            )
+                                        } else {
+                                            if (!completer.isCompleted) completer.complete(
+                                                false
+                                            )
+                                        }
+                                    } else {
+                                        Log.d(YUCHENG_API, "Code != 0, isConnected = false, cant connect")
+                                    }
+                                    YCBTClient.stopScanBle()
+                                }
+                            }
+                        }, SCAN_PERIOD)
+                    } else {
                         Log.d(YUCHENG_API, "NORMAL RECONNECT")
                         val macAddress = YCBTClient.getBindDeviceMac()
                         val deviceName = YCBTClient.getBindDeviceName()
@@ -244,10 +309,50 @@ class YuchengApiImpl(
                                 ycDevice.deviceName,
                             )
                         )
+                        if (!completer.isCompleted) completer.complete(true)
                     }
-                    if (!completer.isCompleted) completer.complete(isConnected)
+                } else {
+                    Log.d(YUCHENG_API, "Test when cant reconnect (code != 0)")
+                    val macAddress = YCBTClient.getBindDeviceMac()
+                    YCBTClient.startScanBle( { _, device ->
+                        if (device.deviceMac == macAddress) {
+                            YCBTClient.connectBleDevice(device.device) { code ->
+                                if (code == 0) {
+                                    val isConnected = isConnected()
+                                    if (isConnected) {
+                                        Log.d(
+                                            YUCHENG_API,
+                                            "Code = 0, isConnected = false, but CONNECTED!"
+                                        )
+                                        val macAddress = device.deviceMac
+                                        val deviceName = device.deviceName
+                                        val ycDevice =
+                                            YuchengDevice(index++, deviceName, macAddress, true)
+                                        selectedDevice = ycDevice
+                                        onDevice(
+                                            YuchengDeviceDataEvent(
+                                                ycDevice.index,
+                                                ycDevice.uuid,
+                                                ycDevice.isReconnected,
+                                                ycDevice.deviceName,
+                                            )
+                                        )
+                                        if (!completer.isCompleted) completer.complete(
+                                            true
+                                        )
+                                    } else {
+                                        if (!completer.isCompleted) completer.complete(
+                                            false
+                                        )
+                                    }
+                                    YCBTClient.stopScanBle()
+                                } else {
+                                    Log.d(YUCHENG_API, "Code != 0, isConnected = false, cant connect")
+                                }
+                            }
+                        }
+                    }, SCAN_PERIOD)
                 }
-                if (!completer.isCompleted) completer.complete(false)
             }
         } catch (e: Exception) {
             if (!completer.isCompleted) completer.completeExceptionally(e)
@@ -256,6 +361,8 @@ class YuchengApiImpl(
             try {
                 callback(Result.success(completer.await()))
                 Log.e(YUCHENG_API, "RECONNECT DONE")
+                val state = YCBTClient.connectState()
+                Log.d(YUCHENG_API, "Connect state = $state")
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }
@@ -1231,7 +1338,7 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun startMeasurementBloodPressure(callback: (Result<RealTimeBloodPressure?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodPressure")
-        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+        if (!isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             throw NoConnectionException()
         }
@@ -1360,7 +1467,7 @@ class YuchengApiImpl(
         callback: (Result<Boolean>) -> Unit
     ) {
         Log.d(YUCHENG_API, "START calibrateBloodPressure sbp = $sbp dbp = $dbp")
-        if (YCBTClient.connectState() != Constants.BLEState.ReadWriteOK) {
+        if (!isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             throw NoConnectionException()
         }
@@ -1466,6 +1573,12 @@ class YuchengApiImpl(
         }
 
         return meanValue
+    }
+
+    private fun isConnected(): Boolean {
+        val state = YCBTClient.connectState()
+        Log.d(YUCHENG_API, "isConnected(): CONNECT STATE = $state")
+        return YCBTClient.connectState() >= 6
     }
 
     companion object {
