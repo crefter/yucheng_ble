@@ -94,20 +94,20 @@ class YuchengApiImpl(
         val devices: MutableList<YuchengDevice> = mutableListOf()
         val completer = CompletableDeferred<List<YuchengDevice>>()
         try {
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start scan")
+            Log.d(YUCHENG_API, "Start scan")
             YCBTClient.startScanBle( { _, device ->
                 if (device == null) {
                     onDevice(YuchengDeviceCompleteEvent(completed = true))
                     if (!completer.isCompleted) completer.complete(devices)
-                    Log.d(YuchengBlePlugin.PLUGIN_TAG, "End scan")
+                    Log.d(YUCHENG_API, "End scan")
                 } else {
                     scannedDevices.add(device)
                     val ycDevice =
                         YuchengDevice(index++, device.deviceName, device.deviceMac, false)
                     devices.add(ycDevice)
-                    Log.d(YuchengBlePlugin.PLUGIN_TAG, "name: " + device.deviceName)
+                    Log.d(YUCHENG_API, "name: " + device.deviceName)
                     Log.d(
-                        YuchengBlePlugin.PLUGIN_TAG, "address: " + device.deviceMac
+                        YUCHENG_API, "address: " + device.deviceMac
                     )
                     onDevice(
                         YuchengDeviceDataEvent(
@@ -188,7 +188,7 @@ class YuchengApiImpl(
     override fun connect(
         device: YuchengDevice, connectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit
     ) {
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Start connect")
+        Log.d(YUCHENG_API, "Start connect")
         val macAddress = device.uuid
         if (selectedDevice?.uuid == macAddress) {
             callback(Result.success(true))
@@ -377,12 +377,14 @@ class YuchengApiImpl(
     }
 
     override fun disconnect(callback: (Result<Unit>) -> Unit) {
+        Log.d(YUCHENG_API, "Start disconnect")
         try {
             YCBTClient.disconnectBle()
             selectedDevice = null
             callback(Result.success(Unit))
+            Log.d(YUCHENG_API, "Disconnect successful!")
         } catch (e: Exception) {
-            Log.e(DISCONNECT, e.toString())
+            Log.e(YUCHENG_API, e.toString())
             callback(Result.failure(e))
         }
     }
@@ -393,9 +395,11 @@ class YuchengApiImpl(
         startTimestamp: Long,
         endTimestamp: Long,
     ): List<YuchengSleepData> {
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get sleep data")
+        Log.d(YUCHENG_API, "Get sleep data")
+        Log.d(GET_SLEEP_DATA, "Get sleep data")
         if (!isConnected()) {
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "No connection")
+            Log.d(YUCHENG_API, "No connection")
+            Log.d(GET_SLEEP_DATA, "No connection")
             throw NoConnectionException()
         }
         val sleepDataCompleter = CompletableDeferred<List<YuchengSleepData>>()
@@ -421,16 +425,17 @@ class YuchengApiImpl(
                             onSleepData(ycDataEvent)
                         }
                     }
-                    Log.d("SLEEP DATA CONVERTED", mappedSleep.toString())
+                    Log.d(GET_SLEEP_DATA, mappedSleep.toString())
+                    Log.d(YUCHENG_API, mappedSleep.toString())
                 } else {
-                    Log.e("NO SLEEP DATA", "NO SLEEP DATA")
+                    Log.e(GET_SLEEP_DATA, "NO SLEEP DATA")
+                    Log.e(YUCHENG_API, "NO SLEEP DATA")
                 }
                 Log.d("SLEEP CODE", code.toString())
                 Log.d("SLEEP RATIO", ratio.toString())
                 if (!sleepDataCompleter.isCompleted) sleepDataCompleter.complete(sleepDataList)
             }
         } catch (e: Exception) {
-            Log.e(GET_SLEEP_DATA, e.toString())
             if (!sleepDataCompleter.isCompleted) sleepDataCompleter.completeExceptionally(e)
         }
 
@@ -451,7 +456,8 @@ class YuchengApiImpl(
             val sleepData = sleepDataCompleter.await()
             return sleepData
         } catch (e: Exception) {
-            Log.e("GET SLEEP DATA ERROR", e.toString())
+            Log.e(YUCHENG_API, "Error when get sleep data: $e")
+            Log.e(GET_SLEEP_DATA, "Error when get sleep data:$e")
             throw e
         }
     }
@@ -501,9 +507,9 @@ class YuchengApiImpl(
         startTimestamp: Long,
         endTimestamp: Long,
     ): YuchengHealthSportData {
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Get health data")
+        Log.d(YUCHENG_API, "Get health data")
         if (!isConnected()) {
-            Log.d(YuchengBlePlugin.PLUGIN_TAG, "No connection")
+            Log.d(YUCHENG_API, "No connection")
             throw NoConnectionException()
         }
         val healthDataCompleter = CompletableDeferred<List<YuchengHealthData>>()
@@ -523,9 +529,9 @@ class YuchengApiImpl(
                         return@filter isInRange
                     }
                     sportDataList.addAll(mappedSport)
-                    Log.d("SPORT DATA CONVERTED", mappedSport.toString())
+                    Log.d(YUCHENG_API, "No sport data converted: $mappedSport")
                 } else {
-                    Log.e("NO SPORT DATA", "NO SPORT DATA")
+                    Log.e(YUCHENG_API, "NO SPORT DATA")
                 }
                 Log.d("SPORT CODE", code.toString())
                 Log.d("SPORT RATIO", ratio.toString())
@@ -545,9 +551,9 @@ class YuchengApiImpl(
                         it.startTimestamp >= startTimestamp && it.startTimestamp <= endTimestamp
                     }
                     healthDataList.addAll(healthDatas)
-                    Log.d("HEALTH DATA CONVERTED", healthDatas.toString())
+                    Log.d(YUCHENG_API, "HEALTH DATA CONVERTED$healthDatas")
                 } else {
-                    Log.e("NO HEALTH DATA", "NO HEALTH DATA")
+                    Log.e(YUCHENG_API, "NO HEALTH DATA")
                 }
                 Log.d("HEALTH CODE", code.toString())
                 Log.d("HEALTH RATIO", ratio.toString())
@@ -556,7 +562,8 @@ class YuchengApiImpl(
                 }
             }
         } catch (e: Exception) {
-            Log.e(GET_HEALTH_DATA, e.toString())
+            Log.e(GET_HEALTH_DATA, "Error when get health sport data: $e")
+            Log.e(YUCHENG_API, "Error when get health sport data: $e")
             if (!healthDataCompleter.isCompleted) {
                 healthDataCompleter.completeExceptionally(e)
             }
@@ -578,8 +585,8 @@ class YuchengApiImpl(
         try {
             val healthData = healthDataCompleter.await()
             val sportData = sportDataCompleter.await()
-            Log.d("HEALTH DATA", healthData.toString())
-            Log.d("SPORT DATA", sportData.toString())
+            Log.d(YUCHENG_API, "HEALTH DATA: $healthData")
+            Log.d(YUCHENG_API, "SPORT DATA: $sportData")
             if (!skipHandler) {
                 val healthSportData = YuchengHealthSportData(healthDataList, sportDataList)
                 val ycDataEvent = YuchengHealthDataEvent(healthSportData)
@@ -587,7 +594,7 @@ class YuchengApiImpl(
             }
             return YuchengHealthSportData(healthData, sportData)
         } catch (e: Exception) {
-            Log.e("GET HEALTH DATA ERROR", e.toString())
+            Log.e(YUCHENG_API, "Error when get health sport data: $e")
             throw e
         }
     }
@@ -598,14 +605,17 @@ class YuchengApiImpl(
         startTimestamp: Long?,
         endTimestamp: Long?, callback: (Result<YuchengHealthSportData>) -> Unit,
     ) {
+        Log.d(YUCHENG_API, "Get health sport data")
         GlobalScope.launch {
             try {
                 val default = StartEndTimestamp.default()
                 val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
                 val healthData = getHealthSportData(startTimestamp = start, endTimestamp = end)
+                Log.d(YUCHENG_API, "Health sport data success")
                 callback(Result.success(healthData))
             } catch (e: Exception) {
+                Log.d(YUCHENG_API, "Health sport data failure")
                 callback(Result.failure(e))
             }
         }
@@ -1002,6 +1012,7 @@ class YuchengApiImpl(
     override fun setHealthMonitorInterval(
         interval: Long, callback: (Result<Boolean>) -> Unit
     ) {
+        Log.d(YUCHENG_API, "Start set health monitoring interval")
         val heartCompleter = CompletableDeferred<Boolean>()
         val bloodCompleter = CompletableDeferred<Boolean>()
         try {
@@ -1033,8 +1044,10 @@ class YuchengApiImpl(
             try {
                 val heartResult = heartCompleter.await()
                 val bloodResult = bloodCompleter.await()
+                Log.d(YUCHENG_API, "Set health monitoring interval successful")
                 callback(Result.success(heartResult && bloodResult))
             } catch (e: Exception) {
+                Log.d(YUCHENG_API, "Set health monitoring interval failed")
                 callback(Result.failure(e))
             }
         }
