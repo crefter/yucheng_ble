@@ -313,7 +313,6 @@ class YuchengApiImpl(
                     }
                 } else {
                     Log.d(YUCHENG_API, "Test when cant reconnect (code != 0)")
-                    val macAddress = YCBTClient.getBindDeviceMac()
                     YCBTClient.startScanBle( { _, device ->
                         if (device.deviceMac == macAddress) {
                             YCBTClient.connectBleDevice(device.device) { code ->
