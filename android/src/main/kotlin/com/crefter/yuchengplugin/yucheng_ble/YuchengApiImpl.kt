@@ -719,17 +719,19 @@ class YuchengApiImpl(
 
         GlobalScope.launch {
             try {
-                YCBTClient.getDeviceInfo { code, ratio, data ->
-                    if (code == 0) {
-                        val dataMap = data["data"] as Map<*, *>
-                        val batteryLevel = dataMap["deviceBatteryValue"].toString().toLong()
-                        val firmwareVersion = dataMap["deviceVersion"].toString()
-                        val settings = YuchengDeviceSettings(
-                            batteryValue = batteryLevel, firmwareVersion = firmwareVersion
-                        )
-                        if (!completer.isCompleted) {
-                            completer.complete(settings)
-                            Log.d(YUCHENG_API, "Settings = $settings")
+                if (!completer.isCompleted) {
+                    YCBTClient.getDeviceInfo { code, ratio, data ->
+                        if (code == 0) {
+                            val dataMap = data["data"] as Map<*, *>
+                            val batteryLevel = dataMap["deviceBatteryValue"].toString().toLong()
+                            val firmwareVersion = dataMap["deviceVersion"].toString()
+                            val settings = YuchengDeviceSettings(
+                                batteryValue = batteryLevel, firmwareVersion = firmwareVersion
+                            )
+                            if (!completer.isCompleted) {
+                                completer.complete(settings)
+                                Log.d(YUCHENG_API, "Settings = $settings")
+                            }
                         }
                     }
                 }
@@ -744,6 +746,7 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 val settings = completer.await()
+                Log.d(YUCHENG_API, "RESULT DEVICE SETTINGS = $settings")
                 callback(Result.success(settings))
             } catch (e: Exception) {
                 callback(Result.failure(e))
