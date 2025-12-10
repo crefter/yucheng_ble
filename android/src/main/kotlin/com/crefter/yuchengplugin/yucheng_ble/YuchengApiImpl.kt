@@ -264,6 +264,7 @@ class YuchengApiImpl(
                             if (device.deviceMac == macAddress) {
                                 Log.d(YUCHENG_API, "DEVICE FOUND! Device: ${device.deviceName}:${device.deviceMac}, Mac: $macAddress")
                                 YCBTClient.connectBleDevice(device.device) { code ->
+                                    Log.d(YUCHENG_API, "Try connect, code = $code")
                                     if (code == 0) {
                                         val isConnected = isConnected()
                                         if (isConnected) {
@@ -332,6 +333,7 @@ class YuchengApiImpl(
                         if (device.deviceMac == macAddress) {
                             Log.d(YUCHENG_API, "DEVICE FOUND! Device: ${device.deviceName}:${device.deviceMac}, Mac: $macAddress")
                             YCBTClient.connectBleDevice(device.device) { code ->
+                                Log.d(YUCHENG_API, "Try connect, code = $code")
                                 if (code == 0) {
                                     Log.d(YUCHENG_API, "Code = 0, device connected!")
                                     val isConnected = isConnected()
