@@ -43,8 +43,8 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   Stream<YuchengDeviceStateEvent> deviceStateStream() => deviceState();
 
   @override
-  Future<bool> reconnect(int? reconnectTimeInSeconds) =>
-      _api.reconnect(reconnectTimeInSeconds);
+  Future<bool> reconnect(String? uuid, [int? reconnectTimeInSeconds]) =>
+      _api.reconnect(uuid, reconnectTimeInSeconds);
 
   @override
   Stream<YuchengAllEvent> allDataStream() => allData();

@@ -503,13 +503,13 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
     }
     
-    func reconnect(reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
+    func reconnect(uuid: String?, reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
         var isCompleted = false;
         do {
             let isOtaForce = YCProduct.isJLDeviceForceOTA()
             if (isOtaForce) {
                 self.currentDevice = YCProduct.shared.currentPeripheral
-                self.reconnectMacAddress = self.currentDevice?.macAddress ?? ""
+                self.reconnectMacAddress = self.currentDevice?.macAddress ?? uuid ?? ""
                 self.connectForceOtaDevice { res in }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(TIME_TO_QUERY_MAC_ADDR)) {

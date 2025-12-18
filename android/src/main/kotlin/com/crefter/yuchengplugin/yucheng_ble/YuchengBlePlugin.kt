@@ -110,6 +110,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
 
         YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
+        YCBTClient.setReconnect(true)
         YCBTClient.registerBleStateChange { state ->
             when (state) {
                 Constants.BLEState.Connected -> {

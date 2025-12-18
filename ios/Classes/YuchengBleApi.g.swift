@@ -1259,7 +1259,7 @@ protocol YuchengHostApi {
   func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Подключить девайс к сдк
   func connect(device: YuchengDevice, connectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, Error>) -> Void)
-  func reconnect(reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, Error>) -> Void)
+  func reconnect(uuid: String?, reconnectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Отключить девайс от сдк
   func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
   /// Запрос на получение данных о сне
@@ -1370,8 +1370,9 @@ class YuchengHostApiSetup {
     if let api = api {
       reconnectChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let reconnectTimeInSecondsArg: Int64? = nilOrValue(args[0])
-        api.reconnect(reconnectTimeInSeconds: reconnectTimeInSecondsArg) { result in
+        let uuidArg: String? = nilOrValue(args[0])
+        let reconnectTimeInSecondsArg: Int64? = nilOrValue(args[1])
+        api.reconnect(uuid: uuidArg, reconnectTimeInSeconds: reconnectTimeInSecondsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
