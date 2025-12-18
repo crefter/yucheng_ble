@@ -88,6 +88,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   int? dbp;
   late final TextEditingController sbpController;
   late final TextEditingController dbpController;
+  final mac = '11:CE:9B:FE:0A:A8';
 
   @override
   void initState() {
@@ -123,6 +124,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
           if (!context.mounted) return;
           _showSnackBar(context, 'Подключение не установлено!');
         },
+        uuid: mac,
       );
     _service.selectedDeviceNotifier.addListener(() {
       selectedDevice = _service.selectedDevice;
@@ -240,7 +242,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   }
 
   Future<bool> tryReconnect() async {
-    return await _service.tryReconnect();
+    return await _service.tryReconnect(uuid: mac);
   }
 
   Future<bool> resetToFactory() async {
@@ -545,7 +547,8 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                         }
                       },
                       child: const Text(
-                          'Получить кровяное давление в реальном времени'),
+                        'Получить кровяное давление в реальном времени',
+                      ),
                     ),
             ),
             if (isMeasureBP)

@@ -403,7 +403,7 @@ abstract class YuchengHostApi {
   bool connect(YuchengDevice device, int? connectTimeInSeconds);
 
   @async
-  bool reconnect(int? reconnectTimeInSeconds);
+  bool reconnect(String? uuid, [int? reconnectTimeInSeconds]);
 
   /// Отключить девайс от сдк
   @async
@@ -480,12 +480,16 @@ abstract class YuchengHostApi {
 
   @async
   RealTimeBloodPressure? startMeasurementBloodPressure();
+
   @async
   bool stopMeasurementBloodOxygen();
+
   @async
   bool stopMeasurementBloodPressure();
+
   @async
   bool stopMeasurementHeart();
+
   @async
   bool calibrateBloodPressure(int sbp, int dbp);
 }

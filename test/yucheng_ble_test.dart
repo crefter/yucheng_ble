@@ -67,12 +67,6 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<bool> reconnect(int? arg) {
-    // TODO: implement reconnect
-    throw UnimplementedError();
-  }
-
-  @override
   Future<List<YuchengHealthData>> getHealthData({
     int? startTimestamp,
     int? endTimestamp,
@@ -218,6 +212,12 @@ class MockYuchengBlePlatform
   @override
   Future<bool> stopMeasurementHeart() {
     // TODO: implement stopMeasurementHeart
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> reconnect(String? uuid, [int? reconnectTimeInSeconds]) {
+    // TODO: implement reconnect
     throw UnimplementedError();
   }
 }

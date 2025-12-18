@@ -65,7 +65,7 @@ final class YuchengService
     VoidCallback? onBluetoothOff,
     VoidCallback? onSuccessfulReconnect,
     VoidCallback? onFailedReconnect,
-    String? macAddress,
+    String? uuid,
     String? deviceName,
   }) async {
     _deviceStateSub?.cancel();
@@ -132,8 +132,9 @@ final class YuchengService
           onBluetoothNotSupported: onBluetoothNotSupported,
           onDeviceConnectedYet: onDeviceConnectedYet,
           onFailedReconnect: onFailedReconnect,
+          onSuccessfulReconnect: onSuccessfulReconnect,
           onBluetoothOff: onBluetoothOff,
-          macAddress: macAddress,
+          uuid: uuid,
           deviceName: deviceName,
         );
       },
@@ -156,7 +157,7 @@ final class YuchengService
 
   Future<bool> tryReconnect({
     int reconnectTimeInSeconds = 45,
-    String? macAddress,
+    String? uuid,
     String? deviceName,
     VoidCallback? onBluetoothNotSupported,
     VoidCallback? onBluetoothOff,
@@ -195,10 +196,10 @@ final class YuchengService
 
     final lastConnectedDevice = await _ble.getCurrentConnectedDevice();
     final hasLastDevice = lastConnectedDevice != null;
-    final isMacAddressNotNull = macAddress != null;
+    final isMacAddressNotNull = uuid != null;
     final isDeviceNameNotNull = deviceName != null;
     if ((!hasLastDevice && (isMacAddressNotNull || isDeviceNameNotNull)) ||
-        (isMacAddressNotNull && lastConnectedDevice?.uuid != macAddress) ||
+        (isMacAddressNotNull && lastConnectedDevice?.uuid != uuid) ||
         (isDeviceNameNotNull &&
             lastConnectedDevice?.deviceName != deviceName)) {
       final scannedDevices = await scanDevices(
@@ -214,7 +215,7 @@ final class YuchengService
         return false;
       }
       final device = scannedDevices.firstWhereOrNull(
-          (d) => d.uuid == macAddress || d.deviceName == deviceName);
+          (d) => d.uuid == uuid || d.deviceName == deviceName);
       if (device == null) {
         setReconnecting(false);
         setReconnected(false);
@@ -236,7 +237,7 @@ final class YuchengService
       return isConnected;
     }
 
-    final isBleReconnected = await _ble.reconnect(reconnectTimeInSeconds);
+    final isBleReconnected = await _ble.reconnect(uuid);
     setReconnecting(false);
     setReconnected(isBleReconnected);
     setDeviceConnected(isBleReconnected);

@@ -1705,14 +1705,14 @@ class YuchengHostApi {
     }
   }
 
-  Future<bool> reconnect(int? reconnectTimeInSeconds) async {
+  Future<bool> reconnect(String? uuid, [int? reconnectTimeInSeconds]) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.reconnect$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[reconnectTimeInSeconds]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[uuid, reconnectTimeInSeconds]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
