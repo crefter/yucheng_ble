@@ -101,9 +101,14 @@ class YuchengApiImpl(
                     if (!completer.isCompleted) completer.complete(devices)
                     Log.d(YUCHENG_API, "End scan")
                 } else {
+                    val deviceName = device.deviceName
+                    val deviceMac = device.deviceMac
+                    if (deviceMac == null || deviceName == null) {
+                        return@startScanBle
+                    }
                     scannedDevices.add(device)
                     val ycDevice =
-                        YuchengDevice(index++, device.deviceName, device.deviceMac, false)
+                        YuchengDevice(index++, deviceName, deviceMac, false)
                     devices.add(ycDevice)
                     Log.d(YUCHENG_API, "name: " + device.deviceName)
                     Log.d(
