@@ -379,6 +379,9 @@ class YuchengApiImpl(
                     Log.d(YUCHENG_API, "Test when cant reconnect (code != 0)")
                     YCBTClient.startScanBle({ _, device ->
                         Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
+                        if (device == null) {
+                            return@startScanBle
+                        }
                         val deviceMac = device.deviceMac
                         if (deviceMac == null) {
                             Log.d(YUCHENG_API, "code != 0, deviceMac is null")
