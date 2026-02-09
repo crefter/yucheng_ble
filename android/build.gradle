@@ -83,6 +83,12 @@ android {
         }
     }
 
+    packagingOptions {
+        exclude "io/flutter/**"
+        exclude "flutter_embedding/**"
+        exclude "META-INF/flutter_*"
+    }
+
     testOptions {
         unitTests.all {
             useJUnitPlatform()
