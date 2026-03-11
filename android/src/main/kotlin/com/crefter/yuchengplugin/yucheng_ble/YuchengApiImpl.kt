@@ -48,6 +48,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -301,7 +302,10 @@ class YuchengApiImpl(
                                             val macAddress = device.deviceMac
                                             val deviceName = device.deviceName
                                             if (macAddress == null || deviceName == null) {
-                                                Log.d(YUCHENG_API,"macAddress = $macAddress, deviceName = $deviceName, NULL!")
+                                                Log.d(
+                                                    YUCHENG_API,
+                                                    "macAddress = $macAddress, deviceName = $deviceName, NULL!"
+                                                )
                                                 if (!completer.isCompleted) {
                                                     completer.complete(false)
                                                     return@connectBleDevice
@@ -357,7 +361,10 @@ class YuchengApiImpl(
                         val macAddress = YCBTClient.getBindDeviceMac()
                         val deviceName = YCBTClient.getBindDeviceName()
                         if (macAddress == null || deviceName == null) {
-                            Log.d(YUCHENG_API,"macAddress = $macAddress, deviceName = $deviceName, NULL!")
+                            Log.d(
+                                YUCHENG_API,
+                                "macAddress = $macAddress, deviceName = $deviceName, NULL!"
+                            )
                             if (!completer.isCompleted) {
                                 completer.complete(false)
                             }
@@ -410,7 +417,10 @@ class YuchengApiImpl(
                                         val macAddress = deviceMac
                                         val deviceName = device.deviceName
                                         if (deviceName == null) {
-                                            Log.d(YUCHENG_API,"macAddress = $macAddress, deviceName = $deviceName, NULL!")
+                                            Log.d(
+                                                YUCHENG_API,
+                                                "macAddress = $macAddress, deviceName = $deviceName, NULL!"
+                                            )
                                             if (!completer.isCompleted) {
                                                 completer.complete(false)
                                                 return@connectBleDevice
@@ -501,8 +511,7 @@ class YuchengApiImpl(
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
-    private suspend fun getSleepData(
+    suspend fun getSleepData(
         skipHandler: Boolean = false,
         startTimestamp: Long,
         endTimestamp: Long,
@@ -521,7 +530,7 @@ class YuchengApiImpl(
                 Constants.DATATYPE.Health_HistorySleep
             ) { code, ratio, data ->
                 if (data != null) {
-                    val sleepData = data["data"] as List<*>? ?: return@healthHistoryData
+                    val sleepData = data["data"] as? List<*>? ?: return@healthHistoryData
                     val mappedSleep = sleepData.map {
                         val yuchengSleepData = sleepDataConverter.convert(it)
                         return@map yuchengSleepData
@@ -550,23 +559,18 @@ class YuchengApiImpl(
         } catch (e: Exception) {
             if (!sleepDataCompleter.isCompleted) sleepDataCompleter.completeExceptionally(e)
         }
-
-        GlobalScope.launch {
-            delay(1000 * TIME_TO_TIMEOUT)
-            if (sleepDataCompleter.isCompleted) return@launch
-            if (!skipHandler) {
-                for (sleep in sleepDataList) {
-                    val ycDataEvent = YuchengSleepDataEvent(sleep)
-                    onSleepData(ycDataEvent)
-                }
-            }
-            sleepDataCompleter.complete(sleepDataList)
-            onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
-        }
-
         try {
-            val sleepData = sleepDataCompleter.await()
-            return sleepData
+            val sleepData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) { sleepDataCompleter.await() }
+            if (sleepData == null) {
+                if (!skipHandler) {
+                    for (sleep in sleepDataList) {
+                        val ycDataEvent = YuchengSleepDataEvent(sleep)
+                        onSleepData(ycDataEvent)
+                    }
+                }
+                onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
+            }
+            return sleepData ?: sleepDataList
         } catch (e: Exception) {
             Log.e(YUCHENG_API, "Error when get sleep data: $e")
             Log.e(GET_SLEEP_DATA, "Error when get sleep data:$e")
@@ -614,7 +618,7 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private suspend fun getHealthSportData(
+    suspend fun getHealthSportData(
         skipHandler: Boolean = false,
         startTimestamp: Long,
         endTimestamp: Long,
@@ -631,7 +635,7 @@ class YuchengApiImpl(
         try {
             YCBTClient.healthHistoryData(Constants.DATATYPE.Health_HistorySport) { code, ratio, data ->
                 if (data != null) {
-                    val sportData = data["data"] as List<*>? ?: return@healthHistoryData
+                    val sportData = data["data"] as? List<*>? ?: return@healthHistoryData
                     val mappedSport = sportData.map {
                         val yuchengSportData = sportDataConverter.convert(it)
                         return@map yuchengSportData
@@ -655,12 +659,12 @@ class YuchengApiImpl(
                 Constants.DATATYPE.Health_HistoryAll
             ) { code, ratio, data ->
                 if (data != null) {
-                    val healthData = data["data"] as List<*>? ?: return@healthHistoryData
+                    val healthData = data["data"] as? List<*>? ?: return@healthHistoryData
                     val healthDatas = healthData.map {
                         val yuchengHealthData = healthDataConverter.convert(it)
                         return@map yuchengHealthData
                     }.filter {
-                        it.startTimestamp >= startTimestamp && it.startTimestamp <= endTimestamp
+                        it.startTimestamp in startTimestamp..endTimestamp
                     }
                     healthDataList.addAll(healthDatas)
                     Log.d(YUCHENG_API, "HEALTH DATA CONVERTED$healthDatas")
@@ -681,22 +685,15 @@ class YuchengApiImpl(
             }
         }
 
-        GlobalScope.launch {
-            delay(1000 * TIME_TO_TIMEOUT)
-            if (healthDataCompleter.isCompleted) return@launch
-            if (!skipHandler) {
-                val healthSportData = YuchengHealthSportData(healthDataList, sportDataList)
-                val ycDataEvent = YuchengHealthDataEvent(healthSportData)
-                onHealthData(ycDataEvent)
-            }
-            healthDataCompleter.complete(healthDataList)
-            onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
-
-        }
-
         try {
-            val healthData = healthDataCompleter.await()
-            val sportData = sportDataCompleter.await()
+            val healthData =
+                withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
+                    healthDataCompleter.await()
+                }
+            val sportData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
+                sportDataCompleter.await()
+            }
+
             Log.d(YUCHENG_API, "HEALTH DATA: $healthData")
             Log.d(YUCHENG_API, "SPORT DATA: $sportData")
             if (!skipHandler) {
@@ -704,7 +701,10 @@ class YuchengApiImpl(
                 val ycDataEvent = YuchengHealthDataEvent(healthSportData)
                 onHealthData(ycDataEvent)
             }
-            return YuchengHealthSportData(healthData, sportData)
+            if (healthData == null || sportData == null) {
+                onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
+            }
+            return YuchengHealthSportData(healthData ?: healthDataList, sportData ?: sportDataList)
         } catch (e: Exception) {
             Log.e(YUCHENG_API, "Error when get health sport data: $e")
             throw e
@@ -801,7 +801,7 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 if (!completer.isCompleted) {
-                    YCBTClient.getDeviceInfo { code, ratio, data ->
+                    YCBTClient.getDeviceInfo { code, _, data ->
                         if (code == 0) {
                             val dataMap = data["data"] as Map<*, *>
                             val batteryLevel = dataMap["deviceBatteryValue"].toString().toLong()
@@ -852,7 +852,7 @@ class YuchengApiImpl(
         }
 
         try {
-            YCBTClient.deleteHealthHistoryData(healthType) { code, ratio, data ->
+            YCBTClient.deleteHealthHistoryData(healthType) { code, _, _ ->
                 if (!completer.isCompleted) {
                     completer.complete(code == 0)
                 }
@@ -939,7 +939,7 @@ class YuchengApiImpl(
         }
 
         try {
-            YCBTClient.settingRestoreFactory { code, ratio, data ->
+            YCBTClient.settingRestoreFactory { code, _, _ ->
                 if (!completer.isCompleted) {
                     completer.complete(code == 0)
                 }
@@ -1131,7 +1131,7 @@ class YuchengApiImpl(
         val heartCompleter = CompletableDeferred<Boolean>()
         val bloodCompleter = CompletableDeferred<Boolean>()
         try {
-            YCBTClient.settingHeartMonitor(0x01, interval.toInt()) { code, ratio, data ->
+            YCBTClient.settingHeartMonitor(0x01, interval.toInt()) { code, _, _ ->
                 if (heartCompleter.isCompleted) return@settingHeartMonitor
                 if (code == 0) {
                     heartCompleter.complete(true)
@@ -1139,7 +1139,7 @@ class YuchengApiImpl(
                     heartCompleter.complete(false)
                 }
             }
-            YCBTClient.settingBloodOxygenModeMonitor(true, interval.toInt()) { code, ratio, data ->
+            YCBTClient.settingBloodOxygenModeMonitor(true, interval.toInt()) { code, _, _ ->
                 if (bloodCompleter.isCompleted) return@settingBloodOxygenModeMonitor
                 if (code == 0) {
                     bloodCompleter.complete(true)
@@ -1280,26 +1280,26 @@ class YuchengApiImpl(
                     }
                 }
 
-                YCBTClient.appStartMeasurement(1, REAL_HEART_RATE_TYPE) { code, ratio, data ->
+                YCBTClient.appStartMeasurement(1, REAL_HEART_RATE_TYPE) { _, _, _ ->
                     Log.d(YUCHENG_API, "START HEART RATE MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING HEART RATE")
                 heartRate = heartRateCompleter.await()
                 Log.d(YUCHENG_API, "HEART RATE = $heartRate")
-                YCBTClient.appStartMeasurement(1, REAL_BLOOD_PRESSURE_TYPE) { code, ratio, data ->
+                YCBTClient.appStartMeasurement(1, REAL_BLOOD_PRESSURE_TYPE) { _, _, _ ->
                     Log.d(YUCHENG_API, "START BLOOD PRESSURE MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING BLOOD PRESSURE")
                 bloodPressure = bloodPressureCompleter.await()
                 Log.d(YUCHENG_API, "BLOOD PRESSURE = $bloodPressure")
 
-                YCBTClient.appStartMeasurement(1, REAL_BLOOD_OXYGEN_TYPE) { code, ratio, data ->
+                YCBTClient.appStartMeasurement(1, REAL_BLOOD_OXYGEN_TYPE) { _, _, _ ->
                     Log.d(YUCHENG_API, "START BLOOD OXYGEN MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING BLOOD OXYGEN")
                 bloodOxygen = bloodOxygenCompleter.await()
                 Log.d(YUCHENG_API, "BLOOD OXYGEN = $bloodOxygen")
-                YCBTClient.appRealDataFromDevice(1, 0) { code, ratio, data ->
+                YCBTClient.appRealDataFromDevice(1, 0) { _, _, _ ->
                     Log.d(YUCHENG_API, "START SPORT MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING SPORT")
@@ -1584,7 +1584,7 @@ class YuchengApiImpl(
     private suspend fun stopMeasurementByType(type: Int): Boolean {
         val completed = CompletableDeferred<Boolean>()
 
-        YCBTClient.appStartMeasurement(0, type) { code, ratio, data ->
+        YCBTClient.appStartMeasurement(0, type) { code, _, _ ->
             Log.d(YUCHENG_API, "STOP MEASURE")
             completed.complete(code == 0)
         }
@@ -1605,7 +1605,7 @@ class YuchengApiImpl(
             return
         }
         val completed = CompletableDeferred<Boolean>()
-        YCBTClient.appBloodCalibration(sbp.toInt(), dbp.toInt(), { code, ratio, data ->
+        YCBTClient.appBloodCalibration(sbp.toInt(), dbp.toInt(), { code, _, _ ->
             if (completed.isCompleted) return@appBloodCalibration
             val isCompleted = code == 0
             if (isCompleted) {
@@ -1688,7 +1688,7 @@ class YuchengApiImpl(
                     }
                 }
             }
-            YCBTClient.appStartMeasurement(1, measureDataType) { code, ratio, data ->
+            YCBTClient.appStartMeasurement(1, measureDataType) { _, _, _ ->
                 Log.d(YUCHENG_API, "START MEASURE")
             }
             Log.d(YUCHENG_API, "WAITING MEASURE")
@@ -1722,7 +1722,6 @@ class YuchengApiImpl(
         private const val GET_SLEEP_DATA = "$YUCHENG_API GET_SLEEP_DATA"
         private const val GET_HEALTH_DATA = "$YUCHENG_API GET_HEALTH_DAT"
         private const val GET_SLEEP_HEALTH_DATA = "GET_SLEEP_HEALTH_DATA"
-        private const val DISCONNECT = "$YUCHENG_API DISCONNECT"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"
         private const val UPDATE_FIRMWARE = "$YUCHENG_API UPDATE_FIRM"
@@ -1737,9 +1736,9 @@ private data class StartEndTimestamp(val start: Long, val end: Long) {
             val startDate =
                 Instant.now().atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay()
             val start: Long = (startDate.minusDays(DEFAULT_START_DATE_OFFSET)
-                .toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
+                .toEpochSecond(ZoneOffset.UTC) * 1000)
             val end: Long = (startDate.plusDays(1).toLocalDate().atStartOfDay()
-                .toEpochSecond(ZoneOffset.UTC) * 1000).toLong()
+                .toEpochSecond(ZoneOffset.UTC) * 1000)
             return StartEndTimestamp(start, end)
         }
     }
