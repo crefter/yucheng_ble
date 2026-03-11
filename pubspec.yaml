@@ -1,6 +1,6 @@
 name: yucheng_ble
 description: "Plugin for yucheng"
-version: 0.7.12
+version: 1.0.0
 publish_to: none
 
 environment:
@@ -11,15 +11,15 @@ dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
-  flutter_blue_plus: ^1.35.3
+  flutter_blue_plus: ^2.2.1
   permission_handler: ^12.0.1
-  device_info_plus: ^12.1.0
+  device_info_plus: ^12.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  pigeon: ^25.3.2
+  pigeon: ^26.1.7
 
 flutter:
 
