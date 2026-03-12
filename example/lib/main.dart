@@ -86,6 +86,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   RealTimeBloodPressure? bloodPressure;
   int? sbp;
   int? dbp;
+  int interval = 60;
   late final TextEditingController sbpController;
   late final TextEditingController dbpController;
   final mac = '11:CE:9B:FE:0A:A8';
@@ -746,32 +747,54 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
             ),
             if (_service.isReconnected || _service.isAnyDeviceConnected) ...[
               SliverToBoxAdapter(
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final isSet =
-                              await _service.setHealthMonitorInterval(30);
-                          if (isSet && context.mounted) {
-                            _showSnackBar(context, 'Интервал установлен!');
-                          }
-                        },
-                        child: const Text('Установить интервал в 30 мин'),
-                      ),
+                    TextField(
+                      decoration: InputDecoration(hintText: 'Введи интервал'),
+                      onChanged: (value) => setState(() {
+                        interval = int.tryParse(value) ?? 60;
+                      }),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          final isSet =
-                              await _service.setHealthMonitorInterval(60);
-                          if (isSet && context.mounted) {
-                            _showSnackBar(context, 'Интервал установлен!');
-                          }
-                        },
-                        child: const Text('Установить интервал в 60 мин'),
-                      ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final isSet =
+                            await _service.setHealthMonitorInterval(interval);
+                        if (isSet && context.mounted) {
+                          _showSnackBar(
+                              context, 'Интервал = $interval установлен!');
+                        }
+                      },
+                      child: Text('Установить интервал в $interval мин'),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final isSet =
+                                  await _service.setHealthMonitorInterval(30);
+                              if (isSet && context.mounted) {
+                                _showSnackBar(context, 'Интервал установлен!');
+                              }
+                            },
+                            child: const Text('Установить интервал в 30 мин'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final isSet =
+                                  await _service.setHealthMonitorInterval(60);
+                              if (isSet && context.mounted) {
+                                _showSnackBar(context, 'Интервал установлен!');
+                              }
+                            },
+                            child: const Text('Установить интервал в 60 мин'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -11,7 +11,7 @@ private class YuchengSportBean(
     val sportCalorie: Int, // calories (kcal)
 )
 
-class YuchengSportDataConverter(private val gson: Gson) {
+open class YuchengSportDataConverter(private val gson: Gson) {
     fun convert(sportDataBean: Any?): YuchengSportData {
         val converted = gson.fromJson(sportDataBean.toString(), YuchengSportBean::class.java)
         return YuchengSportData(

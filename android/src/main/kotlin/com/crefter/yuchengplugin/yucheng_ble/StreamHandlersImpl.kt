@@ -10,6 +10,7 @@ import UpdateDataStreamHandler
 import YuchengAllEvent
 import YuchengDeviceEvent
 import YuchengDeviceStateEvent
+import YuchengDeviceStateDataEvent
 import YuchengHealthEvent
 import YuchengSleepEvent
 import YuchengUpdateEvent
@@ -91,7 +92,11 @@ class DeviceStateStreamHandlerImpl(private val uiThreadHandler: Handler) : Devic
             Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state EVENT SINK IS NULL!")
         }
         Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state stream handler sink onState = $this")
-        Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")
+        if (state is YuchengDeviceStateDataEvent) {
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState = ${state.state}")
+        } else {
+            Log.d(YuchengBlePlugin.PLUGIN_TAG, "Device state handler onState")
+        }
     }
 
     fun detach() {

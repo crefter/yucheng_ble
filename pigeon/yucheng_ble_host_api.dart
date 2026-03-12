@@ -2,6 +2,10 @@
 
 import 'package:pigeon/pigeon.dart';
 
+// TODO: добавить метод для передачи access/refresh токена. А также его чтения из плагина.
+// TODO: токен хранить в защищенном хранилище: андройд, уточнить, что юзать, ios - Keychain
+// TODO: подумать над тем, как сделать включение сервиса - думаю, лучше по кнопке, чтобы можно было еще запросить разрешение
+// TODO: Сделать отправку данных на сервер
 // #docregion config
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/yucheng_ble.g.dart',

@@ -159,6 +159,8 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
         })
         
+        YCProduct.shared.
+        
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(self.deviceStateChange(_:)),

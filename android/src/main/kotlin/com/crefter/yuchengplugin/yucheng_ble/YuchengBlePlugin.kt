@@ -5,16 +5,21 @@ import DevicesStreamHandler
 import SleepDataStreamHandler
 import YuchengDeviceStateDataEvent
 import YuchengHostApi
+import android.Manifest
 import android.app.Activity
+import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.crefter.yuchengplugin.yucheng_ble.PathUtils.getExternalAppCachePath
 import com.crefter.yuchengplugin.yucheng_ble.ResourceUtils.copyFileFromAssets
+import com.crefter.yuchengplugin.yucheng_ble.service.YuchengBleService
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.yucheng.ycbtsdk.Constants
-import com.yucheng.ycbtsdk.YCBTClient
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -23,13 +28,14 @@ import java.util.UUID
 
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin, ActivityAware {
+    private var activity: Activity? = null
+
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(PLUGIN_TAG, "Start attaching to engine")
         if (handler == null) {
             handler = Handler(Looper.getMainLooper())
         }
-        // Инстанс плагина пересоздается, поэтому делаем хендлеры и апи статичными
-        // и также присваем однажды, иначе ивенты не прилетят в дарт
+        YuchengCore.init(flutterPluginBinding.applicationContext)
         if (devicesHandler == null) {
             devicesHandler = DevicesStreamHandlerImpl(handler!!)
         }
@@ -57,13 +63,6 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         if (gson == null) {
             gson = GsonBuilder().create()
         }
-
-        val hashCode = this.hashCode()
-
-        Log.d(
-            PLUGIN_TAG,
-            "Device state stream handler sink this hashcode = $hashCode"
-        )
         DevicesStreamHandler.register(flutterPluginBinding.binaryMessenger, devicesHandler!!)
         SleepDataStreamHandler.register(flutterPluginBinding.binaryMessenger, sleepDataHandler!!)
         DeviceStateStreamHandler.register(
@@ -78,7 +77,10 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
             flutterPluginBinding.binaryMessenger,
             allStreamHandler!!
         )
-        UpdateDataStreamHandler.register(flutterPluginBinding.binaryMessenger, updateStreamHandler!!)
+        UpdateDataStreamHandler.register(
+            flutterPluginBinding.binaryMessenger,
+            updateStreamHandler!!
+        )
 
         if (api == null) {
             api = YuchengApiImpl(
@@ -89,14 +91,12 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
                 onHealthData = { data -> healthStreamHandler?.onHealth(data) },
                 onAllData = { data -> allStreamHandler?.onSleepHealth(data) },
                 healthDataConverter = YuchengHealthDataConverter(gson!!),
-                onUpdate = {data -> updateStreamHandler?.onUpdate(data) },
+                onUpdate = { data -> updateStreamHandler?.onUpdate(data) },
                 sportDataConverter = YuchengSportDataConverter(gson!!),
                 assetPathHandler = { pathToFile ->
                     var path = flutterPluginBinding.flutterAssets.getAssetFilePathByName(pathToFile)
                     val cachePath = getExternalAppCachePath(flutterPluginBinding.applicationContext)
-                    if (cachePath == null) {
-                        return@YuchengApiImpl ""
-                    }
+                        ?: return@YuchengApiImpl ""
                     val tempFileName =
                         (cachePath + "/"
                                 + UUID.randomUUID().toString()) + path.takeLast(4)
@@ -108,57 +108,58 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         }
 
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
+        YuchengCore.addListenerState(listener = {state -> stateListener(state)})
+    }
 
-        YCBTClient.initClient(flutterPluginBinding.applicationContext, true)
-        YCBTClient.setReconnect(true)
-        YCBTClient.registerBleStateChange { state ->
-            when (state) {
-                Constants.BLEState.Connected -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengDeviceState.CONNECTED
-                        )
+    fun stateListener(state: Int) {
+        when (state) {
+            Constants.BLEState.Connected -> {
+                deviceStateStreamHandler?.onState(
+                    YuchengDeviceStateDataEvent(
+                        YuchengDeviceState.CONNECTED
                     )
-                }
+                )
+            }
 
-                Constants.BLEState.TimeOut -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengDeviceState.TIME_OUT
-                        )
+            Constants.BLEState.TimeOut -> {
+                deviceStateStreamHandler?.onState(
+                    YuchengDeviceStateDataEvent(
+                        YuchengDeviceState.TIME_OUT
                     )
-                }
+                )
+            }
 
-                Constants.BLEState.Disconnect -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengDeviceState.DISCONNECTED
-                        )
+            Constants.BLEState.Disconnect -> {
+                deviceStateStreamHandler?.onState(
+                    YuchengDeviceStateDataEvent(
+                        YuchengDeviceState.DISCONNECTED
                     )
-                }
+                )
+            }
 
-                Constants.BLEState.ReadWriteOK -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengDeviceState.READ_WRITE_OK
-                        )
+            Constants.BLEState.ReadWriteOK -> {
+                deviceStateStreamHandler?.onState(
+                    YuchengDeviceStateDataEvent(
+                        YuchengDeviceState.READ_WRITE_OK
                     )
-                }
+                )
+            }
 
-                else -> {
-                    deviceStateStreamHandler?.onState(
-                        YuchengDeviceStateDataEvent(
-                            YuchengDeviceState.UNKNOWN
-                        )
+            else -> {
+                deviceStateStreamHandler?.onState(
+                    YuchengDeviceStateDataEvent(
+                        YuchengDeviceState.UNKNOWN
                     )
-                }
+                )
             }
         }
+
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         YuchengHostApi.setUp(binding.binaryMessenger, null)
-        YCBTClient.stopScanBle()
+        YuchengCore.removeListenerState(listener = {state -> stateListener(state)})
+        YuchengCore.dispose()
         devicesHandler?.detach()
         sleepDataHandler?.detach()
         deviceStateStreamHandler?.detach()
@@ -167,28 +168,47 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activtiy = binding.activity
+        activity = binding.activity
         if (api != null) {
-            api?.activity = activtiy
+            api?.activity = activity
+        }
+        // TODO: нужно запрашивать разрешение
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(
+                activity!!,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                1
+            )
+        }
+        // TODO: останавливаем сервис при аттаче
+        if (activity != null) {
+            val intent = Intent(activity!!, YuchengBleService::class.java)
+            intent.action = "STOP_SERVICE"
+            activity!!.startService(intent)
         }
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        activtiy = null
+        activity = null
         if (api != null) {
             api?.activity = null
         }
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activtiy = binding.activity
+        activity = binding.activity
         if (api != null) {
-            api?.activity = activtiy
+            api?.activity = activity
         }
     }
 
     override fun onDetachedFromActivity() {
-        activtiy = null
+        // TODO: запускаем сервис при detach
+        if (activity != null) {
+            val intent = Intent(activity, YuchengBleService::class.java)
+            ContextCompat.startForegroundService(activity!!, intent)
+        }
+        activity = null
         if (api != null) {
             api?.activity = null
         }
@@ -204,7 +224,6 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         private var updateStreamHandler: UpdateDataStreamHandlerImpl? = null
         private var gson: Gson? = null
         private var handler: Handler? = null
-        private var activtiy: Activity? = null
         val PLUGIN_TAG: String = "YuchengBlePlugin"
     }
 }

@@ -9,22 +9,17 @@ import YuchengAllEvent
 import YuchengAllTimeOutEvent
 import YuchengDevice
 import YuchengDeviceCompleteEvent
-import YuchengDeviceDataEvent
 import YuchengDeviceEvent
 import YuchengDeviceSettings
 import YuchengDeviceStateEvent
 import YuchengDeviceStateTimeOutEvent
-import YuchengDeviceTimeOutEvent
 import YuchengHealthData
 import YuchengHealthDataEvent
 import YuchengHealthEvent
 import YuchengHealthSportData
-import YuchengHealthTimeOutEvent
 import YuchengHostApi
 import YuchengSleepData
-import YuchengSleepDataEvent
 import YuchengSleepEvent
-import YuchengSleepTimeOutEvent
 import YuchengSportData
 import YuchengUpdateCompleteEvent
 import YuchengUpdateErrorEvent
@@ -37,18 +32,20 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.crefter.yuchengplugin.yucheng_ble.entity.StartEndTimestamp
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.bean.ScanDeviceBean
 import com.yucheng.ycbtsdk.upgrade.DfuCallBack
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -93,70 +90,23 @@ class YuchengApiImpl(
             YCBTClient.stopScanBle()
         }
         val devices: MutableList<YuchengDevice> = mutableListOf()
-        val completer = CompletableDeferred<List<YuchengDevice>>()
-        try {
-            Log.d(YUCHENG_API, "Start scan")
-            YCBTClient.startScanBle({ _, device ->
-                if (device == null) {
-                    onDevice(YuchengDeviceCompleteEvent(completed = true))
-                    if (!completer.isCompleted) completer.complete(devices)
-                    Log.d(YUCHENG_API, "End scan")
-                } else {
-                    val deviceName = device.deviceName
-                    val deviceMac = device.deviceMac
-                    if (deviceMac == null || deviceName == null) {
-                        return@startScanBle
-                    }
-                    scannedDevices.add(device)
-                    val ycDevice =
-                        YuchengDevice(index++, deviceName, deviceMac, false)
-                    devices.add(ycDevice)
-                    Log.d(YUCHENG_API, "name: " + device.deviceName)
-                    Log.d(
-                        YUCHENG_API, "address: " + device.deviceMac
-                    )
-                    onDevice(
-                        YuchengDeviceDataEvent(
-                            ycDevice.index,
-                            ycDevice.uuid,
-                            false,
-                            ycDevice.deviceName,
-                        ),
-                    )
-                }
-            }, scanTimeInSeconds?.toInt() ?: SCAN_PERIOD)
-        } catch (e: Exception) {
-            Log.e(START_SCAN, e.toString())
-            if (!completer.isCompleted) completer.completeExceptionally(e)
-            onDevice(YuchengDeviceCompleteEvent(completed = false))
-        }
-        GlobalScope.launch {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                callback(Result.success(completer.await()))
-            } catch (e: Exception) {
-                callback(Result.failure(e))
-            }
-        }
-
-        GlobalScope.launch {
-            delay(1000 * (TIME_TO_TIMEOUT + 5))
-            if (!completer.isCompleted) return@launch
-            if (devices.isEmpty()) {
-                onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
-            } else {
-                for (device in devices) {
-                    onDevice(
-                        YuchengDeviceDataEvent(
-                            device.index,
-                            device.uuid,
-                            device.isReconnected,
-                            device.deviceName,
-                        ),
-                    )
+                scannedDevices = YuchengCore.scanDevices(
+                    scanTimeInSeconds?.toLong() ?: SCAN_PERIOD.toLong(),
+                    onDevice
+                ).toMutableSet()
+                for (device in scannedDevices) {
+                    val ycDevice =
+                        YuchengDevice(index++, device.deviceName, device.deviceMac, false)
+                    devices.add(ycDevice)
                 }
-                onDevice(YuchengDeviceTimeOutEvent(isTimeout = true))
+                callback(Result.success(devices))
+            } catch (e: Exception) {
+                Log.e(START_SCAN, e.toString())
+                callback(Result.failure(e))
+                onDevice(YuchengDeviceCompleteEvent(completed = false))
             }
-            completer.complete(devices)
         }
     }
 
@@ -166,7 +116,7 @@ class YuchengApiImpl(
             if (device == null) {
                 try {
                     val isCurrentConnected =
-                        isConnected()
+                        YuchengCore.isConnected()
                     callback(Result.success(isCurrentConnected))
                 } catch (e: Exception) {
                     callback(Result.failure(e))
@@ -183,398 +133,69 @@ class YuchengApiImpl(
     private fun isDeviceConnected(device: YuchengDevice): Boolean {
         return try {
             val isConnected =
-                isConnected() && selectedDevice?.uuid == device.uuid
+                YuchengCore.isConnected() && selectedDevice?.uuid == device.uuid
             return isConnected
         } catch (_: Exception) {
             false
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     override fun connect(
         device: YuchengDevice, connectTimeInSeconds: Long?, callback: (Result<Boolean>) -> Unit
     ) {
-        Log.d(YUCHENG_API, "Start connect")
-        val macAddress = device.uuid
-        if (selectedDevice?.uuid == macAddress) {
-            callback(Result.success(true))
-            return
-        }
-        selectedDevice = device
-        val bleDevice = scannedDevices.find { it.deviceMac == selectedDevice!!.uuid }
-        if (bleDevice == null) {
-            callback(Result.success(false))
-            return
-        }
-        val completer = CompletableDeferred<Boolean>()
-        val state = YCBTClient.connectState()
-        Log.d(YUCHENG_API, "Connect state = $state")
-        YCBTClient.connectBleDevice(bleDevice.device) { code ->
-            val state = YCBTClient.connectState()
-            Log.d(YUCHENG_API, "Connect state = $state")
-            if (code == 0) {
-                Log.d(YUCHENG_API, "CONNECTED")
-                val state = YCBTClient.connectState()
-                val isConnected = isConnected()
-                Log.d(YUCHENG_API, "connectState() == $state")
-                if (!completer.isCompleted) completer.complete(isConnected)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val isConnect =
+                    YuchengCore.connect(device, connectTimeInSeconds ?: (TIME_TO_TIMEOUT + 10))
+                callback(Result.success(isConnect))
+            } catch (e: Exception) {
+                if (e is TimeoutCancellationException) {
+                    Log.d(YUCHENG_API, "CONNECT TIMEOUT")
+                    onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
+                }
+                callback(Result.success(false))
             }
-        }
-        GlobalScope.launch {
-            callback(Result.success(completer.await()))
-        }
-        GlobalScope.launch {
-            val timeout = (connectTimeInSeconds ?: (TIME_TO_TIMEOUT + 10))
-            delay(1000 * timeout)
-            if (completer.isCompleted) return@launch
-            Log.d(YUCHENG_API, "CONNECT TIMEOUT")
-            onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
-            completer.complete(false)
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     override fun reconnect(
         uuid: String?,
         reconnectTimeInSeconds: Long?,
         callback: (Result<Boolean>) -> Unit
     ) {
-        val bindMac = YCBTClient.getBindDeviceMac()
-        Log.e(YUCHENG_API, "START RECONNECT, bindMac: $bindMac, deviceMac: $uuid")
-        if (bindMac != null && uuid == bindMac && isConnected()) {
-            Log.d(YUCHENG_API, "UUID == BIND MAC and CONNECTED!")
-            val macAddress = bindMac
-            val deviceName = YCBTClient.getBindDeviceName()
-            val ycDevice = YuchengDevice(index++, deviceName, macAddress, true)
-            selectedDevice = ycDevice
-            onDevice(
-                YuchengDeviceDataEvent(
-                    ycDevice.index,
-                    ycDevice.uuid,
-                    ycDevice.isReconnected,
-                    ycDevice.deviceName,
-                )
-            )
-            callback(Result.success(true))
-            return
-        }
-        val macAddress = uuid ?: bindMac
-        Log.e(YUCHENG_API, "RECONNECT, BIND MAC != DEVICE MAC, bindMac: $bindMac, deviceMac: $uuid")
-        val completer = CompletableDeferred<Boolean>()
-        if (macAddress == null) {
-            callback(Result.success(false))
-            return
-        }
-        try {
-            YCBTClient.reconnectDevice(macAddress) { code ->
-                Log.e("RECONNECT BLE", "CODE = $code")
-                Log.e(YUCHENG_API, "RECONNECT, CODE = $code")
-                if (code == 0) {
-                    val isConnected = isConnected()
-                    if (!isConnected) {
-                        Log.d(YUCHENG_API, "Test when isConnected = false")
-                        YCBTClient.startScanBle({ _, device ->
-                            Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
-                            val deviceMac = device.deviceMac
-                            if (deviceMac == null) {
-                                Log.d(YUCHENG_API, "code == 0, deviceMac is null")
-                                return@startScanBle
-                            }
-                            if (deviceMac == macAddress) {
-                                Log.d(
-                                    YUCHENG_API,
-                                    "DEVICE FOUND! Device: ${device.deviceName}:${device.deviceMac}, Mac: $macAddress"
-                                )
-                                val deviceDevice = device.device
-                                if (deviceDevice == null) {
-                                    Log.d(YUCHENG_API, "code == 0, device.device is null")
-                                    return@startScanBle
-                                }
-                                YCBTClient.connectBleDevice(deviceDevice) { code ->
-                                    Log.d(YUCHENG_API, "Try connect, code = $code")
-                                    if (code == 0) {
-                                        val isConnected = isConnected()
-                                        if (isConnected) {
-                                            Log.d(
-                                                YUCHENG_API,
-                                                "Code = 0, isConnected = false, but CONNECTED!"
-                                            )
-                                            val macAddress = device.deviceMac
-                                            val deviceName = device.deviceName
-                                            if (macAddress == null || deviceName == null) {
-                                                Log.d(
-                                                    YUCHENG_API,
-                                                    "macAddress = $macAddress, deviceName = $deviceName, NULL!"
-                                                )
-                                                if (!completer.isCompleted) {
-                                                    completer.complete(false)
-                                                    return@connectBleDevice
-                                                }
-                                            }
-                                            val ycDevice =
-                                                YuchengDevice(index++, deviceName, macAddress, true)
-                                            selectedDevice = ycDevice
-                                            onDevice(
-                                                YuchengDeviceDataEvent(
-                                                    ycDevice.index,
-                                                    ycDevice.uuid,
-                                                    ycDevice.isReconnected,
-                                                    ycDevice.deviceName,
-                                                )
-                                            )
-                                            if (!completer.isCompleted) {
-                                                Log.d(
-                                                    YUCHENG_API,
-                                                    "Completer is NOT completed, value = true"
-                                                )
-                                                completer.complete(
-                                                    true
-                                                )
-                                            } else {
-                                                Log.d(YUCHENG_API, "Completed is completed")
-                                            }
-                                            YCBTClient.stopScanBle()
-                                        } else {
-                                            if (!completer.isCompleted) {
-                                                Log.d(
-                                                    YUCHENG_API,
-                                                    "Completer is NOT completed, value = false"
-                                                )
-                                                completer.complete(
-                                                    false
-                                                )
-                                            } else {
-                                                Log.d(YUCHENG_API, "Completed is completed")
-                                            }
-                                        }
-                                    } else {
-                                        Log.d(
-                                            YUCHENG_API,
-                                            "Code != 0, isConnected = false, cant connect"
-                                        )
-                                    }
-                                }
-                            }
-                        }, SCAN_PERIOD)
-                    } else {
-                        Log.d(YUCHENG_API, "NORMAL RECONNECT")
-                        val macAddress = YCBTClient.getBindDeviceMac()
-                        val deviceName = YCBTClient.getBindDeviceName()
-                        if (macAddress == null || deviceName == null) {
-                            Log.d(
-                                YUCHENG_API,
-                                "macAddress = $macAddress, deviceName = $deviceName, NULL!"
-                            )
-                            if (!completer.isCompleted) {
-                                completer.complete(false)
-                            }
-                            return@reconnectDevice
-                        }
-                        val ycDevice = YuchengDevice(index++, deviceName, macAddress, true)
-                        selectedDevice = ycDevice
-                        onDevice(
-                            YuchengDeviceDataEvent(
-                                ycDevice.index,
-                                ycDevice.uuid,
-                                ycDevice.isReconnected,
-                                ycDevice.deviceName,
-                            )
-                        )
-                        if (!completer.isCompleted) completer.complete(true)
-                    }
-                } else {
-                    Log.d(YUCHENG_API, "Test when cant reconnect (code != 0)")
-                    YCBTClient.startScanBle({ _, device ->
-                        Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
-                        if (device == null) {
-                            return@startScanBle
-                        }
-                        val deviceMac = device.deviceMac
-                        if (deviceMac == null) {
-                            Log.d(YUCHENG_API, "code != 0, deviceMac is null")
-                            return@startScanBle
-                        }
-                        if (deviceMac == macAddress) {
-                            Log.d(
-                                YUCHENG_API,
-                                "DEVICE FOUND! Device: ${device.deviceName}:$deviceMac, Mac: $macAddress"
-                            )
-                            val deviceDevice = device.device
-                            if (deviceDevice == null) {
-                                Log.d(YUCHENG_API, "code != 0, device.device is null")
-                                return@startScanBle
-                            }
-                            YCBTClient.connectBleDevice(deviceDevice) { code ->
-                                Log.d(YUCHENG_API, "Try connect, code = $code")
-                                if (code == 0) {
-                                    Log.d(YUCHENG_API, "Code = 0, device connected!")
-                                    val isConnected = isConnected()
-                                    if (isConnected) {
-                                        Log.d(
-                                            YUCHENG_API,
-                                            "Code = 0, isConnected = true, but CONNECTED!"
-                                        )
-                                        val macAddress = deviceMac
-                                        val deviceName = device.deviceName
-                                        if (deviceName == null) {
-                                            Log.d(
-                                                YUCHENG_API,
-                                                "macAddress = $macAddress, deviceName = $deviceName, NULL!"
-                                            )
-                                            if (!completer.isCompleted) {
-                                                completer.complete(false)
-                                                return@connectBleDevice
-                                            }
-                                        }
-                                        val ycDevice =
-                                            YuchengDevice(index++, deviceName, macAddress, true)
-                                        selectedDevice = ycDevice
-                                        onDevice(
-                                            YuchengDeviceDataEvent(
-                                                ycDevice.index,
-                                                ycDevice.uuid,
-                                                ycDevice.isReconnected,
-                                                ycDevice.deviceName,
-                                            )
-                                        )
-                                        if (!completer.isCompleted) {
-                                            Log.d(
-                                                YUCHENG_API,
-                                                "Completer is NOT completed, value = true"
-                                            )
-                                            completer.complete(
-                                                true
-                                            )
-                                        } else {
-                                            Log.d(YUCHENG_API, "Completer is completed")
-                                        }
-                                        YCBTClient.stopScanBle()
-                                    } else {
-                                        if (!completer.isCompleted) {
-                                            Log.d(
-                                                YUCHENG_API,
-                                                "Completer is NOT completed, value = false"
-                                            )
-                                            completer.complete(
-                                                false
-                                            )
-                                        } else {
-                                            Log.d(YUCHENG_API, "Completer is completed")
-                                        }
-                                    }
-                                } else {
-                                    Log.d(
-                                        YUCHENG_API,
-                                        "Code != 0, isConnected = false, cant connect"
-                                    )
-                                }
-                            }
-                        }
-                    }, SCAN_PERIOD)
-                }
-            }
-        } catch (e: Exception) {
-            if (!completer.isCompleted) completer.completeExceptionally(e)
-        }
-        GlobalScope.launch {
+
+        CoroutineScope(Dispatchers.IO).launch {
             try {
-                val reconnect = completer.await()
+                val reconnect = YuchengCore.reconnect(
+                    uuid = uuid,
+                    reconnectTimeInSeconds = reconnectTimeInSeconds ?: (TIME_TO_TIMEOUT * 6),
+                    scanPeriod = SCAN_PERIOD,
+                    onDevice = onDevice
+                )
                 Log.e(YUCHENG_API, "RECONNECT DONE: $reconnect")
                 val state = YCBTClient.connectState()
                 Log.d(YUCHENG_API, "Connect state = $state")
                 callback(Result.success(reconnect))
             } catch (e: Exception) {
                 Log.e(YUCHENG_API, "RECONNECT EXCEPTION: $e")
-                callback(Result.failure(e))
+                if (e is TimeoutCancellationException) {
+                    onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
+                    callback(Result.success(false))
+                } else {
+                    callback(Result.failure(e))
+                }
             }
-        }
-        GlobalScope.launch {
-            val timeout = (reconnectTimeInSeconds ?: (TIME_TO_TIMEOUT * 6))
-            delay(1000 * timeout)
-            if (completer.isCompleted) return@launch
-            Log.d(YUCHENG_API, "RECONNECT TIMEOUT")
-            onState(YuchengDeviceStateTimeOutEvent(isTimeout = true))
-            completer.complete(false)
         }
     }
 
     override fun disconnect(callback: (Result<Unit>) -> Unit) {
         Log.d(YUCHENG_API, "Start disconnect")
         try {
-            YCBTClient.disconnectBle()
-            selectedDevice = null
+            YuchengCore.disconnect()
             callback(Result.success(Unit))
-            Log.d(YUCHENG_API, "Disconnect successful!")
         } catch (e: Exception) {
             Log.e(YUCHENG_API, e.toString())
             callback(Result.failure(e))
-        }
-    }
-
-    suspend fun getSleepData(
-        skipHandler: Boolean = false,
-        startTimestamp: Long,
-        endTimestamp: Long,
-    ): List<YuchengSleepData> {
-        Log.d(YUCHENG_API, "Get sleep data")
-        Log.d(GET_SLEEP_DATA, "Get sleep data")
-        if (!isConnected()) {
-            Log.d(YUCHENG_API, "No connection")
-            Log.d(GET_SLEEP_DATA, "No connection")
-            throw NoConnectionException()
-        }
-        val sleepDataCompleter = CompletableDeferred<List<YuchengSleepData>>()
-        val sleepDataList: MutableList<YuchengSleepData> = mutableListOf()
-        try {
-            YCBTClient.healthHistoryData(
-                Constants.DATATYPE.Health_HistorySleep
-            ) { code, ratio, data ->
-                if (data != null) {
-                    val sleepData = data["data"] as? List<*>? ?: return@healthHistoryData
-                    val mappedSleep = sleepData.map {
-                        val yuchengSleepData = sleepDataConverter.convert(it)
-                        return@map yuchengSleepData
-                    }.filter {
-                        val isInRange =
-                            it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
-                        return@filter isInRange
-                    }
-                    sleepDataList.addAll(mappedSleep)
-                    if (!skipHandler) {
-                        for (sleep in sleepDataList) {
-                            val ycDataEvent = YuchengSleepDataEvent(sleep)
-                            onSleepData(ycDataEvent)
-                        }
-                    }
-                    Log.d(GET_SLEEP_DATA, mappedSleep.toString())
-                    Log.d(YUCHENG_API, mappedSleep.toString())
-                } else {
-                    Log.e(GET_SLEEP_DATA, "NO SLEEP DATA")
-                    Log.e(YUCHENG_API, "NO SLEEP DATA")
-                }
-                Log.d("SLEEP CODE", code.toString())
-                Log.d("SLEEP RATIO", ratio.toString())
-                if (!sleepDataCompleter.isCompleted) sleepDataCompleter.complete(sleepDataList)
-            }
-        } catch (e: Exception) {
-            if (!sleepDataCompleter.isCompleted) sleepDataCompleter.completeExceptionally(e)
-        }
-        try {
-            val sleepData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) { sleepDataCompleter.await() }
-            if (sleepData == null) {
-                if (!skipHandler) {
-                    for (sleep in sleepDataList) {
-                        val ycDataEvent = YuchengSleepDataEvent(sleep)
-                        onSleepData(ycDataEvent)
-                    }
-                }
-                onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
-            }
-            return sleepData ?: sleepDataList
-        } catch (e: Exception) {
-            Log.e(YUCHENG_API, "Error when get sleep data: $e")
-            Log.e(GET_SLEEP_DATA, "Error when get sleep data:$e")
-            throw e
         }
     }
 
@@ -589,7 +210,12 @@ class YuchengApiImpl(
                 val default = StartEndTimestamp.default()
                 val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
-                val sleepData = getSleepData(startTimestamp = start, endTimestamp = end)
+                val sleepData = YuchengCore.getSleepData(
+                    startTimestamp = start,
+                    endTimestamp = end,
+                    sleepDataConverter = sleepDataConverter,
+                    onSleepData = onSleepData
+                )
                 callback(Result.success(sleepData))
             } catch (e: Exception) {
                 callback(Result.failure(e))
@@ -617,100 +243,6 @@ class YuchengApiImpl(
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
-    suspend fun getHealthSportData(
-        skipHandler: Boolean = false,
-        startTimestamp: Long,
-        endTimestamp: Long,
-    ): YuchengHealthSportData {
-        Log.d(YUCHENG_API, "Get health data")
-        if (!isConnected()) {
-            Log.d(YUCHENG_API, "No connection")
-            throw NoConnectionException()
-        }
-        val healthDataCompleter = CompletableDeferred<List<YuchengHealthData>>()
-        val healthDataList: MutableList<YuchengHealthData> = mutableListOf()
-        val sportDataCompleter = CompletableDeferred<List<YuchengSportData>>()
-        val sportDataList: MutableList<YuchengSportData> = mutableListOf()
-        try {
-            YCBTClient.healthHistoryData(Constants.DATATYPE.Health_HistorySport) { code, ratio, data ->
-                if (data != null) {
-                    val sportData = data["data"] as? List<*>? ?: return@healthHistoryData
-                    val mappedSport = sportData.map {
-                        val yuchengSportData = sportDataConverter.convert(it)
-                        return@map yuchengSportData
-                    }.filter {
-                        val isInRange =
-                            it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
-                        return@filter isInRange
-                    }
-                    sportDataList.addAll(mappedSport)
-                    Log.d(YUCHENG_API, "No sport data converted: $mappedSport")
-                } else {
-                    Log.e(YUCHENG_API, "NO SPORT DATA")
-                }
-                Log.d("SPORT CODE", code.toString())
-                Log.d("SPORT RATIO", ratio.toString())
-                if (!sportDataCompleter.isCompleted) {
-                    sportDataCompleter.complete(sportDataList)
-                }
-            }
-            YCBTClient.healthHistoryData(
-                Constants.DATATYPE.Health_HistoryAll
-            ) { code, ratio, data ->
-                if (data != null) {
-                    val healthData = data["data"] as? List<*>? ?: return@healthHistoryData
-                    val healthDatas = healthData.map {
-                        val yuchengHealthData = healthDataConverter.convert(it)
-                        return@map yuchengHealthData
-                    }.filter {
-                        it.startTimestamp in startTimestamp..endTimestamp
-                    }
-                    healthDataList.addAll(healthDatas)
-                    Log.d(YUCHENG_API, "HEALTH DATA CONVERTED$healthDatas")
-                } else {
-                    Log.e(YUCHENG_API, "NO HEALTH DATA")
-                }
-                Log.d("HEALTH CODE", code.toString())
-                Log.d("HEALTH RATIO", ratio.toString())
-                if (!healthDataCompleter.isCompleted) {
-                    healthDataCompleter.complete(healthDataList)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(GET_HEALTH_DATA, "Error when get health sport data: $e")
-            Log.e(YUCHENG_API, "Error when get health sport data: $e")
-            if (!healthDataCompleter.isCompleted) {
-                healthDataCompleter.completeExceptionally(e)
-            }
-        }
-
-        try {
-            val healthData =
-                withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
-                    healthDataCompleter.await()
-                }
-            val sportData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
-                sportDataCompleter.await()
-            }
-
-            Log.d(YUCHENG_API, "HEALTH DATA: $healthData")
-            Log.d(YUCHENG_API, "SPORT DATA: $sportData")
-            if (!skipHandler) {
-                val healthSportData = YuchengHealthSportData(healthDataList, sportDataList)
-                val ycDataEvent = YuchengHealthDataEvent(healthSportData)
-                onHealthData(ycDataEvent)
-            }
-            if (healthData == null || sportData == null) {
-                onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
-            }
-            return YuchengHealthSportData(healthData ?: healthDataList, sportData ?: sportDataList)
-        } catch (e: Exception) {
-            Log.e(YUCHENG_API, "Error when get health sport data: $e")
-            throw e
-        }
-    }
-
     @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(DelicateCoroutinesApi::class)
     override fun getHealthSportData(
@@ -723,7 +255,13 @@ class YuchengApiImpl(
                 val default = StartEndTimestamp.default()
                 val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
-                val healthData = getHealthSportData(startTimestamp = start, endTimestamp = end)
+                val healthData = YuchengCore.getHealthSportData(
+                    startTimestamp = start,
+                    endTimestamp = end,
+                    sportDataConverter = sportDataConverter,
+                    healthDataConverter = healthDataConverter,
+                    onHealthData = onHealthData
+                )
                 Log.d(YUCHENG_API, "Health sport data success")
                 callback(Result.success(healthData))
             } catch (e: Exception) {
@@ -741,7 +279,7 @@ class YuchengApiImpl(
     ) {
         Log.d(GET_SLEEP_HEALTH_DATA, "Start get sleep health data")
         val empty = YuchengAllData(listOf(), YuchengHealthSportData(listOf(), listOf()))
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(GET_SLEEP_HEALTH_DATA, "No connection")
             callback(Result.failure(NoConnectionException()))
         }
@@ -752,9 +290,19 @@ class YuchengApiImpl(
                 val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
                 val sleepData =
-                    getSleepData(skipHandler = true, startTimestamp = start, endTimestamp = end)
-                val healthData = getHealthSportData(
-                    skipHandler = true, startTimestamp = start, endTimestamp = end
+                    YuchengCore.getSleepData(
+                        skipHandler = true,
+                        startTimestamp = start,
+                        endTimestamp = end,
+                        sleepDataConverter = sleepDataConverter,
+                        onSleepData = onSleepData
+                    )
+                val healthData = YuchengCore.getHealthSportData(
+                    skipHandler = true, startTimestamp = start,
+                    endTimestamp = end,
+                    sportDataConverter = sportDataConverter,
+                    healthDataConverter = healthDataConverter,
+                    onHealthData = onHealthData
                 )
                 val sleepHealthData = YuchengAllData(sleepData, healthData)
                 Log.d(GET_SLEEP_HEALTH_DATA, "Sleep Health data = $sleepHealthData")
@@ -793,7 +341,7 @@ class YuchengApiImpl(
         Log.d(YUCHENG_API, "Get device settings")
         val completer = CompletableDeferred<YuchengDeviceSettings?>()
 
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             completer.completeExceptionally(NoConnectionException())
         }
@@ -846,7 +394,7 @@ class YuchengApiImpl(
         Log.d(YUCHENG_API, "Delete sleep data")
         val completer = CompletableDeferred<Boolean>()
 
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             completer.complete(false)
         }
@@ -933,7 +481,7 @@ class YuchengApiImpl(
         Log.d(YUCHENG_API, "Reset to factory")
         val completer = CompletableDeferred<Boolean>()
 
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             completer.complete(false)
         }
@@ -1209,34 +757,38 @@ class YuchengApiImpl(
                                 Log.d(YUCHENG_API, "DEVICETOAPP type = $type")
                                 Log.d(YUCHENG_API, "DEVICETOAPP result = $result")
                                 if (result == 1) {
-                                    if (type == REAL_HEART_RATE_TYPE) {
-                                        val sum = heartRates.reduce { prev, next -> prev + next }
-                                        var count = heartRates.count()
-                                        count = if (count < 1) 1 else count
-                                        val mean = sum / count
-                                        Log.d(YUCHENG_API, "Heart rate mean: $mean")
-                                        heartRateCompleter.complete(mean)
-                                    } else if (type == REAL_BLOOD_OXYGEN_TYPE) {
-                                        val sum = bloodOxygens.reduce { prev, next -> prev + next }
-                                        var count = bloodOxygens.count()
-                                        count = if (count < 1) 1 else count
-                                        val mean = sum / count
-                                        Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
-                                        bloodOxygenCompleter.complete(mean)
-                                    } else if (type == REAL_BLOOD_PRESSURE_TYPE) {
-                                        var count = bloodPressures.count()
-                                        count = if (count < 1) 1 else count
-                                        val sumDbp = bloodPressures.sumOf { item -> item.dbp }
-                                        val meanDbp = sumDbp / count
-                                        val sumSbp = bloodPressures.sumOf { item -> item.sbp }
-                                        val meanSbp = sumSbp / count
-                                        Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
-                                        Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
-                                        bloodPressureCompleter.complete(
-                                            MeanBloodPressure(
-                                                sbp = meanSbp, dbp = meanDbp
+                                    when (type) {
+                                        REAL_HEART_RATE_TYPE -> {
+                                            val sum = heartRates.reduce { prev, next -> prev + next }
+                                            var count = heartRates.count()
+                                            count = if (count < 1) 1 else count
+                                            val mean = sum / count
+                                            Log.d(YUCHENG_API, "Heart rate mean: $mean")
+                                            heartRateCompleter.complete(mean)
+                                        }
+                                        REAL_BLOOD_OXYGEN_TYPE -> {
+                                            val sum = bloodOxygens.reduce { prev, next -> prev + next }
+                                            var count = bloodOxygens.count()
+                                            count = if (count < 1) 1 else count
+                                            val mean = sum / count
+                                            Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
+                                            bloodOxygenCompleter.complete(mean)
+                                        }
+                                        REAL_BLOOD_PRESSURE_TYPE -> {
+                                            var count = bloodPressures.count()
+                                            count = if (count < 1) 1 else count
+                                            val sumDbp = bloodPressures.sumOf { item -> item.dbp }
+                                            val meanDbp = sumDbp / count
+                                            val sumSbp = bloodPressures.sumOf { item -> item.sbp }
+                                            val meanSbp = sumSbp / count
+                                            Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
+                                            Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
+                                            bloodPressureCompleter.complete(
+                                                MeanBloodPressure(
+                                                    sbp = meanSbp, dbp = meanDbp
+                                                )
                                             )
-                                        )
+                                        }
                                     }
                                 }
                             }
@@ -1364,7 +916,7 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun startMeasurementBloodOxygen(callback: (Result<Long?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodOxygen")
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             callback(Result.failure(NoConnectionException()))
             return
@@ -1417,7 +969,7 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun startMeasurementHeart(callback: (Result<Long?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeHeart")
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             callback(Result.failure(NoConnectionException()))
             return
@@ -1469,7 +1021,7 @@ class YuchengApiImpl(
     @OptIn(DelicateCoroutinesApi::class)
     override fun startMeasurementBloodPressure(callback: (Result<RealTimeBloodPressure?>) -> Unit) {
         Log.d(YUCHENG_API, "START getRealTimeBloodPressure")
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             callback(Result.failure(NoConnectionException()))
             return
@@ -1599,13 +1151,13 @@ class YuchengApiImpl(
         callback: (Result<Boolean>) -> Unit
     ) {
         Log.d(YUCHENG_API, "START calibrateBloodPressure sbp = $sbp dbp = $dbp")
-        if (!isConnected()) {
+        if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             callback(Result.failure(NoConnectionException()))
             return
         }
         val completed = CompletableDeferred<Boolean>()
-        YCBTClient.appBloodCalibration(sbp.toInt(), dbp.toInt(), { code, _, _ ->
+        YCBTClient.appBloodCalibration(sbp.toInt(), dbp.toInt()) { code, _, _ ->
             if (completed.isCompleted) return@appBloodCalibration
             val isCompleted = code == 0
             if (isCompleted) {
@@ -1614,7 +1166,7 @@ class YuchengApiImpl(
                 Log.d(YUCHENG_API, "Calibration is NOT completed")
             }
             completed.complete(isCompleted)
-        })
+        }
 
         GlobalScope.launch {
             try {
@@ -1708,38 +1260,14 @@ class YuchengApiImpl(
         return meanValue
     }
 
-    private fun isConnected(): Boolean {
-        val state = YCBTClient.connectState()
-        Log.d(YUCHENG_API, "isConnected(): CONNECT STATE = $state")
-        return YCBTClient.connectState() >= 6
-    }
-
     companion object {
         private const val REAL_BLOOD_OXYGEN_TYPE = 2
         private const val REAL_HEART_RATE_TYPE = 0
         private const val REAL_BLOOD_PRESSURE_TYPE = 1
         private const val YUCHENG_API = "YUCH_API"
-        private const val GET_SLEEP_DATA = "$YUCHENG_API GET_SLEEP_DATA"
-        private const val GET_HEALTH_DATA = "$YUCHENG_API GET_HEALTH_DAT"
         private const val GET_SLEEP_HEALTH_DATA = "GET_SLEEP_HEALTH_DATA"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"
         private const val UPDATE_FIRMWARE = "$YUCHENG_API UPDATE_FIRM"
-    }
-}
-
-private data class StartEndTimestamp(val start: Long, val end: Long) {
-    @RequiresApi(Build.VERSION_CODES.O)
-    companion object {
-        private const val DEFAULT_START_DATE_OFFSET: Long = 8
-        fun default(): StartEndTimestamp {
-            val startDate =
-                Instant.now().atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay()
-            val start: Long = (startDate.minusDays(DEFAULT_START_DATE_OFFSET)
-                .toEpochSecond(ZoneOffset.UTC) * 1000)
-            val end: Long = (startDate.plusDays(1).toLocalDate().atStartOfDay()
-                .toEpochSecond(ZoneOffset.UTC) * 1000)
-            return StartEndTimestamp(start, end)
-        }
     }
 }

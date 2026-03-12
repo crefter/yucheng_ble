@@ -38,7 +38,7 @@ private class SleepData(
     var sleepType: Int, // deepSleepLightSleep flag, flag type is SleepType below)
 )
 
-class YuchengSleepDataConverter(private val gson: Gson) {
+open class YuchengSleepDataConverter(private val gson: Gson) {
     fun convert(sleepDataBean: Any?): YuchengSleepData {
         val converted = gson.fromJson(sleepDataBean.toString(), SleepDataBean::class.java)
         val deepSleepCount = converted.deepSleepCount.toLong()
