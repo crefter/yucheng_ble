@@ -20,9 +20,6 @@ import com.crefter.yuchengplugin.yucheng_ble.YuchengHealthSportData
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepData
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepDataConverter
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSportDataConverter
-import com.crefter.yuchengplugin.yucheng_ble.data.local.DataStorage
-import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengBleStorage
-import com.crefter.yuchengplugin.yucheng_ble.data.local.yuchengBleStore
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.ApiClient
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengApiConfig
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengAuthInterceptor
@@ -57,13 +54,11 @@ class YuchengBleService : Service() {
     private var gson: Gson? = null
     private var job: Job? = null
     private var delayInMinutes: Int = defaultDelay
-    private var yuchengStorage: YuchengBleStorage? = null
 
     override fun onCreate() {
         super.onCreate()
         isRunning.value = true
         Log.e(YUCH_TAG, "Service: onCreate: begin!")
-        yuchengStorage = YuchengBleStorage(DataStorage(applicationContext.yuchengBleStore))
         gson = GsonBuilder().create()
         YuchengCore.init(applicationContext)
     }
@@ -145,7 +140,7 @@ class YuchengBleService : Service() {
         if (job?.isActive != true) {
             job = scope.launch {
                 while (isActive) {
-                    delayInMinutes = yuchengStorage?.readDelay() ?: defaultDelay
+                    delayInMinutes = YuchengCore.storage?.readDelay() ?: defaultDelay
                     Log.e(
                         YUCH_TAG,
                         "Service: onStartCommand: Service delay in minutes = $delayInMinutes"
