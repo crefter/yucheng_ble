@@ -5,6 +5,7 @@ import 'package:pigeon/pigeon.dart';
 // TODO: добавить метод для передачи access/refresh токена. А также его чтения из плагина.
 // TODO: токен хранить в защищенном хранилище: андройд, уточнить, что юзать, ios - Keychain
 // TODO: подумать над тем, как сделать включение сервиса - думаю, лучше по кнопке, чтобы можно было еще запросить разрешение
+// TODO: добавить разрешение на notification для включения/отключения сервиса
 // TODO: Сделать отправку данных на сервер
 // #docregion config
 @ConfigurePigeon(PigeonOptions(
@@ -386,6 +387,18 @@ class RealTimeBloodPressure {
   });
 }
 
+class YuchengToken {
+  final String access;
+  final String refresh;
+  final int expiresAtTimestamp;
+
+  const YuchengToken({
+    required this.access,
+    required this.refresh,
+    required this.expiresAtTimestamp,
+  });
+}
+
 @HostApi()
 abstract class YuchengHostApi {
   /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
@@ -496,6 +509,24 @@ abstract class YuchengHostApi {
 
   @async
   bool calibrateBloodPressure(int sbp, int dbp);
+
+  @async
+  bool turnOnBackgroundService(int delayInMinutes);
+
+  @async
+  bool turnOffBackgroundService();
+
+  @async
+  bool canLaunchBackgroundService();
+
+  @async
+  void setFlavor(String flavorName);
+
+  @async
+  void setToken(YuchengToken token);
+
+  @async
+  YuchengToken? getToken();
 }
 
 @EventChannelApi()

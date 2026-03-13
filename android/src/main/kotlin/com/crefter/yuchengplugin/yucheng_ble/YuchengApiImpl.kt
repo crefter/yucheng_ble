@@ -1,31 +1,6 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
 
-import RealTimeBloodPressure
-import YuchengAllData
-import YuchengAllDataEvent
-import YuchengAllErrorEvent
-import YuchengAllEvent
-import YuchengAllTimeOutEvent
-import YuchengDevice
-import YuchengDeviceCompleteEvent
-import YuchengDeviceEvent
-import YuchengDeviceSettings
-import YuchengDeviceStateEvent
-import YuchengDeviceStateTimeOutEvent
-import YuchengHealthData
-import YuchengHealthDataEvent
-import YuchengHealthEvent
-import YuchengHealthSportData
-import YuchengHostApi
-import YuchengSleepData
-import YuchengSleepEvent
-import YuchengSportData
-import YuchengUpdateCompleteEvent
-import YuchengUpdateErrorEvent
-import YuchengUpdateEvent
-import YuchengUpdateProgressEvent
-import YuchengUpdateStartEvent
 import android.content.Context
 import android.os.Build
 import android.os.Handler
@@ -33,6 +8,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.crefter.yuchengplugin.yucheng_ble.entity.StartEndTimestamp
+import com.crefter.yuchengplugin.yucheng_ble.service.YuchengBleService
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.bean.ScanDeviceBean
@@ -45,10 +21,12 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.Calendar
 import kotlin.math.roundToLong
 
 
@@ -759,21 +737,25 @@ class YuchengApiImpl(
                                 if (result == 1) {
                                     when (type) {
                                         REAL_HEART_RATE_TYPE -> {
-                                            val sum = heartRates.reduce { prev, next -> prev + next }
+                                            val sum =
+                                                heartRates.reduce { prev, next -> prev + next }
                                             var count = heartRates.count()
                                             count = if (count < 1) 1 else count
                                             val mean = sum / count
                                             Log.d(YUCHENG_API, "Heart rate mean: $mean")
                                             heartRateCompleter.complete(mean)
                                         }
+
                                         REAL_BLOOD_OXYGEN_TYPE -> {
-                                            val sum = bloodOxygens.reduce { prev, next -> prev + next }
+                                            val sum =
+                                                bloodOxygens.reduce { prev, next -> prev + next }
                                             var count = bloodOxygens.count()
                                             count = if (count < 1) 1 else count
                                             val mean = sum / count
                                             Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
                                             bloodOxygenCompleter.complete(mean)
                                         }
+
                                         REAL_BLOOD_PRESSURE_TYPE -> {
                                             var count = bloodPressures.count()
                                             count = if (count < 1) 1 else count
@@ -1182,6 +1164,117 @@ class YuchengApiImpl(
             if (completed.isCompleted) return@launch
 
             callback(Result.failure(Exception("Timeout")))
+        }
+    }
+
+    override fun turnOnBackgroundService(
+        delayInMinutes: Long,
+        callback: (Result<Boolean>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                YuchengCore.storage?.saveServiceOn(true)
+                YuchengCore.storage?.saveDelay(delayInMinutes.toInt())
+                withContext(Dispatchers.Main) {
+                    if (activity != null) {
+                        YuchengBleService.restartService(activity!!)
+                    }
+                    callback(Result.success(true))
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(false))
+                }
+            }
+        }
+    }
+
+    override fun turnOffBackgroundService(callback: (Result<Boolean>) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                YuchengCore.storage?.saveServiceOn(false)
+                if (activity != null) {
+                    YuchengBleService.stopService(activity!!)
+                }
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(true))
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(false))
+                }
+            }
+        }
+    }
+
+    override fun canLaunchBackgroundService(callback: (Result<Boolean>) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val serviceOn = YuchengCore.storage?.readServiceOn() ?: false
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(serviceOn))
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(false))
+                }
+            }
+        }
+    }
+
+    override fun setFlavor(
+        flavorName: String,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                YuchengCore.storage?.saveFlavor(flavorName)
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(Unit))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
+            }
+        }
+    }
+
+    override fun setToken(
+        token: YuchengToken,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                YuchengCore.tokenStorage?.saveTokens(token.access, token.refresh)
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(Unit))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
+            }
+        }
+    }
+
+    override fun getToken(callback: (Result<YuchengToken?>) -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val access = YuchengCore.tokenStorage?.getAccessToken()
+                val refresh = YuchengCore.tokenStorage?.getRefreshToken()
+                if (access == null || refresh == null) {
+                    callback(Result.success(null))
+                }
+                val timestamp = Calendar.getInstance().timeInMillis
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(YuchengToken(access!!, refresh!!, timestamp)))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
+            }
         }
     }
 

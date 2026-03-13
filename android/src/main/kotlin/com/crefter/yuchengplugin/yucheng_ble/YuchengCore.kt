@@ -1,33 +1,29 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
-import YuchengDevice
-import YuchengDeviceCompleteEvent
-import YuchengDeviceDataEvent
-import YuchengDeviceEvent
-import YuchengDeviceTimeOutEvent
-import YuchengHealthData
-import YuchengHealthDataEvent
-import YuchengHealthEvent
-import YuchengHealthSportData
-import YuchengHealthTimeOutEvent
-import YuchengSleepData
-import YuchengSleepDataEvent
-import YuchengSleepEvent
-import YuchengSleepTimeOutEvent
-import YuchengSportData
 import android.content.Context
 import android.util.Log
+import com.crefter.yuchengplugin.yucheng_ble.data.local.DataStorage
+import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengBleStorage
+import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
+import com.crefter.yuchengplugin.yucheng_ble.data.local.yuchengBleStore
+import com.crefter.yuchengplugin.yucheng_ble.data.local.yuchengEncryptedDataStore
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.bean.ScanDeviceBean
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 
 object YuchengCore {
-    private const val YUCHENG_API = "YUCH_API"
+    private const val YUCHENG_API = "YUCH_API Core"
     private const val GET_SLEEP_DATA = "$YUCHENG_API GET_SLEEP_DATA"
     private const val GET_HEALTH_DATA = "$YUCHENG_API GET_HEALTH_DAT"
     private const val TIME_TO_TIMEOUT: Long = 15
@@ -35,10 +31,40 @@ object YuchengCore {
     private var deviceIndex: Long = 0
     private var selectedDevice: YuchengDevice? = null
     private var scannedDevices: MutableSet<ScanDeviceBean> = mutableSetOf()
+    private var canLaunchJob: Job? = null
+    private var isInit = false
+    private val lock = Any()
+    var storage: YuchengBleStorage? = null
+    var serviceOn: Boolean = false
+    var connectState = MutableStateFlow(3)
+    var tokenStorage: YuchengTokenStorage? = null
     fun init(context: Context) {
         Log.e(YUCHENG_API, "YCBTClient Init!")
-        YCBTClient.initClient(context, true)
-        YCBTClient.setReconnect(true)
+        if (isInit) return
+        synchronized(lock) {
+            if (isInit) return
+            YCBTClient.initClient(context, true)
+            YCBTClient.setReconnect(true)
+            isInit = true
+        }
+        storage = YuchengBleStorage(DataStorage(context.yuchengBleStore))
+        tokenStorage = YuchengTokenStorage(DataStorage(context.yuchengEncryptedDataStore))
+        if (canLaunchJob != null) {
+            canLaunchJob?.cancel()
+            canLaunchJob = null
+        }
+        canLaunchJob = CoroutineScope(Dispatchers.IO).launch {
+            serviceOn = storage?.readServiceOn() ?: false
+            storage?.onServiceOn()?.collect {
+                Log.e(YUCHENG_API, "onServiceOn: $it")
+                if (it != null) {
+                    serviceOn = it
+                }
+            }
+        }
+        YCBTClient.registerBleStateChange {
+            connectState.value = it
+        }
     }
 
     fun addListenerState(listener: (state: Int) -> Unit) {
@@ -147,7 +173,12 @@ object YuchengCore {
         onDevice: (device: YuchengDeviceEvent) -> Unit = {}
     ): Boolean {
         val bindMac = YCBTClient.getBindDeviceMac()
-        Log.e(YUCHENG_API, "START RECONNECT, bindMac: $bindMac, deviceMac: $uuid")
+        delay(1000)
+        Log.e(YUCHENG_API, "START RECONNECT, bindMac: $bindMac, deviceMac: $uuid, isConnected = ${isConnected()}")
+        if (connectState.value == 5) {
+            Log.d(YUCHENG_API, "RECONNECT: device connecting, wait until state >= 6 (Connected)")
+            connectState.first { it >= Constants.BLEState.Connected }
+        }
         if (bindMac != null && uuid == bindMac && isConnected()) {
             Log.d(YUCHENG_API, "UUID == BIND MAC and CONNECTED!")
             val deviceName = YCBTClient.getBindDeviceName()

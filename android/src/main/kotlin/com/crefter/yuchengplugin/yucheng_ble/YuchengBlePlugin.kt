@@ -1,19 +1,11 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
-import DeviceStateStreamHandler
-import DevicesStreamHandler
-import SleepDataStreamHandler
-import YuchengDeviceStateDataEvent
-import YuchengHostApi
-import android.Manifest
 import android.app.Activity
-import android.content.Intent
-import android.os.Build
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.crefter.yuchengplugin.yucheng_ble.PathUtils.getExternalAppCachePath
 import com.crefter.yuchengplugin.yucheng_ble.ResourceUtils.copyFileFromAssets
 import com.crefter.yuchengplugin.yucheng_ble.service.YuchengBleService
@@ -23,12 +15,16 @@ import com.yucheng.ycbtsdk.Constants
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     private var activity: Activity? = null
+
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(PLUGIN_TAG, "Start attaching to engine")
@@ -108,7 +104,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         }
 
         YuchengHostApi.setUp(flutterPluginBinding.binaryMessenger, api)
-        YuchengCore.addListenerState(listener = {state -> stateListener(state)})
+        YuchengCore.addListenerState(listener = { state -> stateListener(state) })
     }
 
     fun stateListener(state: Int) {
@@ -157,8 +153,9 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        Log.e(PLUGIN_TAG, "onDetachedFromEngine")
         YuchengHostApi.setUp(binding.binaryMessenger, null)
-        YuchengCore.removeListenerState(listener = {state -> stateListener(state)})
+        YuchengCore.removeListenerState(listener = { state -> stateListener(state) })
         YuchengCore.dispose()
         devicesHandler?.detach()
         sleepDataHandler?.detach()
@@ -168,27 +165,39 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        Log.e(PLUGIN_TAG, "onAttachedToActivity")
         activity = binding.activity
         if (api != null) {
             api?.activity = activity
         }
-        // TODO: нужно запрашивать разрешение
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityCompat.requestPermissions(
-                activity!!,
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                1
-            )
-        }
-        // TODO: останавливаем сервис при аттаче
         if (activity != null) {
-            val intent = Intent(activity!!, YuchengBleService::class.java)
-            intent.action = "STOP_SERVICE"
-            activity!!.startService(intent)
+            if (YuchengCore.isConnected()) {
+                Log.e(PLUGIN_TAG, "onAttachedToActivity: disconnect!")
+                YuchengCore.disconnect()
+            }
+            if (ActivityCompat.checkSelfPermission(
+                    activity!!,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.e(PLUGIN_TAG, "onAttachedToActivity: permission granted!")
+                CoroutineScope(Dispatchers.Main).launch {
+                    val serviceOn = YuchengCore.storage?.readServiceOn() ?: false
+                    if (serviceOn) {
+                        Log.e(PLUGIN_TAG, "onAttachedToActivity: Service on, start!")
+                        YuchengBleService.restartService(activity!!)
+                    } else {
+                        Log.e(PLUGIN_TAG, "onAttachedToActivity: Service off, cant start!")
+                    }
+                }
+            } else {
+                Log.e(PLUGIN_TAG, "onAttachedToActivity: NO PERMISSION!")
+            }
         }
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
+        Log.e(PLUGIN_TAG, "onDetachedFromActivityForConfigChanges")
         activity = null
         if (api != null) {
             api?.activity = null
@@ -196,22 +205,23 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        Log.e(PLUGIN_TAG, "onReattachedToActivityForConfigChanges")
         activity = binding.activity
         if (api != null) {
             api?.activity = activity
         }
+        if (activity != null) {
+            YuchengBleService.stopService(activity!!)
+        }
     }
 
     override fun onDetachedFromActivity() {
-        // TODO: запускаем сервис при detach
-        if (activity != null) {
-            val intent = Intent(activity, YuchengBleService::class.java)
-            ContextCompat.startForegroundService(activity!!, intent)
-        }
+        Log.e(PLUGIN_TAG, "onDetachedFromActivity: start")
         activity = null
         if (api != null) {
             api?.activity = null
         }
+        Log.e(PLUGIN_TAG, "onDetachedFromActivity: end")
     }
 
     companion object {

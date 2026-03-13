@@ -87,6 +87,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   int? sbp;
   int? dbp;
   int interval = 60;
+  int serviceInterval = 1;
   late final TextEditingController sbpController;
   late final TextEditingController dbpController;
   final mac = '11:CE:9B:FE:0A:A8';
@@ -154,6 +155,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
     _service.sleepDataStream.listen(
       (event) {},
     );
+    _service.canLaunchBackgroundService();
   }
 
   @override
@@ -750,11 +752,69 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    TextField(
-                      decoration: InputDecoration(hintText: 'Введи интервал'),
-                      onChanged: (value) => setState(() {
-                        interval = int.tryParse(value) ?? 60;
-                      }),
+                    Align(
+                      child: Text(_service.canLaunchBackService
+                          ? "Сервис запустится в фоне!"
+                          : 'Сервис выключен и не будет запущен!'),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      child: SizedBox(
+                        width: 200,
+                        child: TextField(
+                          decoration: InputDecoration(
+                              hintText: 'Введи интервал для сервиса'),
+                          onChanged: (value) => setState(() {
+                            serviceInterval = int.tryParse(value) ?? 1;
+                          }),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final result =
+                                  await _service.turnOnBackgroundService(
+                                      delayInMinutes: serviceInterval);
+                              if (result && context.mounted) {
+                                _showSnackBar(context,
+                                    'Сервис будет запущен с интервалом = $serviceInterval!');
+                              }
+                            },
+                            child: Text(
+                                'Разрешить сервису включаться с интервалом $serviceInterval'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final isSet =
+                                  await _service.turnOffBackgroundService();
+                              if (isSet && context.mounted) {
+                                _showSnackBar(context,
+                                    'Сервис выключен и не будет запущен!');
+                              }
+                            },
+                            child: Text('Выключить сервис и не запускать'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Align(
+                      child: SizedBox(
+                        width: 200,
+                        child: TextField(
+                          decoration:
+                              InputDecoration(hintText: 'Введи интервал'),
+                          onChanged: (value) => setState(() {
+                            interval = int.tryParse(value) ?? 60;
+                          }),
+                        ),
+                      ),
                     ),
                     ElevatedButton(
                       onPressed: () async {

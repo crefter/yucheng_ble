@@ -116,6 +116,7 @@ dependencies {
 
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
 
     implementation 'com.scwang.smart:refresh-layout-kernel:2.0.1'      //核心必须依赖
     implementation 'com.scwang.smart:refresh-header-classics:2.0.1'    //经典刷新头
@@ -155,4 +156,9 @@ dependencies {
     implementation(name: 'JL_Watch_V1.13.1_11214-release', ext: 'aar')
     implementation(name: 'ycbtsdk-release', ext: 'aar')
     implementation 'com.google.code.gson:gson:2.10.1'
+    implementation "androidx.datastore:datastore-preferences:1.2.0"
+    implementation "androidx.datastore:datastore-preferences-core:1.2.0"
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0'
+    implementation("com.dayanruben:security-crypto-datastore:1.2.0-0.7")
+    implementation ("com.dayanruben:security-crypto-datastore-preferences:1.2.0-0.7")
 }

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:meta/meta.dart';
 import 'package:yucheng_ble/src/yucheng_ble.g.dart';
 
 @internal
@@ -15,6 +14,8 @@ base mixin YuchengServiceNotifiersMixin {
   final ValueNotifier<bool> isReconnectingNotifier = ValueNotifier(false);
   final ValueNotifier<bool> resetNotifier = ValueNotifier(false);
   final ValueNotifier<bool> updatingFirmwareNotifier = ValueNotifier(false);
+  final ValueNotifier<bool> canLaunchBackgroundServiceNotifier =
+      ValueNotifier(false);
 
   bool get isDeviceScanning => isDeviceScanningNotifier.value;
 
@@ -25,6 +26,7 @@ base mixin YuchengServiceNotifiersMixin {
   bool get isReconnecting => isReconnectingNotifier.value;
   bool get isReset => resetNotifier.value;
   bool get isUpgradingFirmware => updatingFirmwareNotifier.value;
+  bool get canLaunchBackService => canLaunchBackgroundServiceNotifier.value;
 
   YuchengDevice? get selectedDevice => selectedDeviceNotifier.value;
 
@@ -34,6 +36,11 @@ base mixin YuchengServiceNotifiersMixin {
       updatingFirmwareNotifier.addListener(callback);
   void cancelListenUpdatingFirmware(VoidCallback callback) =>
       updatingFirmwareNotifier.removeListener(callback);
+
+  void listenCanLaunchBackgroundService(VoidCallback callback) =>
+      canLaunchBackgroundServiceNotifier.addListener(callback);
+  void cancelCanLaunchBackgroundService(VoidCallback callback) =>
+      canLaunchBackgroundServiceNotifier.removeListener(callback);
 
   void listenDeviceScanning(VoidCallback callback) =>
       isDeviceScanningNotifier.addListener(callback);
@@ -80,6 +87,11 @@ base mixin YuchengServiceNotifiersMixin {
     isDeviceScanningNotifier.value = value;
   }
 
+  void setCanLaunchBackgroundService(bool value) {
+    if (wasDisposed) return;
+    canLaunchBackgroundServiceNotifier.value = value;
+  }
+
   void setDeviceConnected(bool value) {
     if (wasDisposed) return;
     isDeviceConnectedNotifier.value = value;
@@ -124,6 +136,7 @@ base mixin YuchengServiceNotifiersMixin {
     deviceSettingsNotifier.addListener(callback);
     resetNotifier.addListener(callback);
     updatingFirmwareNotifier.addListener(callback);
+    canLaunchBackgroundServiceNotifier.addListener(callback);
   }
 
   void cancelListenAll(VoidCallback callback) {
@@ -135,6 +148,7 @@ base mixin YuchengServiceNotifiersMixin {
     deviceSettingsNotifier.removeListener(callback);
     resetNotifier.removeListener(callback);
     updatingFirmwareNotifier.removeListener(callback);
+    canLaunchBackgroundServiceNotifier.removeListener(callback);
   }
 
   void disposeNotifiers() {
@@ -147,5 +161,6 @@ base mixin YuchengServiceNotifiersMixin {
     deviceSettingsNotifier.dispose();
     resetNotifier.dispose();
     updatingFirmwareNotifier.dispose();
+    canLaunchBackgroundServiceNotifier.dispose();
   }
 }

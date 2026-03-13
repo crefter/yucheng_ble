@@ -220,6 +220,42 @@ class MockYuchengBlePlatform
     // TODO: implement reconnect
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> turnOffBackgroundService() {
+    // TODO: implement turnOffBackgroundService
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> turnOnBackgroundService(int delayInMinutes) {
+    // TODO: implement turnOnBackgroundService
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> canLaunchBackgroundService() {
+    // TODO: implement canLaunchBackgroundService
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> setFlavor(String flavorName) {
+    // TODO: implement setFlavor
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<YuchengToken> getToken() {
+    // TODO: implement getToken
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> setToken(YuchengToken token) {
+    // TODO: implement setToken
+    throw UnimplementedError();
+  }
 }
 
 void main() {

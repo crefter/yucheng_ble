@@ -1,6 +1,5 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
-import YuchengSportData
 import com.google.gson.Gson
 
 private class YuchengSportBean(

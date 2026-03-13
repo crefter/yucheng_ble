@@ -1,7 +1,5 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
-import YuchengSleepData
-import YuchengSleepDataDetail
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.yucheng.ycbtsdk.Constants

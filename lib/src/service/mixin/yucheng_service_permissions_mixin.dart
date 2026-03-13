@@ -50,6 +50,12 @@ base mixin YuchengServicePermissionsMixin {
     return granted;
   }
 
+  Future<bool> requestNotificationPermission() async {
+    final status = await Permission.notification.request();
+    final isGranted = status.isGranted;
+    return isGranted;
+  }
+
   Future<bool> isPermissionsGranted() async {
     final permissions = await _permissions;
     final permissionsGranted =

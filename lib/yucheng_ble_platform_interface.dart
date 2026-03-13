@@ -166,4 +166,31 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError(
         'calibrateBloodPressure has not been implemented.');
   }
+
+  Future<bool> turnOnBackgroundService(int delayInMinutes) {
+    throw UnimplementedError(
+        'turnOnBackgroundService has not been implemented.');
+  }
+
+  Future<bool> turnOffBackgroundService() {
+    throw UnimplementedError(
+        'turnOffBackgroundService has not been implemented.');
+  }
+
+  Future<bool> canLaunchBackgroundService() {
+    throw UnimplementedError(
+        'canLaunchBackgroundService has not been implemented.');
+  }
+
+  Future<void> setFlavor(String flavorName) {
+    throw UnimplementedError('setFlavor has not been implemented.');
+  }
+
+  Future<void> setToken(YuchengToken token) {
+    throw UnimplementedError('setFlavor has not been implemented.');
+  }
+
+  Future<YuchengToken?> getToken() {
+    throw UnimplementedError('setFlavor has not been implemented.');
+  }
 }
