@@ -203,7 +203,16 @@ object YuchengCore {
         if (macAddress == null) {
             return false
         }
-        withContext(Dispatchers.Main) {
+        val jobAutoReconnect = CoroutineScope(Dispatchers.Main).launch {
+            Log.e(YUCHENG_API, "reconnect: start auto reconnect (listen state)")
+            connectState.first {it == Constants.BLEState.ReadWriteOK }
+            if (!completer.isCompleted) {
+                Log.e(YUCHENG_API, "reconnect: auto reconnect: complete!!!")
+                completer.complete(true)
+            }
+        }
+        val jobReconnect = CoroutineScope(Dispatchers.Main).launch {
+            Log.e(YUCHENG_API, "reconnect: start manual reconnect")
             try {
                 YCBTClient.reconnectDevice(macAddress) { code ->
                     Log.e("RECONNECT BLE", "CODE = $code")
@@ -432,6 +441,8 @@ object YuchengCore {
         val result = withTimeout(reconnectTimeInSeconds * 1000) {
             completer.await()
         }
+        jobReconnect.cancel()
+        jobAutoReconnect.cancel()
 
         return result
     }
