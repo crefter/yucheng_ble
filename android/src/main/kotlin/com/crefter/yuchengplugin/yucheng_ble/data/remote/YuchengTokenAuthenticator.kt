@@ -1,5 +1,6 @@
 package com.crefter.yuchengplugin.yucheng_ble.data.remote
 
+import android.util.Log
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import kotlinx.coroutines.runBlocking
@@ -18,6 +19,9 @@ data class YuchengTokens(
 )
 
 class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, private val apiConfig: YuchengApiConfig) : Authenticator {
+    companion object {
+        private const val TAG = "YUCH_API Token auth"
+    }
     private val lock = Any()
 
     private fun responseCount(response: Response): Int {
@@ -38,6 +42,7 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
 
             val currentToken = runBlocking { tokenStorage.getAccessToken() }
             val requestToken = response.request.header("Authorization")
+            Log.d(TAG, "currentToken = $currentToken, requestToken = $requestToken")
 
             // если токен уже обновился пока мы ждали lock
             if (requestToken != "Bearer $currentToken") {
@@ -47,6 +52,7 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
             }
 
             val refreshToken = runBlocking {  tokenStorage.getRefreshToken() }
+            Log.d(TAG, "refresh token = $refreshToken")
 
             val newTokens = refreshTokens(refreshToken) ?: return null
 

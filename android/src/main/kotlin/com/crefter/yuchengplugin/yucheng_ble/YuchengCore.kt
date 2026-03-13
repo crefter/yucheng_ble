@@ -39,13 +39,16 @@ object YuchengCore {
     var connectState = MutableStateFlow(3)
     var tokenStorage: YuchengTokenStorage? = null
     fun init(context: Context) {
-        Log.e(YUCHENG_API, "YCBTClient Init!")
-        if (isInit) return
+        if (isInit) {
+            Log.e(YUCHENG_API, "YCBTClient init yet!!!")
+            return
+        }
         synchronized(lock) {
             if (isInit) return
             YCBTClient.initClient(context, true)
             YCBTClient.setReconnect(true)
             isInit = true
+            Log.e(YUCHENG_API, "YCBTClient Init!")
         }
         storage = YuchengBleStorage(DataStorage(context.yuchengBleStore))
         tokenStorage = YuchengTokenStorage(DataStorage(context.yuchengEncryptedDataStore))

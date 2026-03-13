@@ -24,7 +24,7 @@ import java.util.UUID
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     private var activity: Activity? = null
-
+    // TODO: потестить просто и в sleeptery (добавить кнопку в девайсе для запуска и отключения сервиса)
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(PLUGIN_TAG, "Start attaching to engine")

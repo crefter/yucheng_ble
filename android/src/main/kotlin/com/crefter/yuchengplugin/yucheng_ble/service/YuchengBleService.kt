@@ -101,10 +101,13 @@ class YuchengBleService : Service() {
         sleepData: List<YuchengSleepData>,
         healthData: YuchengHealthSportData
     ) {
+        Log.i(YUCH_TAG, "sendDataToServer")
         val flavorString = YuchengCore.storage?.readFlavor() ?: return
         val flavor = YuchengFlavor.fromString(flavorString)
+        Log.i(YUCH_TAG, "sendDataToServer: flavor = $flavor")
         val tokenStorage = YuchengCore.tokenStorage ?: return
         val apiConfig = YuchengApiConfig.fromFlavor(flavor)
+        Log.i(YUCH_TAG, "sendDataToServer: apiConfig = $apiConfig")
         val repo = YuchengRepository(
             ApiClient(
                 YuchengAuthInterceptor(tokenStorage),

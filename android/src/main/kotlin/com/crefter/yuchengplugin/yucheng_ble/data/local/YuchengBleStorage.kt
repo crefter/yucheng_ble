@@ -25,9 +25,9 @@ class YuchengBleStorage(private val storage: KeyValueStorage<String, String>) {
     }
 
     suspend fun readServiceOn(): Boolean {
-        val on = storage.read(SERVICE_ON)?.toBoolean()
+        val on = storage.read(SERVICE_ON)?.toBoolean() ?: false
         Log.d(YUCH_API, "Read service on: $on")
-        return on ?: false
+        return on
     }
 
     suspend fun saveServiceOn(on: Boolean) {

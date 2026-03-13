@@ -13,8 +13,14 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.ZonedDateTime
 
 class YuchengRepository(private val apiClient: OkHttpClient, private val apiConfig: YuchengApiConfig) {
+    companion object {
+        private const val TAG = "YUCH_API Repo"
+    }
+
+
     @RequiresApi(Build.VERSION_CODES.O)
     fun saveSleep(sleepData: List<YuchengSleepData>, deviceId: String) {
+        Log.i(TAG, "saveSleep")
         val gson = Gson()
 
         val offset = ZonedDateTime.now().offset.totalSeconds / 60
@@ -32,6 +38,7 @@ class YuchengRepository(private val apiClient: OkHttpClient, private val apiConf
         val baseUrl = apiConfig.sleepBaseUrl
 
         val url = "$baseUrl${YuchengApiConstants.sleep}"
+        Log.i(TAG, "saveSleep: url = $url \n json = $json")
 
         val request = Request.Builder()
             .url(url)
@@ -50,6 +57,7 @@ class YuchengRepository(private val apiClient: OkHttpClient, private val apiConf
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun saveHealth(healthData: YuchengHealthSportData, deviceId: String) {
+        Log.i(TAG, "saveHealth")
         val gson = Gson()
 
         val offset = ZonedDateTime.now().offset.totalSeconds / 60
@@ -66,6 +74,7 @@ class YuchengRepository(private val apiClient: OkHttpClient, private val apiConf
         val baseUrl = apiConfig.healthBaseUrl
 
         val url = "$baseUrl${YuchengApiConstants.health}"
+        Log.i(TAG, "saveHealth: url = $url \n json = $json")
 
         val request = Request.Builder()
             .url(url)
