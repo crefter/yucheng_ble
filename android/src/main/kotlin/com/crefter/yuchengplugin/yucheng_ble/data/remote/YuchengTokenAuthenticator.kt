@@ -43,6 +43,9 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
         synchronized(lock) {
 
             val currentToken = runBlocking { tokenStorage.getAccessToken() }
+            if (currentToken == null) {
+                return null
+            }
             val requestToken = response.request.header("Authorization")
             Log.d(TAG, "currentToken = $currentToken, requestToken = $requestToken")
 
@@ -56,6 +59,10 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
             val refreshToken = runBlocking {  tokenStorage.getRefreshToken() }
             Log.d(TAG, "refresh token = $refreshToken")
 
+            if (refreshToken == null) {
+                Log.e(TAG, "refresh token null")
+                return null
+            }
             val newTokens = refreshTokens(refreshToken) ?: return null
 
             runBlocking {
@@ -70,7 +77,7 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
     }
 
     fun refreshTokens(refreshToken: String?): YuchengTokens? {
-
+        Log.e(TAG, "start refresh token")
         val client = OkHttpClient()
 
         val body = """
@@ -82,23 +89,27 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
         val requestBody = body.toRequestBody("application/json".toMediaType())
         val baseUrl = apiConfig.authBaseUrl
         val url = "$baseUrl${YuchengApiConstants.refresh}"
+        Log.e(TAG, "refresh tokens: url = $url, body = ${requestBody}")
 
         val request = Request.Builder()
             .url(url)
             .post(requestBody)
             .build()
 
-        val response = client.newCall(request).execute()
+        client.newCall(request).execute().use { response ->
 
-        if (!response.isSuccessful) {
-            return null
+            if (!response.isSuccessful) {
+                Log.e(TAG, "refresh tokens: response not successful = $response")
+                return null
+            }
+
+            val body = response.body.string()
+            val json = JSONObject(body)
+
+            return YuchengTokens(
+                accessToken = json.getString("accessToken"),
+                refreshToken = json.getString("refreshToken")
+            )
         }
-
-        val json = JSONObject(response.body.string())
-
-        return YuchengTokens(
-            accessToken = json.getString("accessToken"),
-            refreshToken = json.getString("refreshToken")
-        )
     }
 }

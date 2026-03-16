@@ -22,9 +22,7 @@ import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepDataConverter
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSportDataConverter
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.ApiClient
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengApiConfig
-import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengAuthInterceptor
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengRepository
-import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengTokenAuthenticator
 import com.crefter.yuchengplugin.yucheng_ble.entity.StartEndTimestamp
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import com.google.gson.Gson
@@ -40,7 +38,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.collections.isNotEmpty
 import kotlin.time.Duration.Companion.minutes
 
 
@@ -104,20 +101,18 @@ class YuchengBleService : Service() {
         val apiConfig = YuchengApiConfig.fromFlavor(flavor)
         Log.i(YUCH_TAG, "sendDataToServer: apiConfig = $apiConfig")
         val repo = YuchengRepository(
-            ApiClient(
-                YuchengAuthInterceptor(tokenStorage),
-                YuchengTokenAuthenticator(tokenStorage, apiConfig)
-            ).getClient(), apiConfig
+            ApiClient.getClient(
+                apiConfig = apiConfig,
+                tokenStorage = tokenStorage
+            ), apiConfig
         )
-        withContext(Dispatchers.IO) {
-            val id = Build.ID
+        val id = Build.ID
 
-            if (sleepData.isNotEmpty()) {
-                repo.saveSleep(sleepData, id)
-            }
-            if (healthData.healthData.isNotEmpty() || healthData.sportData.isNotEmpty()) {
-                repo.saveHealth(healthData, id)
-            }
+        if (sleepData.isNotEmpty()) {
+            repo.saveSleep(sleepData, id)
+        }
+        if (healthData.healthData.isNotEmpty() || healthData.sportData.isNotEmpty()) {
+            repo.saveHealth(healthData, id)
         }
     }
 

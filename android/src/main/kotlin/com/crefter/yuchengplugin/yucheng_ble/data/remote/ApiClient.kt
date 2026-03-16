@@ -1,14 +1,20 @@
 package com.crefter.yuchengplugin.yucheng_ble.data.remote
 
+import android.util.Log
+import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
-class ApiClient(private val authInterceptor: YuchengAuthInterceptor, private val tokenAuthenticator: YuchengTokenAuthenticator) {
+object ApiClient {
+    private const val TAG = "YUCH_API api client"
 
     private var client: OkHttpClient? = null
     private val lock = Any()
 
-    fun getClient(): OkHttpClient {
+    fun getClient(tokenStorage: YuchengTokenStorage,
+                  apiConfig: YuchengApiConfig): OkHttpClient {
         if (client != null) {
             return client!!
         }
@@ -20,8 +26,17 @@ class ApiClient(private val authInterceptor: YuchengAuthInterceptor, private val
                 .connectTimeout(15.seconds)
                 .writeTimeout(45.seconds)
                 .readTimeout(45.seconds)
-                .addInterceptor(authInterceptor)
-                .authenticator(tokenAuthenticator)
+                .retryOnConnectionFailure(true)
+                .addNetworkInterceptor { chain ->
+                    val request = chain.request()
+                    Log.d(TAG, "REQUEST: ${request.url}")
+                    val response = chain.proceed(request)
+                    Log.d(TAG, "RESPONSE: ${response.code}")
+                    response
+                }
+                .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
+                .addInterceptor(YuchengAuthInterceptor(tokenStorage = tokenStorage))
+                .authenticator(YuchengTokenAuthenticator(tokenStorage, apiConfig))
                 .build()
             return client!!
         }

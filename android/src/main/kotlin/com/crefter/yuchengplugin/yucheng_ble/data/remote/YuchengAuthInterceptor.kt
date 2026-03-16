@@ -17,10 +17,11 @@ class YuchengAuthInterceptor(private val tokenStorage: YuchengTokenStorage) : In
 
         val token = runBlocking { tokenStorage.getAccessToken() }
         Log.d(TAG, "access token = $token")
+        Log.d(TAG, "Intercepted request: ${original.url}, token=$token")
 
         val request = if (token != null) {
             original.newBuilder()
-                .addHeader("Authorization", "Bearer $token")
+                .header("Authorization", "Bearer $token")
                 .build()
         } else {
             original
