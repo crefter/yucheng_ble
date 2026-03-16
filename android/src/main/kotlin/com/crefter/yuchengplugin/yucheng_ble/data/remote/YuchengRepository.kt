@@ -33,7 +33,7 @@ class YuchengRepository(private val apiClient: OkHttpClient, private val apiConf
 
                 val json = "{" +
                         "\"device_id\": \"$deviceId\"," +
-                        "\"utc_offset\": $offset," +
+                        "\"utc_offset\": \"$offset\"," +
                         "\"source_platform\": \"SleepteryRing\"," +
                         "\"data\": {" +
                         "\"sleep_data\": ${gson.toJson(sleepData)}" +
@@ -76,7 +76,7 @@ class YuchengRepository(private val apiClient: OkHttpClient, private val apiConf
 
                 val json = "{" +
                         "\"device_id\": \"$deviceId\"," +
-                        "\"utc_offset\": $offset," +
+                        "\"utc_offset\": \"$offset\"," +
                         "\"source_platform\": \"SleepteryRing\"," +
                         "\"health_data\": ${gson.toJson(healthData.healthData)}," +
                         "\"sport_data\": ${gson.toJson(healthData.sportData)}" +
