@@ -1339,7 +1339,7 @@ protocol YuchengHostApi {
   func turnOffBackgroundService(completion: @escaping (Result<Bool, Error>) -> Void)
   func canLaunchBackgroundService(completion: @escaping (Result<Bool, Error>) -> Void)
   func setFlavor(flavorName: String, completion: @escaping (Result<Void, Error>) -> Void)
-  func setToken(token: YuchengToken, completion: @escaping (Result<Void, Error>) -> Void)
+  func setToken(token: YuchengToken?, completion: @escaping (Result<Void, Error>) -> Void)
   func getToken(completion: @escaping (Result<YuchengToken?, Error>) -> Void)
 }
 
@@ -1844,7 +1844,7 @@ class YuchengHostApiSetup {
     if let api = api {
       setTokenChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let tokenArg = args[0] as! YuchengToken
+        let tokenArg: YuchengToken? = nilOrValue(args[0])
         api.setToken(token: tokenArg) { result in
           switch result {
           case .success:

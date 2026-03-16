@@ -141,7 +141,7 @@ class YuchengBle {
   Future<void> setFlavor(String flavorName) =>
       YuchengBlePlatform.instance.setFlavor(flavorName);
 
-  Future<void> setToken(YuchengToken token) =>
+  Future<void> setToken(YuchengToken? token) =>
       YuchengBlePlatform.instance.setToken(token);
 
   Future<YuchengToken?> getToken() => YuchengBlePlatform.instance.getToken();

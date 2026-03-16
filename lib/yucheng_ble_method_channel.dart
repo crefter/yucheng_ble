@@ -143,7 +143,7 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   Future<void> setFlavor(String flavorName) => _api.setFlavor(flavorName);
 
   @override
-  Future<void> setToken(YuchengToken token) => _api.setToken(token);
+  Future<void> setToken(YuchengToken? token) => _api.setToken(token);
 
   @override
   Future<YuchengToken?> getToken() => _api.getToken();

@@ -41,6 +41,7 @@ class YuchengTokenStorage(private val storage: KeyValueStorage<String, String>) 
     suspend fun clear() {
         storage.delete(accessKey)
         storage.delete(refreshKey)
+        storage.delete(expiresAtKey)
     }
 
     companion object {

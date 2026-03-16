@@ -2261,7 +2261,7 @@ class YuchengHostApi {
     ;
   }
 
-  Future<void> setToken(YuchengToken token) async {
+  Future<void> setToken(YuchengToken? token) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.yucheng_ble.YuchengHostApi.setToken$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,

@@ -1456,7 +1456,7 @@ interface YuchengHostApi {
   fun turnOffBackgroundService(callback: (Result<Boolean>) -> Unit)
   fun canLaunchBackgroundService(callback: (Result<Boolean>) -> Unit)
   fun setFlavor(flavorName: String, callback: (Result<Unit>) -> Unit)
-  fun setToken(token: YuchengToken, callback: (Result<Unit>) -> Unit)
+  fun setToken(token: YuchengToken?, callback: (Result<Unit>) -> Unit)
   fun getToken(callback: (Result<YuchengToken?>) -> Unit)
 
   companion object {
@@ -2024,7 +2024,7 @@ interface YuchengHostApi {
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val tokenArg = args[0] as YuchengToken
+            val tokenArg = args[0] as YuchengToken?
             api.setToken(tokenArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {

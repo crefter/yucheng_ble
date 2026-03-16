@@ -252,7 +252,7 @@ class MockYuchengBlePlatform
   }
 
   @override
-  Future<void> setToken(YuchengToken token) {
+  Future<void> setToken(YuchengToken? token) {
     // TODO: implement setToken
     throw UnimplementedError();
   }

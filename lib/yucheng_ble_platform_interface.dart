@@ -186,7 +186,7 @@ abstract class YuchengBlePlatform extends PlatformInterface {
     throw UnimplementedError('setFlavor has not been implemented.');
   }
 
-  Future<void> setToken(YuchengToken token) {
+  Future<void> setToken(YuchengToken? token) {
     throw UnimplementedError('setFlavor has not been implemented.');
   }
 

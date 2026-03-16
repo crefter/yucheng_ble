@@ -523,7 +523,7 @@ abstract class YuchengHostApi {
   void setFlavor(String flavorName);
 
   @async
-  void setToken(YuchengToken token);
+  void setToken(YuchengToken? token);
 
   @async
   YuchengToken? getToken();

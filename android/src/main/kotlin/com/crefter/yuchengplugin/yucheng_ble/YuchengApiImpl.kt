@@ -26,7 +26,6 @@ import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.util.Calendar
 import kotlin.math.roundToLong
 
 
@@ -1241,12 +1240,20 @@ class YuchengApiImpl(
     }
 
     override fun setToken(
-        token: YuchengToken,
+        token: YuchengToken?,
         callback: (Result<Unit>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                YuchengCore.tokenStorage?.saveTokens(token.access, token.refresh, token.expiresAtTimestamp.toString())
+                if (token == null) {
+                    YuchengCore.tokenStorage?.clear()
+                } else {
+                    YuchengCore.tokenStorage?.saveTokens(
+                        token.access,
+                        token.refresh,
+                        token.expiresAtTimestamp.toString()
+                    )
+                }
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
                 }
