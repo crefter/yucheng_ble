@@ -105,10 +105,11 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
 
             val body = response.body.string()
             val json = JSONObject(body)
+            Log.e(TAG, "refresh tokens: json = $json")
 
             return YuchengTokens(
-                accessToken = json.getString("accessToken"),
-                refreshToken = json.getString("refreshToken")
+                accessToken = json.getString("access_token"),
+                refreshToken = json.getString("refresh_token")
             )
         }
     }
