@@ -12,6 +12,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.internal.platform.Platform
 import java.time.ZonedDateTime
 
 class YuchengRepository(private val apiClient: OkHttpClient, private val apiConfig: YuchengApiConfig) {

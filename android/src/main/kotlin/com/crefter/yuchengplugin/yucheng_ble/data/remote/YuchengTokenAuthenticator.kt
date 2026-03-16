@@ -82,7 +82,7 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
 
         val body = """
         {
-          "refreshToken": "$refreshToken"
+          "refresh_token": "$refreshToken"
         }
     """.trimIndent()
 
