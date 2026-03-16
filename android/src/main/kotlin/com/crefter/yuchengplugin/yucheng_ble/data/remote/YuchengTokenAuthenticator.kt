@@ -12,6 +12,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.Route
 import org.json.JSONObject
+import java.time.ZonedDateTime
+import java.util.Calendar
 
 data class YuchengTokens(
     val accessToken: String,
@@ -57,7 +59,8 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
             val newTokens = refreshTokens(refreshToken) ?: return null
 
             runBlocking {
-                tokenStorage.saveTokens(newTokens.accessToken, newTokens.refreshToken)
+                val expiresAt = Calendar.getInstance().timeInMillis
+                tokenStorage.saveTokens(newTokens.accessToken, newTokens.refreshToken, expiresAt.toString())
             }
 
             return response.request.newBuilder()

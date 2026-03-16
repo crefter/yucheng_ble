@@ -1246,7 +1246,7 @@ class YuchengApiImpl(
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                YuchengCore.tokenStorage?.saveTokens(token.access, token.refresh)
+                YuchengCore.tokenStorage?.saveTokens(token.access, token.refresh, token.expiresAtTimestamp.toString())
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
                 }
@@ -1261,14 +1261,9 @@ class YuchengApiImpl(
     override fun getToken(callback: (Result<YuchengToken?>) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val access = YuchengCore.tokenStorage?.getAccessToken()
-                val refresh = YuchengCore.tokenStorage?.getRefreshToken()
-                if (access == null || refresh == null) {
-                    callback(Result.success(null))
-                }
-                val timestamp = Calendar.getInstance().timeInMillis
+                val token = YuchengCore.tokenStorage?.getToken()
                 withContext(Dispatchers.Main) {
-                    callback(Result.success(YuchengToken(access!!, refresh!!, timestamp)))
+                    callback(Result.success(token))
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
