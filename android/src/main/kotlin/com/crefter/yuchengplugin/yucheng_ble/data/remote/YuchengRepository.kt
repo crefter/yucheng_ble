@@ -20,74 +20,82 @@ class YuchengRepository(private val apiClient: OkHttpClient, private val apiConf
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun saveSleep(sleepData: List<YuchengSleepData>, deviceId: String) {
-        Log.i(TAG, "saveSleep")
-        val gson = Gson()
+        try {
+            Log.i(TAG, "saveSleep")
+            val gson = Gson()
 
-        val offset = ZonedDateTime.now().offset.totalSeconds / 60
+            val offset = ZonedDateTime.now().offset.totalSeconds / 60
 
-        val json = "{" +
-                "\"device_id\": \"$deviceId\"," +
-                "\"utc_offset\": $offset," +
-                "\"source_platform\": \"SleepteryRing\"," +
-                "\"data\": {" +
-                "\"sleep_data\": ${gson.toJson(sleepData)}" +
-                "}" +
-                "}".trimIndent()
+            val json = "{" +
+                    "\"device_id\": \"$deviceId\"," +
+                    "\"utc_offset\": $offset," +
+                    "\"source_platform\": \"SleepteryRing\"," +
+                    "\"data\": {" +
+                    "\"sleep_data\": ${gson.toJson(sleepData)}" +
+                    "}" +
+                    "}".trimIndent()
 
-        val body = json.toRequestBody("application/json".toMediaType())
-        val baseUrl = apiConfig.sleepBaseUrl
+            val body = json.toRequestBody("application/json".toMediaType())
+            val baseUrl = apiConfig.sleepBaseUrl
 
-        val url = "$baseUrl${YuchengApiConstants.sleep}"
-        Log.i(TAG, "saveSleep: url = $url \n json = $json")
+            val url = "$baseUrl${YuchengApiConstants.sleep}"
+            Log.i(TAG, "saveSleep: url = $url \n json = $json")
 
-        val request = Request.Builder()
-            .url(url)
-            .post(body)
-            .build()
+            val request = Request.Builder()
+                .url(url)
+                .post(body)
+                .build()
 
-        val response = apiClient
-            .newCall(request).execute()
+            val response = apiClient
+                .newCall(request).execute()
 
-        if (!response.isSuccessful) {
-            Log.e("API", "Send failed ${response.code}")
-        } else {
-            Log.i("API", "Data sent successfully")
+            if (!response.isSuccessful) {
+                Log.e(TAG, "Send failed ${response.code}")
+            } else {
+                Log.i(TAG, "Data sent successfully")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при отправке сна: $e")
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun saveHealth(healthData: YuchengHealthSportData, deviceId: String) {
-        Log.i(TAG, "saveHealth")
-        val gson = Gson()
+        try {
+            Log.i(TAG, "saveHealth")
+            val gson = Gson()
 
-        val offset = ZonedDateTime.now().offset.totalSeconds / 60
+            val offset = ZonedDateTime.now().offset.totalSeconds / 60
 
-        val json = "{" +
-                "\"device_id\": \"$deviceId\"," +
-                "\"utc_offset\": $offset," +
-                "\"source_platform\": \"SleepteryRing\"," +
-                "\"health_data\": ${gson.toJson(healthData.healthData)}," +
-                "\"sport_data\": ${gson.toJson(healthData.sportData)}" +
-                "}".trimIndent()
+            val json = "{" +
+                    "\"device_id\": \"$deviceId\"," +
+                    "\"utc_offset\": $offset," +
+                    "\"source_platform\": \"SleepteryRing\"," +
+                    "\"health_data\": ${gson.toJson(healthData.healthData)}," +
+                    "\"sport_data\": ${gson.toJson(healthData.sportData)}" +
+                    "}".trimIndent()
 
-        val body = json.toRequestBody("application/json".toMediaType())
-        val baseUrl = apiConfig.healthBaseUrl
+            val body = json.toRequestBody("application/json".toMediaType())
+            val baseUrl = apiConfig.healthBaseUrl
 
-        val url = "$baseUrl${YuchengApiConstants.health}"
-        Log.i(TAG, "saveHealth: url = $url \n json = $json")
+            val url = "$baseUrl${YuchengApiConstants.health}"
+            Log.i(TAG, "saveHealth: url = $url \n json = $json")
 
-        val request = Request.Builder()
-            .url(url)
-            .post(body)
-            .build()
+            val request = Request.Builder()
+                .url(url)
+                .post(body)
+                .build()
 
-        val response = apiClient
-            .newCall(request).execute()
+            val response = apiClient
+                .newCall(request).execute()
 
-        if (!response.isSuccessful) {
-            Log.e("API", "Send failed ${response.code}")
-        } else {
-            Log.i("API", "Data sent successfully")
+            if (!response.isSuccessful) {
+                Log.e(TAG, "Send failed ${response.code}")
+            } else {
+                Log.i(TAG, "Data sent successfully")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при отправке здоровья: $e")
         }
     }
 }
