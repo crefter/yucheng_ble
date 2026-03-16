@@ -5,7 +5,9 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.crefter.yuchengplugin.yucheng_ble.YuchengHealthSportData
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepData
+import com.google.gson.FieldNamingPolicy
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -20,7 +22,7 @@ class YuchengRepository(private val apiClient: OkHttpClient, private val apiConf
         private const val TAG = "YUCH_API Repo"
         private const val TAG_SLEEP = "$TAG sleep"
         private const val TAG_HEALTH = "$TAG health"
-        private val gson = Gson()
+        private val gson = GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create()
     }
 
 
