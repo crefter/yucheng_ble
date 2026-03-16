@@ -45,9 +45,9 @@ class YuchengTokenStorage(private val storage: KeyValueStorage<String, String>) 
     }
 
     companion object {
-        private val accessKey = "access_token"
-        private val refreshKey = "refresh_token"
-        private val expiresAtKey = "expires_at_key"
+        private const val accessKey = "access_token"
+        private const val refreshKey = "refresh_token"
+        private const val expiresAtKey = "expires_at_key"
         private const val TAG = "YUCH_API Token storage"
     }
 }

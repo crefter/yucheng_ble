@@ -171,10 +171,6 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
             api?.activity = activity
         }
         if (activity != null) {
-            if (YuchengCore.isConnected()) {
-                Log.e(PLUGIN_TAG, "onAttachedToActivity: disconnect!")
-                YuchengCore.disconnect()
-            }
             if (ActivityCompat.checkSelfPermission(
                     activity!!,
                     android.Manifest.permission.POST_NOTIFICATIONS
