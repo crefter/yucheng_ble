@@ -37,20 +37,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.minutes
 
-
-private const val YUCH_TAG = "YUCH_API SERVICE"
-
-// 2. В самом сервисе
 class YuchengBleService : Service() {
-    private val defaultDelay = 1
-    private val NOTIFICATION_ID = 3040
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var gson: Gson? = null
     private var job: Job? = null
-    private var delayInMinutes: Int = defaultDelay
+    private var delayInMinutes: Int = DEFAULT_DELAY
 
     override fun onCreate() {
         super.onCreate()
@@ -74,6 +67,19 @@ class YuchengBleService : Service() {
                 return
             }
         }
+        val token = YuchengCore.tokenStorage?.getToken()
+        if (token == null) {
+            Log.e(YUCH_TAG, "Service: read data: token is null!")
+            if (tokenIsNullCount >= MAX_TOKEN_IS_NULL_COUNT) {
+                Log.e(YUCH_TAG, "Service: read data: token is null max count reached, stop service!")
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return
+            }
+            tokenIsNullCount++
+            return
+        }
+        tokenIsNullCount = 0
         Log.i(YUCH_TAG, "Service: After reconnect:")
         val startEnd = StartEndTimestamp.default()
         val sleepData = YuchengCore.getSleepData(
@@ -135,7 +141,7 @@ class YuchengBleService : Service() {
         if (job?.isActive != true) {
             job = scope.launch {
                 while (isActive) {
-                    delayInMinutes = YuchengCore.storage?.readDelay() ?: defaultDelay
+                    delayInMinutes = YuchengCore.storage?.readDelay() ?: DEFAULT_DELAY
                     Log.e(
                         YUCH_TAG,
                         "Service: onStartCommand: Service delay in minutes = $delayInMinutes"
@@ -233,5 +239,11 @@ class YuchengBleService : Service() {
         }
 
         var isRunning = MutableStateFlow(false)
+        private const val MAX_TOKEN_IS_NULL_COUNT = 3
+        @Volatile
+        private var tokenIsNullCount = 0
+        private const val NOTIFICATION_ID = 3040
+        private const val DEFAULT_DELAY = 1
+        private const val YUCH_TAG = "YUCH_API SERVICE"
     }
 }

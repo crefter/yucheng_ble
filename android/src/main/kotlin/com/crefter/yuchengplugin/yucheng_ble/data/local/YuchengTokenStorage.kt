@@ -27,6 +27,7 @@ class YuchengTokenStorage(private val storage: KeyValueStorage<String, String>) 
         val access = getAccessToken()
         val refresh = getRefreshToken()
         val timestamp = getExpiresAt() ?: Calendar.getInstance().timeInMillis
+        Log.d(TAG, "getToken: timestamp = $timestamp, access = $access, refresh = $refresh")
         if (access == null || refresh == null) return null
         val token = YuchengToken(access, refresh, timestamp)
         return token
