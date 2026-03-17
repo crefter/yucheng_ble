@@ -18,9 +18,11 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 
 private fun Long.toEpochMs(): Long =
@@ -31,12 +33,15 @@ val YuchengSleepType.json: String
     get() = name.lowercase()
 
 
-val YuchengSleepDataDetail.startDate: Instant
-    get() = Instant.fromEpochMilliseconds(startTimeStamp.toEpochMs())
+val YuchengSleepDataDetail.startDate: LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
-val YuchengSleepDataDetail.endDate: Instant
-    get() = Instant.fromEpochMilliseconds(startTimeStamp.toEpochMs() + duration * 1000L)
+val YuchengSleepDataDetail.endDate: LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs() + duration * 1000L).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun YuchengSleepDataDetail.toJson() = mapOf(
     "start_date" to startDate.toString(),
     "end_date" to endDate.toString(),
@@ -44,13 +49,16 @@ fun YuchengSleepDataDetail.toJson() = mapOf(
     "type" to type.json
 )
 
-val YuchengSleepData.startDate: Instant
-    get() = Instant.fromEpochMilliseconds(startTimeStamp.toEpochMs())
+val YuchengSleepData.startDate: LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
-val YuchengSleepData.endDate: Instant
-    get() = Instant.fromEpochMilliseconds(endTimeStamp.toEpochMs())
+val YuchengSleepData.endDate: LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    get() = Instant.ofEpochMilli(endTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun YuchengSleepData.toJson() = mapOf(
     "start_date" to startDate.toString(),
     "end_date" to endDate.toString(),
@@ -64,12 +72,15 @@ fun YuchengSleepData.toJson() = mapOf(
     "details" to details.map { it.toJson() }
 )
 
-val YuchengSportData.startDate: Instant
-    get() = Instant.fromEpochMilliseconds(startTimeStamp.toEpochMs())
+val YuchengSportData.startDate: LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
-val YuchengSportData.endDate: Instant
-    get() = Instant.fromEpochMilliseconds(endTimeStamp.toEpochMs())
+val YuchengSportData.endDate: LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    get() = Instant.ofEpochMilli(endTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun YuchengSportData.toJson() = mapOf(
     "start_date" to startDate.toString(),
     "end_date" to endDate.toString(),
@@ -78,9 +89,11 @@ fun YuchengSportData.toJson() = mapOf(
     "steps" to steps
 )
 
-val YuchengHealthData.startDate: Instant
-    get() = Instant.fromEpochMilliseconds(startTimestamp.toEpochMs())
+val YuchengHealthData.startDate: LocalDateTime
+    @RequiresApi(Build.VERSION_CODES.O)
+    get() = Instant.ofEpochMilli(startTimestamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun YuchengHealthData.toJson() = mapOf(
     "heart_value" to heartValue,
     "hrv_value" to hrvValue,
