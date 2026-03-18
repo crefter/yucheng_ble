@@ -82,15 +82,19 @@ class YuchengBleService : Service() {
         tokenIsNullCount = 0
         Log.i(YUCH_TAG, "Service: After reconnect:")
         val startEnd = StartEndTimestamp.default()
-        val sleepData = YuchengCore.getSleepData(
-            true, startTimestamp = startEnd.start, startEnd.end,
-            YuchengSleepDataConverter(gson!!)
-        )
-        val healthData = YuchengCore.getHealthSportData(
-            true, startEnd.start, startEnd.end,
-            YuchengSportDataConverter(gson!!), YuchengHealthDataConverter(gson!!)
-        )
-        sendDataToServer(sleepData, healthData)
+        try {
+            val sleepData = YuchengCore.getSleepData(
+                true, startTimestamp = startEnd.start, startEnd.end,
+                YuchengSleepDataConverter(gson!!)
+            )
+            val healthData = YuchengCore.getHealthSportData(
+                true, startEnd.start, startEnd.end,
+                YuchengSportDataConverter(gson!!), YuchengHealthDataConverter(gson!!)
+            )
+            sendDataToServer(sleepData, healthData)
+        } catch (e: Exception) {
+            Log.e(YUCH_TAG, "Exception when read sleep/health data! $e")
+        }
         Log.i(YUCH_TAG, "READ DATA FROM SERVICE!!!")
     }
 
