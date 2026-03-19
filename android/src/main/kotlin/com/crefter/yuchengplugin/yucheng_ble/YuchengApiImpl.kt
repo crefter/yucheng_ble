@@ -1339,7 +1339,7 @@ class YuchengApiImpl(
                 }
             }
             YCBTClient.appStartMeasurement(1, measureDataType) { _, _, _ ->
-                Log.d(YUCHENG_API, "START MEASURE")
+                Log.d(YUCHENG_API, "START MEASURE, dataType = $measureDataType")
             }
             Log.d(YUCHENG_API, "WAITING MEASURE")
             meanValue = withTimeout(REAL_MEASUREMENT_TIMEOUT_MILLIS) {
