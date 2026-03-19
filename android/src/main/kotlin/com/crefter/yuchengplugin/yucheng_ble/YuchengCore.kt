@@ -29,11 +29,11 @@ object YuchengCore {
     private const val TIME_TO_TIMEOUT: Long = 15
     private const val SCAN_PERIOD: Int = 20
     private var deviceIndex: Long = 0
-    private var selectedDevice: YuchengDevice? = null
     private var scannedDevices: MutableSet<ScanDeviceBean> = mutableSetOf()
     private var canLaunchJob: Job? = null
     private var isInit = false
     private val lock = Any()
+    var selectedDevice: YuchengDevice? = null
     var storage: YuchengBleStorage? = null
     var serviceOn: Boolean = false
     var connectState = MutableStateFlow(3)

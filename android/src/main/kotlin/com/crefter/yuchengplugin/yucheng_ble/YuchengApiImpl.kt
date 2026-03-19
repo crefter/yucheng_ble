@@ -52,7 +52,6 @@ class YuchengApiImpl(
 ) : YuchengHostApi {
 
     private var index: Long = 0
-    private var selectedDevice: YuchengDevice? = null
     var activity: Context? = null
     private var deviceToUpdate: YuchengDevice? = null
     private var pathToUpdate: String = ""
@@ -110,7 +109,7 @@ class YuchengApiImpl(
     private fun isDeviceConnected(device: YuchengDevice): Boolean {
         return try {
             val isConnected =
-                YuchengCore.isConnected() && selectedDevice?.uuid == device.uuid
+                YuchengCore.isConnected() && YuchengCore.selectedDevice?.uuid == device.uuid
             return isConnected
         } catch (_: Exception) {
             false
@@ -204,8 +203,8 @@ class YuchengApiImpl(
 
     override fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit) {
         try {
-            if (selectedDevice != null) {
-                callback(Result.success(selectedDevice))
+            if (YuchengCore.selectedDevice != null) {
+                callback(Result.success(YuchengCore.selectedDevice))
                 return
             }
             val macAddress = YCBTClient.getBindDeviceMac()
@@ -215,7 +214,7 @@ class YuchengApiImpl(
                 return
             }
             val ycDevice = YuchengDevice(index++, deviceName, macAddress, false)
-            selectedDevice = ycDevice
+            YuchengCore.selectedDevice = ycDevice
             callback(Result.success(ycDevice))
         } catch (e: Exception) {
             callback(Result.failure(e))
