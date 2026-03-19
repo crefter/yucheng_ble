@@ -481,6 +481,7 @@ object YuchengCore {
                     val sleepData = data["data"] as? List<*>? ?: return@healthHistoryData
                     val mappedSleep = sleepData.map {
                         val yuchengSleepData = sleepDataConverter.convert(it)
+                        Log.d(GET_SLEEP_DATA, "Converted sleep: $yuchengSleepData")
                         return@map yuchengSleepData
                     }.filter {
                         val isInRange =
@@ -494,11 +495,9 @@ object YuchengCore {
                             onSleepData(ycDataEvent)
                         }
                     }
-                    Log.d(GET_SLEEP_DATA, mappedSleep.toString())
-                    Log.d(YUCHENG_API, mappedSleep.toString())
+                    Log.d(GET_SLEEP_DATA, "Sleeps: $mappedSleep")
                 } else {
                     Log.e(GET_SLEEP_DATA, "NO SLEEP DATA")
-                    Log.e(YUCHENG_API, "NO SLEEP DATA")
                 }
                 Log.d("SLEEP CODE", code.toString())
                 Log.d("SLEEP RATIO", ratio.toString())
@@ -520,7 +519,6 @@ object YuchengCore {
             }
             return sleepData ?: sleepDataList
         } catch (e: Exception) {
-            Log.e(YUCHENG_API, "Error when get sleep data: $e")
             Log.e(GET_SLEEP_DATA, "Error when get sleep data:$e")
             throw e
         }
@@ -556,7 +554,7 @@ object YuchengCore {
                         return@filter isInRange
                     }
                     sportDataList.addAll(mappedSport)
-                    Log.d(YUCHENG_API, "No sport data converted: $mappedSport")
+                    Log.d(YUCHENG_API, "Sport data converted")
                 } else {
                     Log.e(YUCHENG_API, "NO SPORT DATA")
                 }
@@ -578,9 +576,9 @@ object YuchengCore {
                         it.startTimestamp in startTimestamp..endTimestamp
                     }
                     healthDataList.addAll(healthDatas)
-                    Log.d(YUCHENG_API, "HEALTH DATA CONVERTED$healthDatas")
+                    Log.d(GET_HEALTH_DATA, "HEALTH DATA CONVERTED")
                 } else {
-                    Log.e(YUCHENG_API, "NO HEALTH DATA")
+                    Log.e(GET_HEALTH_DATA, "NO HEALTH DATA")
                 }
                 Log.d("HEALTH CODE", code.toString())
                 Log.d("HEALTH RATIO", ratio.toString())
@@ -590,7 +588,6 @@ object YuchengCore {
             }
         } catch (e: Exception) {
             Log.e(GET_HEALTH_DATA, "Error when get health sport data: $e")
-            Log.e(YUCHENG_API, "Error when get health sport data: $e")
             if (!healthDataCompleter.isCompleted) {
                 healthDataCompleter.completeExceptionally(e)
             }

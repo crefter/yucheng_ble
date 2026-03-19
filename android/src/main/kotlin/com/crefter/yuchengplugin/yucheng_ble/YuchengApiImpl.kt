@@ -185,8 +185,10 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 val default = StartEndTimestamp.default()
+                Log.d(YUCHENG_API, "default start end = $default")
                 val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
+                Log.d(YUCHENG_API, "result start = $start, end = $end")
                 val sleepData = YuchengCore.getSleepData(
                     startTimestamp = start,
                     endTimestamp = end,
@@ -230,8 +232,10 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 val default = StartEndTimestamp.default()
+                Log.d(YUCHENG_API, "default start end = $default")
                 val start: Long = startTimestamp ?: default.start
                 val end: Long = endTimestamp ?: default.end
+                Log.d(YUCHENG_API, "result start = $start, end = $end")
                 val healthData = YuchengCore.getHealthSportData(
                     startTimestamp = start,
                     endTimestamp = end,
@@ -1360,7 +1364,7 @@ class YuchengApiImpl(
         private const val REAL_HEART_RATE_TYPE = 0
         private const val REAL_BLOOD_PRESSURE_TYPE = 1
         private const val YUCHENG_API = "YUCH_API"
-        private const val GET_SLEEP_HEALTH_DATA = "GET_SLEEP_HEALTH_DATA"
+        private const val GET_SLEEP_HEALTH_DATA = "${YUCHENG_API} SLEEP_HEALTH"
         private const val START_SCAN = "$YUCHENG_API START SCAN"
         private const val IS_DEVICE_CONNECTED = "$YUCHENG_API IS_DEV_CON"
         private const val UPDATE_FIRMWARE = "$YUCHENG_API UPDATE_FIRM"
