@@ -67,19 +67,19 @@ class YuchengBleService : Service() {
                 return
             }
         }
-//        val token = YuchengCore.tokenStorage?.getToken()
-//        if (token == null) {
-//            Log.e(YUCH_TAG, "Service: read data: token is null!")
-//            if (tokenIsNullCount >= MAX_TOKEN_IS_NULL_COUNT) {
-//                Log.e(YUCH_TAG, "Service: read data: token is null max count reached, stop service!")
-//                stopForeground(STOP_FOREGROUND_REMOVE)
-//                stopSelf()
-//                return
-//            }
-//            tokenIsNullCount++
-//            return
-//        }
-//        tokenIsNullCount = 0
+        val token = YuchengCore.tokenStorage?.getToken()
+        if (token == null) {
+            Log.e(YUCH_TAG, "Service: read data: token is null!")
+            if (tokenIsNullCount >= MAX_TOKEN_IS_NULL_COUNT) {
+                Log.e(YUCH_TAG, "Service: read data: token is null max count reached, stop service!")
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return
+            }
+            tokenIsNullCount++
+            return
+        }
+        tokenIsNullCount = 0
         Log.i(YUCH_TAG, "Service: After reconnect:")
 
         val startEnd = StartEndTimestamp.service()
