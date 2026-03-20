@@ -90,7 +90,7 @@ class _YuchengSdkScreenState extends State<YuchengSdkScreen> {
   int serviceInterval = 1;
   late final TextEditingController sbpController;
   late final TextEditingController dbpController;
-  final mac = '11:CE:9B:FE:0A:A8';
+  final mac = '04:C6:80:BF:06:A2';
 
   @override
   void initState() {
