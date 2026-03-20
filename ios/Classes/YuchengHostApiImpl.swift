@@ -159,7 +159,6 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
         })
         
-        YCProduct.shared.
         
         NotificationCenter.default.addObserver(
             self,
@@ -1821,6 +1820,30 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
             completion(Result.success(false))
         })
+    }
+    
+    func turnOnBackgroundService(delayInMinutes: Int64, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        completion(.success(false))
+    }
+    
+    func turnOffBackgroundService(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        completion(.success(false))
+    }
+    
+    func canLaunchBackgroundService(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        completion(.success(false))
+    }
+    
+    func setFlavor(flavorName: String, completion: @escaping (Result<Void, any Error>) -> Void) {
+        completion(.success(()))
+    }
+    
+    func setToken(token: YuchengToken?, completion: @escaping (Result<Void, any Error>) -> Void) {
+        completion(.success(()))
+    }
+    
+    func getToken(completion: @escaping (Result<YuchengToken?, any Error>) -> Void) {
+        completion(.success(nil))
     }
 }
 
