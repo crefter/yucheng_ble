@@ -181,27 +181,35 @@ public class YuchengCore {
                 case .finished:
                     if (self.scannedDevices.isEmpty) {
                         completer.completeError(NoDeviceError.noDevice("No device found"))
-                    } else {
-                        let conSub = self.internalConnect(device: device, timeout: Int(timeout), onDevice: onDevice)
-                        YuchengCancelableStore.shared.subscribe(conSub) { conRes in
-                            switch (conRes) {
-                            case .failure(let e):
-                                completer.completeError(e)
-                            case .finished:
-                                break;
-                            }
-                        } receiveValue: { conRes in
-                            completer.complete(conRes)
-                        }
                     }
-                    
                     break;
                 case .failure(let e):
                     completer.completeError(e)
                     break;
                 }
-            } receiveValue: { result in
-                
+            } receiveValue: { devices in
+                if (devices.isEmpty) {
+                    completer.completeError(NoDeviceError.noDevice("No device found"))
+                    return
+                }
+                    let foundDevice = devices.first { ycDevice in
+                        device.deviceName == ycDevice.deviceName || device.uuid == ycDevice.uuid
+                    }
+                    if (foundDevice == nil) {
+                        completer.completeError(NoDeviceError.noDevice("No device found"))
+                        return
+                    }
+                    let conSub = self.internalConnect(device: foundDevice!, timeout: Int(timeout), onDevice: onDevice)
+                    YuchengCancelableStore.shared.subscribe(conSub) { conRes in
+                        switch (conRes) {
+                        case .failure(let e):
+                            completer.completeError(e)
+                        case .finished:
+                            break;
+                        }
+                    } receiveValue: { conRes in
+                        completer.complete(conRes)
+                    }
             }
 
 
