@@ -2,7 +2,7 @@ package com.crefter.yuchengplugin.yucheng_ble.data.remote
 
 import android.util.Log
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
-import kotlinx.coroutines.runBlocking
+import com.crefter.yuchengplugin.yucheng_ble.data.local.strToken
 import okhttp3.Interceptor
 import okhttp3.Response
 

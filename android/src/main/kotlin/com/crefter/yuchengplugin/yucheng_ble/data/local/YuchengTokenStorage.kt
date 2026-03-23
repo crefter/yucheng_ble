@@ -12,10 +12,7 @@ import com.crefter.yuchengplugin.yucheng_ble.YuchengToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengAuthToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import kotlinx.serialization.json.Json
-import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
-
 
 class YuchengTokenStorage(private val storage: SharedPreferences) {
     private var savedToken: YuchengToken? = null

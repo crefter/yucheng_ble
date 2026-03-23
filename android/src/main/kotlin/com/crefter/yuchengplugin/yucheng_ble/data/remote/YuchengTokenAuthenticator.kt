@@ -2,7 +2,9 @@
 
 package com.crefter.yuchengplugin.yucheng_ble.data.remote
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
 import com.crefter.yuchengplugin.yucheng_ble.data.local.strToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengAuthToken
@@ -42,6 +44,7 @@ class YuchengTokenAuthenticator(
         return result
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun authenticate(route: Route?, response: Response): Request? {
         if (responseCount(response) >= 2) {
             return null
@@ -50,17 +53,11 @@ class YuchengTokenAuthenticator(
 
             val currentToken = tokenStorage.getToken(flavor)?.access
             if (currentToken == null) {
-                Log.e(
-                    TAG,
-                    "access token null"
-                )
+                Log.e(TAG, "access token null")
                 return null
             }
             val requestToken = response.request.header("Authorization")
-            Log.d(
-                TAG,
-                "currentToken = ${currentToken.strToken()}, requestToken = $requestToken"
-            )
+            Log.d(TAG, "currentToken = ${currentToken.strToken()}, requestToken = $requestToken")
 
             // если токен уже обновился пока мы ждали lock
             if (requestToken != "Bearer $currentToken") {
@@ -70,16 +67,10 @@ class YuchengTokenAuthenticator(
             }
 
             val refreshToken = tokenStorage.getToken(flavor)?.refresh
-            Log.d(
-                TAG,
-                "refresh token = ${refreshToken.strToken()}"
-            )
+            Log.d(TAG, "refresh token = ${refreshToken.strToken()}")
 
             if (refreshToken == null) {
-                Log.e(
-                    TAG,
-                    "refresh token null"
-                )
+                Log.e(TAG, "refresh token null")
                 return null
             }
             val newToken = refreshTokens(refreshToken) ?: return null
@@ -95,10 +86,7 @@ class YuchengTokenAuthenticator(
     }
 
     fun refreshTokens(refreshToken: String?): YuchengAuthToken? {
-        Log.e(
-            TAG,
-            "start refresh token"
-        )
+        Log.e(TAG, "start refresh token")
         val client = ApiClient.getDefaultClient()
 
         val body = """
@@ -110,10 +98,7 @@ class YuchengTokenAuthenticator(
         val requestBody = body.toRequestBody("application/json".toMediaType())
         val baseUrl = apiConfig.authBaseUrl
         val url = "$baseUrl${YuchengApiConstants.refresh}"
-        Log.e(
-            TAG,
-            "refresh tokens: url = $url, refreshToken = ${refreshToken.strToken()}"
-        )
+        Log.e(TAG, "refresh tokens: url = $url, refreshToken = ${refreshToken.strToken()}")
 
         val request = Request.Builder()
             .url(url)
@@ -123,10 +108,7 @@ class YuchengTokenAuthenticator(
         client.newCall(request).execute().use { response ->
 
             if (!response.isSuccessful) {
-                Log.e(
-                    TAG,
-                    "refresh tokens: response not successful = $response"
-                )
+                Log.e(TAG, "refresh tokens: response not successful = $response")
                 return null
             }
 
