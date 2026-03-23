@@ -15,9 +15,8 @@ class YuchengAuthInterceptor(private val tokenStorage: YuchengTokenStorage) : In
         val original = chain.request()
         Log.d(TAG, "original request = $original")
 
-        val token = tokenStorage.getToken()
-        Log.d(TAG, "access token = $token")
-        Log.d(TAG, "Intercepted request: ${original.url}, token=$token")
+        val token = tokenStorage.getToken()?.access
+        Log.d(TAG, "Intercepted request: ${original.url}, token=${token.strToken()}")
 
         val request = if (token != null) {
             original.newBuilder()
