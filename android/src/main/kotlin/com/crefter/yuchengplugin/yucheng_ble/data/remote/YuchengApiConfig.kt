@@ -12,7 +12,7 @@ data class YuchengApiConfig(
         fun fromFlavor(flavor: YuchengFlavor) : YuchengApiConfig {
             return when (flavor) {
                 YuchengFlavor.dev -> devApiConfig
-                YuchengFlavor.preProd -> preProdApiConfig
+                YuchengFlavor.prod -> prodApiConfig
             }
         }
     }
@@ -24,7 +24,7 @@ val devApiConfig = YuchengApiConfig(
     authBaseUrl = YuchengApiConstants.authDevBaseUrl,
 )
 
-val preProdApiConfig = YuchengApiConfig(
+val prodApiConfig = YuchengApiConfig(
     sleepBaseUrl = YuchengApiConstants.sleepPreProdBaseUrl,
     healthBaseUrl = YuchengApiConstants.healthPreProdBaseUrl,
     authBaseUrl = YuchengApiConstants.authPreProdBaseUrl,

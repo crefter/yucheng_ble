@@ -1,29 +1,35 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.crefter.yuchengplugin.yucheng_ble.data.remote
 
 import android.util.Log
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
+import com.crefter.yuchengplugin.yucheng_ble.data.local.strToken
+import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengAuthToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.Authenticator
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.Route
 import org.json.JSONObject
-import java.time.ZonedDateTime
-import java.util.Calendar
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
-data class YuchengTokens(
-    val accessToken: String,
-    val refreshToken: String
-)
 
-class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, private val apiConfig: YuchengApiConfig) : Authenticator {
+class YuchengTokenAuthenticator(
+    private val tokenStorage: YuchengTokenStorage,
+    private val apiConfig: YuchengApiConfig,
+    private val flavor: YuchengFlavor
+) : Authenticator {
     companion object {
         private const val TAG = "YUCH_API Token auth"
     }
+
     private val lock = Any()
 
     private fun responseCount(response: Response): Int {
@@ -42,12 +48,19 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
         }
         synchronized(lock) {
 
-            val currentToken = runBlocking { tokenStorage.getAccessToken() }
+            val currentToken = tokenStorage.getToken(flavor)?.access
             if (currentToken == null) {
+                Log.e(
+                    TAG,
+                    "access token null"
+                )
                 return null
             }
             val requestToken = response.request.header("Authorization")
-            Log.d(TAG, "currentToken = $currentToken, requestToken = $requestToken")
+            Log.d(
+                TAG,
+                "currentToken = ${currentToken.strToken()}, requestToken = $requestToken"
+            )
 
             // если токен уже обновился пока мы ждали lock
             if (requestToken != "Bearer $currentToken") {
@@ -56,29 +69,37 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
                     .build()
             }
 
-            val refreshToken = runBlocking {  tokenStorage.getRefreshToken() }
-            Log.d(TAG, "refresh token = $refreshToken")
+            val refreshToken = tokenStorage.getToken(flavor)?.refresh
+            Log.d(
+                TAG,
+                "refresh token = ${refreshToken.strToken()}"
+            )
 
             if (refreshToken == null) {
-                Log.e(TAG, "refresh token null")
+                Log.e(
+                    TAG,
+                    "refresh token null"
+                )
                 return null
             }
-            val newTokens = refreshTokens(refreshToken) ?: return null
+            val newToken = refreshTokens(refreshToken) ?: return null
 
-            runBlocking {
-                val expiresAt = Calendar.getInstance().timeInMillis
-                tokenStorage.saveTokens(newTokens.accessToken, newTokens.refreshToken, expiresAt.toString())
+            CoroutineScope(Dispatchers.Main).launch {
+                tokenStorage.saveTokens(newToken, flavor)
             }
 
             return response.request.newBuilder()
-                .header("Authorization", "Bearer ${newTokens.accessToken}")
+                .header("Authorization", "Bearer ${newToken.accessToken}")
                 .build()
         }
     }
 
-    fun refreshTokens(refreshToken: String?): YuchengTokens? {
-        Log.e(TAG, "start refresh token")
-        val client = OkHttpClient()
+    fun refreshTokens(refreshToken: String?): YuchengAuthToken? {
+        Log.e(
+            TAG,
+            "start refresh token"
+        )
+        val client = ApiClient.getDefaultClient()
 
         val body = """
         {
@@ -89,7 +110,10 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
         val requestBody = body.toRequestBody("application/json".toMediaType())
         val baseUrl = apiConfig.authBaseUrl
         val url = "$baseUrl${YuchengApiConstants.refresh}"
-        Log.e(TAG, "refresh tokens: url = $url, body = ${requestBody}")
+        Log.e(
+            TAG,
+            "refresh tokens: url = $url, refreshToken = ${refreshToken.strToken()}"
+        )
 
         val request = Request.Builder()
             .url(url)
@@ -99,17 +123,20 @@ class YuchengTokenAuthenticator(private val tokenStorage: YuchengTokenStorage, p
         client.newCall(request).execute().use { response ->
 
             if (!response.isSuccessful) {
-                Log.e(TAG, "refresh tokens: response not successful = $response")
+                Log.e(
+                    TAG,
+                    "refresh tokens: response not successful = $response"
+                )
                 return null
             }
 
             val body = response.body.string()
             val json = JSONObject(body)
-            Log.e(TAG, "refresh tokens: json = $json")
 
-            return YuchengTokens(
+            return YuchengAuthToken(
                 accessToken = json.getString("access_token"),
-                refreshToken = json.getString("refresh_token")
+                refreshToken = json.getString("refresh_token"),
+                issuedAt = Clock.System.now()
             )
         }
     }

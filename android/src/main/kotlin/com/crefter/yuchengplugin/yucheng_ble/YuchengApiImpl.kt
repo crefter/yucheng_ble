@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class, ExperimentalAtomicApi::class)
+
 package com.crefter.yuchengplugin.yucheng_ble
 
 
@@ -8,10 +10,11 @@ import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.crefter.yuchengplugin.yucheng_ble.entity.StartEndTimestamp
+import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengAuthToken
+import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import com.crefter.yuchengplugin.yucheng_ble.service.YuchengBleService
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
-import com.yucheng.ycbtsdk.bean.ScanDeviceBean
 import com.yucheng.ycbtsdk.upgrade.DfuCallBack
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +29,9 @@ import kotlinx.coroutines.withTimeout
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.math.roundToLong
+import kotlin.time.ExperimentalTime
 
 
 private const val SCAN_PERIOD: Int = 20
@@ -51,12 +56,10 @@ class YuchengApiImpl(
     private val assetPathHandler: (String) -> String,
 ) : YuchengHostApi {
 
-    private var index: Long = 0
     var activity: Context? = null
     private var deviceToUpdate: YuchengDevice? = null
     private var pathToUpdate: String = ""
     private var errorUpdateCount = 0
-    private var scannedDevices = mutableSetOf<ScanDeviceBean>()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startScanDevices(
@@ -65,19 +68,13 @@ class YuchengApiImpl(
         if (YCBTClient.isScaning()) {
             YCBTClient.stopScanBle()
         }
-        val devices: MutableList<YuchengDevice> = mutableListOf()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                scannedDevices = YuchengCore.scanDevices(
+                val scannedDevices = YuchengCore.scanDevices(
                     scanTimeInSeconds?.toLong() ?: SCAN_PERIOD.toLong(),
                     onDevice
-                ).toMutableSet()
-                for (device in scannedDevices) {
-                    val ycDevice =
-                        YuchengDevice(index++, device.deviceName, device.deviceMac, false)
-                    devices.add(ycDevice)
-                }
-                callback(Result.success(devices))
+                )
+                callback(Result.success(scannedDevices.toList()))
             } catch (e: Exception) {
                 Log.e(START_SCAN, e.toString())
                 callback(Result.failure(e))
@@ -213,7 +210,8 @@ class YuchengApiImpl(
                 callback(Result.success(null))
                 return
             }
-            val ycDevice = YuchengDevice(index++, deviceName, macAddress, false)
+            val ycDevice =
+                YuchengDevice(YuchengCore.deviceIndex.fetchAndAdd(1), deviceName, macAddress, false)
             YuchengCore.selectedDevice = ycDevice
             callback(Result.success(ycDevice))
         } catch (e: Exception) {
@@ -1225,8 +1223,7 @@ class YuchengApiImpl(
     }
 
     override fun setFlavor(
-        flavorName: String,
-        callback: (Result<Unit>) -> Unit
+        flavorName: String, callback: (Result<Unit>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -1243,18 +1240,23 @@ class YuchengApiImpl(
     }
 
     override fun setToken(
-        token: YuchengToken?,
-        callback: (Result<Unit>) -> Unit
+        token: YuchengToken?, callback: (Result<Unit>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                val flavorStr = YuchengCore.storage?.readFlavor()
+                val flavor = YuchengFlavor.fromString(flavorStr)
                 if (token == null) {
-                    YuchengCore.tokenStorage?.clear()
+                    YuchengCore.tokenStorage?.clear(flavor)
                 } else {
+                    val ycAuthToken = YuchengAuthToken(
+                        accessToken = token.access,
+                        refreshToken = token.refresh,
+                        issuedAt = kotlin.time.Instant.fromEpochMilliseconds(token.createdAtTimestamp)
+                    )
                     YuchengCore.tokenStorage?.saveTokens(
-                        token.access,
-                        token.refresh,
-                        token.expiresAtTimestamp.toString()
+                        ycAuthToken,
+                        flavor
                     )
                 }
                 withContext(Dispatchers.Main) {
@@ -1271,7 +1273,9 @@ class YuchengApiImpl(
     override fun getToken(callback: (Result<YuchengToken?>) -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val token = YuchengCore.tokenStorage?.getToken()
+                val flavorStr = YuchengCore.storage?.readFlavor()
+                val flavor = YuchengFlavor.fromString(flavorStr)
+                val token = YuchengCore.tokenStorage?.getToken(flavor)
                 withContext(Dispatchers.Main) {
                     callback(Result.success(token))
                 }

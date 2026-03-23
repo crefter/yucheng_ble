@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalAtomicApi::class)
+
 package com.crefter.yuchengplugin.yucheng_ble
 
 import android.content.Context
@@ -14,6 +16,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -21,6 +24,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 object YuchengCore {
     private const val YUCHENG_API = "YUCH_API Core"
@@ -28,11 +34,12 @@ object YuchengCore {
     private const val GET_HEALTH_DATA = "$YUCHENG_API GET_HEALTH_DAT"
     private const val TIME_TO_TIMEOUT: Long = 15
     private const val SCAN_PERIOD: Int = 20
-    private var deviceIndex: Long = 0
-    private var scannedDevices: MutableSet<ScanDeviceBean> = mutableSetOf()
+    private var scannedDevices = ConcurrentHashMap.newKeySet<ScanDeviceBean>()
     private var canLaunchJob: Job? = null
     private var isInit = false
     private val lock = Any()
+    private val canLaunchScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    var deviceIndex: AtomicLong = AtomicLong(0)
     var selectedDevice: YuchengDevice? = null
     var storage: YuchengBleStorage? = null
     var serviceOn: Boolean = false
@@ -51,12 +58,12 @@ object YuchengCore {
             Log.e(YUCHENG_API, "YCBTClient Init!")
         }
         storage = YuchengBleStorage(DataStorage(context.yuchengBleStore))
-        tokenStorage = YuchengTokenStorage(DataStorage(context.yuchengEncryptedDataStore))
+        tokenStorage = YuchengTokenStorage(yuchengEncryptedDataStore(context.applicationContext))
         if (canLaunchJob != null) {
             canLaunchJob?.cancel()
             canLaunchJob = null
         }
-        canLaunchJob = CoroutineScope(Dispatchers.IO).launch {
+        canLaunchJob = canLaunchScope.launch {
             serviceOn = storage?.readServiceOn() ?: false
             storage?.onServiceOn()?.collect {
                 Log.e(YUCHENG_API, "onServiceOn: $it")
@@ -85,8 +92,9 @@ object YuchengCore {
     suspend fun scanDevices(
         scanTimeInSeconds: Long?,
         onDevice: (device: YuchengDeviceEvent) -> Unit = {}
-    ): Set<ScanDeviceBean> {
+    ): Set<YuchengDevice> {
         Log.d(YUCHENG_API, "Start scan")
+        val ycDevices = mutableSetOf<YuchengDevice>()
         val devices = mutableSetOf<ScanDeviceBean>()
         val completer = CompletableDeferred<Set<ScanDeviceBean>>()
         withContext(Dispatchers.Main) {
@@ -107,7 +115,8 @@ object YuchengCore {
                         YUCHENG_API, "address: " + device.deviceMac
                     )
                     val ycDevice =
-                        YuchengDevice(deviceIndex++, deviceName, deviceMac, false)
+                        YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, deviceMac, false)
+                    ycDevices.add(ycDevice)
                     onDevice(
                         YuchengDeviceDataEvent(
                             ycDevice.index,
@@ -129,9 +138,9 @@ object YuchengCore {
                 YuchengDeviceTimeOutEvent(true)
             )
         }
-        scannedDevices = result?.toMutableSet() ?: devices
+        scannedDevices.addAll(result ?: devices)
 
-        return result ?: devices
+        return ycDevices.toSet()
     }
 
     suspend fun connect(device: YuchengDevice, connectTimeInSeconds: Long): Boolean {
@@ -185,7 +194,7 @@ object YuchengCore {
         if (bindMac != null && uuid == bindMac && isConnected()) {
             Log.d(YUCHENG_API, "UUID == BIND MAC and CONNECTED!")
             val deviceName = YCBTClient.getBindDeviceName()
-            val ycDevice = YuchengDevice(deviceIndex++, deviceName, bindMac, true)
+            val ycDevice = YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, bindMac, true)
             selectedDevice = ycDevice
             onDevice(
                 YuchengDeviceDataEvent(
@@ -261,7 +270,7 @@ object YuchengCore {
                                                 }
                                                 val ycDevice =
                                                     YuchengDevice(
-                                                        deviceIndex++,
+                                                        deviceIndex.fetchAndAdd(1),
                                                         deviceName,
                                                         macAddress,
                                                         true
@@ -324,7 +333,7 @@ object YuchengCore {
                                 return@reconnectDevice
                             }
                             val ycDevice =
-                                YuchengDevice(deviceIndex++, deviceName, macAddress, true)
+                                YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, macAddress, true)
                             selectedDevice = ycDevice
                             onDevice(
                                 YuchengDeviceDataEvent(
@@ -382,7 +391,7 @@ object YuchengCore {
                                                 }
                                                 val ycDevice =
                                                     YuchengDevice(
-                                                        deviceIndex++,
+                                                        deviceIndex.fetchAndAdd(1),
                                                         deviceName,
                                                         deviceMac,
                                                         true

@@ -2,11 +2,6 @@
 
 import 'package:pigeon/pigeon.dart';
 
-// TODO: добавить метод для передачи access/refresh токена. А также его чтения из плагина.
-// TODO: токен хранить в защищенном хранилище: андройд, уточнить, что юзать, ios - Keychain
-// TODO: подумать над тем, как сделать включение сервиса - думаю, лучше по кнопке, чтобы можно было еще запросить разрешение
-// TODO: добавить разрешение на notification для включения/отключения сервиса
-// TODO: Сделать отправку данных на сервер
 // #docregion config
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/yucheng_ble.g.dart',
@@ -390,12 +385,12 @@ class RealTimeBloodPressure {
 class YuchengToken {
   final String access;
   final String refresh;
-  final int expiresAtTimestamp;
+  final int createdAtTimestamp;
 
   const YuchengToken({
     required this.access,
     required this.refresh,
-    required this.expiresAtTimestamp,
+    required this.createdAtTimestamp,
   });
 }
 

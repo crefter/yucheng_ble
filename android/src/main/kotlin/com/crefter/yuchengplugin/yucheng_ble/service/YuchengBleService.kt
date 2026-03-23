@@ -67,7 +67,10 @@ class YuchengBleService : Service() {
                 return
             }
         }
-        val token = YuchengCore.tokenStorage?.getToken()
+        val flavorString = YuchengCore.storage?.readFlavor() ?: return
+        val flavor = YuchengFlavor.fromString(flavorString)
+        Log.i(YUCH_TAG, "readData: flavor = $flavor")
+        val token = YuchengCore.tokenStorage?.getToken(flavor)
         if (token == null) {
             Log.e(YUCH_TAG, "Service: read data: token is null!")
             if (tokenIsNullCount >= MAX_TOKEN_IS_NULL_COUNT) {
@@ -105,16 +108,17 @@ class YuchengBleService : Service() {
         healthData: YuchengHealthSportData
     ) {
         Log.i(YUCH_TAG, "sendDataToServer")
+        val tokenStorage = YuchengCore.tokenStorage ?: return
         val flavorString = YuchengCore.storage?.readFlavor() ?: return
         val flavor = YuchengFlavor.fromString(flavorString)
         Log.i(YUCH_TAG, "sendDataToServer: flavor = $flavor")
-        val tokenStorage = YuchengCore.tokenStorage ?: return
         val apiConfig = YuchengApiConfig.fromFlavor(flavor)
         Log.i(YUCH_TAG, "sendDataToServer: apiConfig = $apiConfig")
         val repo = YuchengRepository(
             ApiClient.getClient(
                 apiConfig = apiConfig,
-                tokenStorage = tokenStorage
+                tokenStorage = tokenStorage,
+                flavor = flavor,
             ), apiConfig
         )
         val id = Build.ID

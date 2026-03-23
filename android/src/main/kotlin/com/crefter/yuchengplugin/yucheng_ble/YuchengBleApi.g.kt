@@ -14,7 +14,6 @@ import io.flutter.plugin.common.StandardMethodCodec
 import io.flutter.plugin.common.StandardMessageCodec
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
-
 private object YuchengBleApiPigeonUtils {
 
   fun wrapResult(result: Any?): List<Any?> {
@@ -1068,22 +1067,22 @@ data class RealTimeBloodPressure (
 data class YuchengToken (
   val access: String,
   val refresh: String,
-  val expiresAtTimestamp: Long
+  val createdAtTimestamp: Long
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): YuchengToken {
       val access = pigeonVar_list[0] as String
       val refresh = pigeonVar_list[1] as String
-      val expiresAtTimestamp = pigeonVar_list[2] as Long
-      return YuchengToken(access, refresh, expiresAtTimestamp)
+      val createdAtTimestamp = pigeonVar_list[2] as Long
+      return YuchengToken(access, refresh, createdAtTimestamp)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       access,
       refresh,
-      expiresAtTimestamp,
+      createdAtTimestamp,
     )
   }
   override fun equals(other: Any?): Boolean {

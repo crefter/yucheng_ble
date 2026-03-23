@@ -1446,20 +1446,20 @@ class YuchengToken {
   YuchengToken({
     required this.access,
     required this.refresh,
-    required this.expiresAtTimestamp,
+    required this.createdAtTimestamp,
   });
 
   String access;
 
   String refresh;
 
-  int expiresAtTimestamp;
+  int createdAtTimestamp;
 
   List<Object?> _toList() {
     return <Object?>[
       access,
       refresh,
-      expiresAtTimestamp,
+      createdAtTimestamp,
     ];
   }
 
@@ -1471,7 +1471,7 @@ class YuchengToken {
     return YuchengToken(
       access: result[0]! as String,
       refresh: result[1]! as String,
-      expiresAtTimestamp: result[2]! as int,
+      createdAtTimestamp: result[2]! as int,
     );
   }
 

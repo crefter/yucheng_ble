@@ -1057,26 +1057,26 @@ struct RealTimeBloodPressure: Hashable {
 struct YuchengToken: Hashable {
   var access: String
   var refresh: String
-  var expiresAtTimestamp: Int64
+  var createdAtTimestamp: Int64
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> YuchengToken? {
     let access = pigeonVar_list[0] as! String
     let refresh = pigeonVar_list[1] as! String
-    let expiresAtTimestamp = pigeonVar_list[2] as! Int64
+    let createdAtTimestamp = pigeonVar_list[2] as! Int64
 
     return YuchengToken(
       access: access,
       refresh: refresh,
-      expiresAtTimestamp: expiresAtTimestamp
+      createdAtTimestamp: createdAtTimestamp
     )
   }
   func toList() -> [Any?] {
     return [
       access,
       refresh,
-      expiresAtTimestamp,
+      createdAtTimestamp,
     ]
   }
   static func == (lhs: YuchengToken, rhs: YuchengToken) -> Bool {
