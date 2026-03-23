@@ -29,6 +29,7 @@ class YuchengTokenStorage(private val storage: SharedPreferences) {
         return savedToken
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun getToken(flavor: YuchengFlavor): YuchengToken? {
         Log.d(TAG, "getToken: flavor = $flavor")
         try {
