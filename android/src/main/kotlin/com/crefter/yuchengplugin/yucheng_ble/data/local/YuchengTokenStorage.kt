@@ -4,12 +4,15 @@ package com.crefter.yuchengplugin.yucheng_ble.data.local
 
 import android.content.SharedPreferences
 import android.icu.util.Calendar
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.content.edit
 import com.crefter.yuchengplugin.yucheng_ble.YuchengToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengAuthToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -40,7 +43,7 @@ class YuchengTokenStorage(private val storage: SharedPreferences) {
                 qcAuthToken?.issuedAt?.toEpochMilliseconds() ?: Calendar.getInstance().timeInMillis
             Log.d(
                 TAG,
-                "getToken: timestamp = ${Instant.fromEpochMilliseconds(timestamp)}," +
+                "getToken: timestamp = ${java.time.Instant.ofEpochMilli(timestamp)}," +
                         " access = ${access.strToken()}, refresh = ${refresh.strToken()}"
             )
             if (access == null || refresh == null) return null
