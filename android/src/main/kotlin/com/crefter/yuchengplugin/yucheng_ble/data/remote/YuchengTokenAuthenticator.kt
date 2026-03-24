@@ -77,12 +77,12 @@ class YuchengTokenAuthenticator(
 
             Log.i(TAG, "start refreshing!")
             YuchengCore.isTokenRefreshing.value = true
-            if (refreshToken == null) {
-                Log.i(TAG, "refresh token is null!")
+            val newToken = refreshTokens(refreshToken)
+            if (newToken == null) {
+                Log.i(TAG, "new token is null!")
                 YuchengCore.isTokenRefreshing.value = false
                 return null
             }
-            val newToken = refreshTokens(refreshToken)
 
             CoroutineScope(Dispatchers.Main).launch {
                 tokenStorage.saveTokens(newToken, flavor)
