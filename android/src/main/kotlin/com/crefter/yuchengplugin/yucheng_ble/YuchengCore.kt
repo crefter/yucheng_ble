@@ -39,6 +39,7 @@ object YuchengCore {
     private var isInit = false
     private val lock = Any()
     private val canLaunchScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    val isTokenRefreshing = MutableStateFlow(false)
     var deviceIndex: AtomicLong = AtomicLong(0)
     var selectedDevice: YuchengDevice? = null
     var storage: YuchengBleStorage? = null

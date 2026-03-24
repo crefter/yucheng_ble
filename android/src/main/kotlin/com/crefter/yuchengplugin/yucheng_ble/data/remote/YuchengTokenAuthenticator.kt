@@ -5,6 +5,7 @@ package com.crefter.yuchengplugin.yucheng_ble.data.remote
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.crefter.yuchengplugin.yucheng_ble.YuchengCore
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
 import com.crefter.yuchengplugin.yucheng_ble.data.local.strToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengAuthToken
@@ -73,10 +74,20 @@ class YuchengTokenAuthenticator(
                 Log.e(TAG, "refresh token null")
                 return null
             }
-            val newToken = refreshTokens(refreshToken) ?: return null
+
+            Log.i(TAG, "start refreshing!")
+            YuchengCore.isTokenRefreshing.value = true
+            if (refreshToken == null) {
+                Log.i(TAG, "refresh token is null!")
+                YuchengCore.isTokenRefreshing.value = false
+                return null
+            }
+            val newToken = refreshTokens(refreshToken)
 
             CoroutineScope(Dispatchers.Main).launch {
                 tokenStorage.saveTokens(newToken, flavor)
+                YuchengCore.isTokenRefreshing.value = false
+                Log.i(TAG, "new tokens saved! End refreshing!")
             }
 
             return response.request.newBuilder()
@@ -104,7 +115,6 @@ class YuchengTokenAuthenticator(
             .url(url)
             .post(requestBody)
             .build()
-
         client.newCall(request).execute().use { response ->
 
             if (!response.isSuccessful) {

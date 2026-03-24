@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -1275,6 +1276,11 @@ class YuchengApiImpl(
             try {
                 val flavorStr = YuchengCore.storage?.readFlavor()
                 val flavor = YuchengFlavor.fromString(flavorStr)
+                if (YuchengCore.isTokenRefreshing.value) {
+                    Log.e(YUCHENG_API, "getToken: wait until token refreshing")
+                    YuchengCore.isTokenRefreshing.first { !it }
+                    Log.e(YUCHENG_API, "getToken: token refreshed!")
+                }
                 val token = YuchengCore.tokenStorage?.getToken(flavor)
                 withContext(Dispatchers.Main) {
                     callback(Result.success(token))
