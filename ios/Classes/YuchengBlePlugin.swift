@@ -3,7 +3,7 @@ import UIKit
 import CoreBluetooth
 import YCProductSDK
 
-public class YuchengBlePlugin: NSObject, FlutterPlugin {
+public class YuchengBlePlugin: NSObject, FlutterPlugin, FlutterSceneLifeCycleDelegate {
     private static var api: YuchengHostApiImpl? = nil
     private static var devicesHandler: DeviceStreamHandlerImpl? = nil
     private static var sleepDataHandler: SleepDataHandlerImpl? = nil
@@ -17,6 +17,9 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
     private static let sportDataConverter = YuchengSportDataConverter()
     
     public static func register(with registrar: FlutterPluginRegistrar) {
+        let instance = YuchengBlePlugin()
+        registrar.addApplicationDelegate(instance)
+        registrar.addSceneDelegate(instance)
         if (devicesHandler == nil) {
             devicesHandler = DeviceStreamHandlerImpl();
         }
@@ -36,23 +39,19 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
             updateStreamHandler = UpdateDataHandlerImpl()
         }
         
-        //         YCProduct.realTimeDataUplod(YCProduct.shared.currentPeripheral,
-        //                                             isEnable: true,
-        //                                             dataType: YCRealTimeDataType.combinedData,
-        //                                             completion: {state, result in
-        //                     if state == .succeed {
-        //
-        //                     } else {
-        //
-        //                     }
-        //                 } );
-        
         DevicesStreamHandler.register(with: registrar.messenger(), streamHandler: devicesHandler!)
         SleepDataStreamHandler.register(with: registrar.messenger(), streamHandler: sleepDataHandler!)
         DeviceStateStreamHandler.register(with: registrar.messenger(), streamHandler: deviceStateStreamHandler!)
         AllDataStreamHandler.register(with: registrar.messenger(), streamHandler: allDataHandler!)
         HealthDataStreamHandler.register(with: registrar.messenger(), streamHandler: healthDataHandler!)
         UpdateDataStreamHandler.register(with: registrar.messenger(), streamHandler: updateStreamHandler!)
+        
+        YuchengCore.shared.initialize { state in
+            deviceStateStreamHandler?.onDeviceStateChanged(state)
+        } onDevice: { device in
+            devicesHandler?.onDeviceChanged(device)
+        }
+
         
         if (api == nil) {
             api = YuchengHostApiImpl(
@@ -91,5 +90,25 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin {
         YuchengBlePlugin.deviceStateStreamHandler?.detach()
         YuchengBlePlugin.healthDataHandler?.detach()
         YuchengBlePlugin.allDataHandler?.detach()
+    }
+    
+    public func sceneDidBecomeActive(_ scene: UIScene) {
+        print("SceneDidBecomeActive")
+    }
+    
+    public func sceneWillResignActive(_ scene: UIScene) {
+        print("SceneWillResignActive")
+    }
+    
+    public func sceneDidDisconnect(_ scene: UIScene) {
+        print("SceneDidDisconnect")
+    }
+    
+    public func sceneDidEnterBackground(_ scene: UIScene) {
+        print("SceneDidEnterBackground")
+    }
+    
+    public func sceneWillEnterForeground(_ scene: UIScene) {
+        print("SceneWillEnterForeground")
     }
 }

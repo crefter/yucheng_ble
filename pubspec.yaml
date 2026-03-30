@@ -1,11 +1,11 @@
 name: yucheng_ble
 description: "Plugin for yucheng"
-version: 1.0.1
+version: 2.0.9
 publish_to: none
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.3.0'
+  flutter: '>=3.38.0'
 
 dependencies:
   flutter:

@@ -126,4 +126,23 @@ class YuchengBle {
 
   Future<bool> calibrateBloodPressure(int sbp, int dbp) =>
       YuchengBlePlatform.instance.calibrateBloodPressure(sbp, dbp);
+
+  /// Before use you MUST request and grant POST_NOTIFICATION permission,
+  /// otherwise this don`t work
+  Future<bool> turnOnBackgroundService(int delayInMinutes) =>
+      YuchengBlePlatform.instance.turnOnBackgroundService(delayInMinutes);
+
+  Future<bool> turnOffBackgroundService() =>
+      YuchengBlePlatform.instance.turnOffBackgroundService();
+
+  Future<bool> canLaunchBackgroundService() =>
+      YuchengBlePlatform.instance.canLaunchBackgroundService();
+
+  Future<void> setFlavor(String flavorName) =>
+      YuchengBlePlatform.instance.setFlavor(flavorName);
+
+  Future<void> setToken(YuchengToken? token) =>
+      YuchengBlePlatform.instance.setToken(token);
+
+  Future<YuchengToken?> getToken() => YuchengBlePlatform.instance.getToken();
 }

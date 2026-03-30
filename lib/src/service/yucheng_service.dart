@@ -601,6 +601,65 @@ final class YuchengService
       rethrow;
     }
   }
+
+  Future<bool> turnOnBackgroundService({int delayInMinutes = 10}) async {
+    try {
+      final isGranted = await requestNotificationPermission();
+      if (isGranted) {
+        final result = await _ble.turnOnBackgroundService(delayInMinutes);
+        await canLaunchBackgroundService();
+        return result;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> turnOffBackgroundService() async {
+    try {
+      final result = await _ble.turnOffBackgroundService();
+      await canLaunchBackgroundService();
+      return result;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> canLaunchBackgroundService() async {
+    try {
+      final canLaunch = await _ble.canLaunchBackgroundService();
+      setCanLaunchBackgroundService(canLaunch);
+      return canLaunch;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> setFlavor(String flavorName) async {
+    try {
+      await _ble.setFlavor(flavorName);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> setToken(YuchengToken token) async {
+    try {
+      await _ble.setToken(token);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<YuchengToken?> getToken() async {
+    try {
+      return await _ble.getToken();
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 extension FirstWhereOrNullX<T> on Iterable<T> {

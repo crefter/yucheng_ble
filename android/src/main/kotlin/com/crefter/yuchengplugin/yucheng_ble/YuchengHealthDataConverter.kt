@@ -1,6 +1,5 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
-import YuchengHealthData
 import com.google.gson.Gson
 
 private class AllDataBean(
@@ -20,7 +19,7 @@ private class AllDataBean(
     val bloodSugarValue: Int // blood sugar*10 value
 )
 
-class YuchengHealthDataConverter(private val gson: Gson) {
+open class YuchengHealthDataConverter(private val gson: Gson) {
     fun convert(healthDataBean: Any?): YuchengHealthData {
         val converted = gson.fromJson(healthDataBean.toString(), AllDataBean::class.java)
         return YuchengHealthData(

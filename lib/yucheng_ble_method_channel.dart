@@ -127,4 +127,24 @@ class MethodChannelYuchengBle extends YuchengBlePlatform {
   @override
   Future<bool> calibrateBloodPressure(int sbp, int dbp) =>
       _api.calibrateBloodPressure(sbp, dbp);
+
+  @override
+  Future<bool> turnOnBackgroundService(int delayInMinutes) =>
+      _api.turnOnBackgroundService(delayInMinutes);
+
+  @override
+  Future<bool> turnOffBackgroundService() => _api.turnOffBackgroundService();
+
+  @override
+  Future<bool> canLaunchBackgroundService() =>
+      _api.canLaunchBackgroundService();
+
+  @override
+  Future<void> setFlavor(String flavorName) => _api.setFlavor(flavorName);
+
+  @override
+  Future<void> setToken(YuchengToken? token) => _api.setToken(token);
+
+  @override
+  Future<YuchengToken?> getToken() => _api.getToken();
 }

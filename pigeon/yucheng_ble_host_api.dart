@@ -382,6 +382,18 @@ class RealTimeBloodPressure {
   });
 }
 
+class YuchengToken {
+  final String access;
+  final String refresh;
+  final int createdAtTimestamp;
+
+  const YuchengToken({
+    required this.access,
+    required this.refresh,
+    required this.createdAtTimestamp,
+  });
+}
+
 @HostApi()
 abstract class YuchengHostApi {
   /// [scanTimeInMs] - сколько по времени сканировать (по умолчанию 3 секунды для ios и 10 для андройд)
@@ -492,6 +504,24 @@ abstract class YuchengHostApi {
 
   @async
   bool calibrateBloodPressure(int sbp, int dbp);
+
+  @async
+  bool turnOnBackgroundService(int delayInMinutes);
+
+  @async
+  bool turnOffBackgroundService();
+
+  @async
+  bool canLaunchBackgroundService();
+
+  @async
+  void setFlavor(String flavorName);
+
+  @async
+  void setToken(YuchengToken? token);
+
+  @async
+  YuchengToken? getToken();
 }
 
 @EventChannelApi()
