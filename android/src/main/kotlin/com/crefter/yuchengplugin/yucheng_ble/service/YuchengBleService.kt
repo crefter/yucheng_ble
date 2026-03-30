@@ -190,6 +190,7 @@ class YuchengBleService : Service() {
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Sleeptery")
             .setContentText("Следим за твоим сном...")
+            .setOngoing(true)
             .setSmallIcon(applicationInfo.icon)
             .setContentIntent(pendingIntent)
             .setAutoCancel(false)
