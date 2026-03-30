@@ -171,23 +171,15 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
             api?.activity = activity
         }
         if (activity != null) {
-            if (ActivityCompat.checkSelfPermission(
-                    activity!!,
-                    android.Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                Log.e(PLUGIN_TAG, "onAttachedToActivity: permission granted!")
-                CoroutineScope(Dispatchers.Main).launch {
-                    val serviceOn = YuchengCore.storage?.readServiceOn() ?: false
-                    if (serviceOn) {
-                        Log.e(PLUGIN_TAG, "onAttachedToActivity: Service on, start!")
-                        YuchengBleService.restartService(activity!!)
-                    } else {
-                        Log.e(PLUGIN_TAG, "onAttachedToActivity: Service off, cant start!")
-                    }
+            Log.e(PLUGIN_TAG, "onAttachedToActivity: try start YUCHENG service")
+            CoroutineScope(Dispatchers.Main).launch {
+                val serviceOn = YuchengCore.storage?.readServiceOn() ?: false
+                if (serviceOn) {
+                    Log.e(PLUGIN_TAG, "onAttachedToActivity: Service on, start!")
+                    YuchengBleService.restartService(activity!!)
+                } else {
+                    Log.e(PLUGIN_TAG, "onAttachedToActivity: Service off, cant start!")
                 }
-            } else {
-                Log.e(PLUGIN_TAG, "onAttachedToActivity: NO PERMISSION!")
             }
         }
     }

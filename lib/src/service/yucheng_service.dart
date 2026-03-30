@@ -604,14 +604,9 @@ final class YuchengService
 
   Future<bool> turnOnBackgroundService({int delayInMinutes = 10}) async {
     try {
-      final isGranted = await requestNotificationPermission();
-      if (isGranted) {
-        final result = await _ble.turnOnBackgroundService(delayInMinutes);
-        await canLaunchBackgroundService();
-        return result;
-      } else {
-        return false;
-      }
+      final result = await _ble.turnOnBackgroundService(delayInMinutes);
+      await canLaunchBackgroundService();
+      return result;
     } catch (e) {
       rethrow;
     }
