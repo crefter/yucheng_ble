@@ -170,18 +170,6 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
         if (api != null) {
             api?.activity = activity
         }
-        if (activity != null) {
-            Log.e(PLUGIN_TAG, "onAttachedToActivity: try start YUCHENG service")
-            CoroutineScope(Dispatchers.Main).launch {
-                val serviceOn = YuchengCore.storage?.readServiceOn() ?: false
-                if (serviceOn) {
-                    Log.e(PLUGIN_TAG, "onAttachedToActivity: Service on, start!")
-                    YuchengBleService.restartService(activity!!)
-                } else {
-                    Log.e(PLUGIN_TAG, "onAttachedToActivity: Service off, cant start!")
-                }
-            }
-        }
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
