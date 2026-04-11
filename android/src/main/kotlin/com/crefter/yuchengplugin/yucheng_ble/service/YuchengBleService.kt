@@ -22,6 +22,7 @@ import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepDataConverter
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSportDataConverter
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.ApiClient
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengApiConfig
+import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengInternetChecker
 import com.crefter.yuchengplugin.yucheng_ble.data.remote.YuchengRepository
 import com.crefter.yuchengplugin.yucheng_ble.entity.StartEndTimestamp
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
@@ -84,7 +85,13 @@ class YuchengBleService : Service() {
         }
         tokenIsNullCount = 0
         Log.i(YUCH_TAG, "Service: After reconnect:")
-
+        Log.i(YUCH_TAG, "Service: Check internet connection")
+        val hasInternet = YuchengInternetChecker.hasInternet(ApiClient.getClientForCheckInternet())
+        Log.e(YUCH_TAG, "Service: internet connection is $hasInternet")
+        if (!hasInternet) {
+            Log.e(YUCH_TAG, "Service: no internet connection, skip!")
+            return
+        }
         val startEnd = StartEndTimestamp.service()
         try {
             val sleepData = YuchengCore.getSleepData(

@@ -1,6 +1,8 @@
 package com.crefter.yuchengplugin.yucheng_ble.data.remote
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import okhttp3.ConnectionPool
@@ -14,6 +16,7 @@ object ApiClient {
     private var client: OkHttpClient? = null
     private val lock = Any()
 
+    @RequiresApi(Build.VERSION_CODES.GINGERBREAD)
     fun getClient(tokenStorage: YuchengTokenStorage,
                   apiConfig: YuchengApiConfig, flavor: YuchengFlavor): OkHttpClient {
         if (client != null) {
@@ -45,5 +48,13 @@ object ApiClient {
 
     fun getDefaultClient() : OkHttpClient {
         return OkHttpClient()
+    }
+
+    fun getClientForCheckInternet() : OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.SECONDS)
+            .callTimeout(3, TimeUnit.SECONDS)
+            .build()
     }
 }
