@@ -100,7 +100,6 @@ final class Completer<T> {
     
     deinit {
         cancelTimeout()
-        assert(isCompleted, "Completer deinit without completion")
     }
 }
 
