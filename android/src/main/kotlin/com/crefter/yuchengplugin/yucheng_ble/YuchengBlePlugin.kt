@@ -153,7 +153,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        Log.e(PLUGIN_TAG, "onDetachedFromEngine")
+        Log.e(PLUGIN_TAG, "onDetachedFromEngine:")
         YuchengHostApi.setUp(binding.binaryMessenger, null)
         YuchengCore.removeListenerState(listener = { state -> stateListener(state) })
         YuchengCore.dispose()
@@ -165,7 +165,7 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        Log.e(PLUGIN_TAG, "onAttachedToActivity")
+        Log.e(PLUGIN_TAG, "onAttachedToActivity:")
         activity = binding.activity
         if (api != null) {
             api?.activity = activity

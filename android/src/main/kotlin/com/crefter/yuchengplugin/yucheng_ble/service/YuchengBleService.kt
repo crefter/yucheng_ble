@@ -84,7 +84,7 @@ class YuchengBleService : Service() {
             return
         }
         tokenIsNullCount = 0
-        Log.i(YUCH_TAG, "Service: After reconnect:")
+        Log.i(YUCH_TAG, "Service: After reconnect::")
         Log.i(YUCH_TAG, "Service: Check internet connection")
         val hasInternet = YuchengInternetChecker.hasInternet(ApiClient.getClientForCheckInternet())
         Log.e(YUCH_TAG, "Service: internet connection is $hasInternet")
