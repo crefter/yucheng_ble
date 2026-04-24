@@ -3,12 +3,14 @@
 package com.crefter.yuchengplugin.yucheng_ble
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import com.crefter.yuchengplugin.yucheng_ble.data.local.DataStorage
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengBleStorage
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
 import com.crefter.yuchengplugin.yucheng_ble.data.local.yuchengBleStore
 import com.crefter.yuchengplugin.yucheng_ble.data.local.yuchengEncryptedDataStore
+import com.crefter.yuchengplugin.yucheng_ble.data.remote.startDate
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.bean.ScanDeviceBean
@@ -600,6 +602,19 @@ object YuchengCore {
                 Log.d(YUCHENG_API, "Sport data is null, timeout!")
             } else {
                 Log.d(YUCHENG_API, "Sport data got!")
+                val groupedByDateSport = sportData.groupBy {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        it.startDate.dayOfMonth
+                    } else {
+                        it.startTimeStamp
+                    }
+                }
+                for (entry in groupedByDateSport.entries) {
+                    val sumSteps = entry.value.sumOf { it.steps }
+                    val sumCalories = entry.value.sumOf { it.calories }
+                    val sumDist = entry.value.sumOf { it.distance }
+                    Log.e(YUCHENG_API, "Sport at ${entry.key}: sumSteps = $sumSteps, sumCalories = $sumCalories, sumDist = $sumDist")
+                }
             }
 
             launch {
