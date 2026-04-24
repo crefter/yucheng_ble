@@ -31,7 +31,7 @@ open class YuchengHealthDataConverter(private val gson: Gson) {
             DBPValue = converted.DBPValue.toLong(),
             tempIntValue = converted.tempIntValue.toLong(),
             tempFloatValue = converted.tempFloatValue.toLong(),
-            startTimestamp = converted.startTime.toLong(),
+            startTimestamp = converted.startTime,
             SBPValue = converted.SBPValue.toLong(),
             respiratoryRateValue = converted.respiratoryRateValue.toLong(),
             bodyFatIntValue = converted.bodyFatIntValue.toLong(),

@@ -25,8 +25,13 @@ import java.time.ZonedDateTime
 import kotlin.time.ExperimentalTime
 
 
-private fun Long.toEpochMs(): Long =
-    if (toString().length == 13) toLong() else this * 1000L
+private fun Long.toEpochMs(): Long {
+    return when (this) {
+        in 1_000_000_000_000L..9_999_999_999_999L -> this // ms
+        in 1_000_000_000L..9_999_999_999L -> this * 1000 // sec
+        else -> this // не трогаем, дальше отфильтруем
+    }
+}
 
 
 val YuchengSleepType.json: String
@@ -35,11 +40,13 @@ val YuchengSleepType.json: String
 
 val YuchengSleepDataDetail.startDate: LocalDateTime
     @RequiresApi(Build.VERSION_CODES.O)
-    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 
 val YuchengSleepDataDetail.endDate: LocalDateTime
     @RequiresApi(Build.VERSION_CODES.O)
-    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs() + duration * 1000L).atZone(ZoneId.systemDefault()).toLocalDateTime()
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs() + duration * 1000L)
+        .atZone(ZoneId.systemDefault()).toLocalDateTime()
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun YuchengSleepDataDetail.toJson() = mapOf(
@@ -51,11 +58,13 @@ fun YuchengSleepDataDetail.toJson() = mapOf(
 
 val YuchengSleepData.startDate: LocalDateTime
     @RequiresApi(Build.VERSION_CODES.O)
-    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 
 val YuchengSleepData.endDate: LocalDateTime
     @RequiresApi(Build.VERSION_CODES.O)
-    get() = Instant.ofEpochMilli(endTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
+    get() = Instant.ofEpochMilli(endTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -74,11 +83,13 @@ fun YuchengSleepData.toJson() = mapOf(
 
 val YuchengSportData.startDate: LocalDateTime
     @RequiresApi(Build.VERSION_CODES.O)
-    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
+    get() = Instant.ofEpochMilli(startTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 
 val YuchengSportData.endDate: LocalDateTime
     @RequiresApi(Build.VERSION_CODES.O)
-    get() = Instant.ofEpochMilli(endTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
+    get() = Instant.ofEpochMilli(endTimeStamp.toEpochMs()).atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun YuchengSportData.toJson() = mapOf(
@@ -91,7 +102,8 @@ fun YuchengSportData.toJson() = mapOf(
 
 val YuchengHealthData.startDate: LocalDateTime
     @RequiresApi(Build.VERSION_CODES.O)
-    get() = Instant.ofEpochMilli(startTimestamp.toEpochMs()).atZone(ZoneId.systemDefault()).toLocalDateTime()
+    get() = Instant.ofEpochMilli(startTimestamp.toEpochMs()).atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun YuchengHealthData.toJson() = mapOf(
@@ -110,6 +122,12 @@ fun YuchengHealthData.toJson() = mapOf(
     "body_fat_float_value" to bodyFatFloatValue,
     "blood_sugar_value" to bloodSugarValue
 )
+
+private fun Long.isValidEpochMs(): Boolean {
+    val now = System.currentTimeMillis()
+
+    return this < now + (7 * 24 * 60 * 60 * 1000)
+}
 
 class YuchengRepository(
     private val apiClient: OkHttpClient,
@@ -130,7 +148,18 @@ class YuchengRepository(
                 Log.i(TAG_SLEEP, "saveSleep")
                 val offset = ZonedDateTime.now().offset.totalSeconds / 60
 
-                val sleepJson = gson.toJson(sleepData.map { it.toJson() })
+                val sleepDataJson = sleepData.map {
+                    if (!it.startTimeStamp.isValidEpochMs()) {
+                        Log.e(TAG_SLEEP, "NOT VALID SLEEP startTimestamp = ${it.startTimeStamp}")
+                    }
+                    if (!it.endTimeStamp.isValidEpochMs()) {
+                        Log.e(TAG_SLEEP, "NOT VALID SLEEP endTimeStamp = ${it.endTimeStamp}")
+                    }
+                    return@map it.toJson()
+                }
+                val sleepJson = gson.toJson(sleepDataJson)
+                Log.i(TAG_SLEEP, "Sleep json = $sleepJson")
+
                 val json = "{" +
                         "\"device_id\": \"$deviceId\"," +
                         "\"utc_offset\": \"$offset\"," +
@@ -173,9 +202,32 @@ class YuchengRepository(
                 Log.i(TAG_HEALTH, "saveHealth")
 
                 val offset = ZonedDateTime.now().offset.totalSeconds / 60
+                val healthDataJson = healthData.healthData.map {
+                    if (!it.startTimestamp.isValidEpochMs()) {
+                        Log.e(TAG_HEALTH, "NOT VALID HEALTH startTimestamp = ${it.startTimestamp}")
+                        return@map null
+                    }
+                    return@map it.toJson()
+                }.filterNotNull()
+                val healthJson = gson.toJson(healthDataJson)
+                Log.e(TAG_HEALTH, "Health converted to json!")
+                Log.i(TAG_HEALTH, "Health json = $healthJson")
 
-                val healthJson = gson.toJson(healthData.healthData.map { it.toJson() })
-                val sportJson = gson.toJson(healthData.sportData.map { it.toJson() })
+                val sportDataJson = healthData.sportData.map {
+                    if (!it.startTimeStamp.isValidEpochMs()) {
+                        Log.e(TAG_HEALTH, "NOT VALID SPORT startTimestamp = ${it.startTimeStamp}")
+                        return@map null
+                    }
+                    if (!it.endTimeStamp.isValidEpochMs()) {
+                        Log.e(TAG_HEALTH, "NOT VALID SPORT endTimeStamp = ${it.endTimeStamp}")
+                        return@map null
+                    }
+                    return@map it.toJson()
+                }.filterNotNull()
+                val sportJson = gson.toJson(sportDataJson)
+                Log.e(TAG_HEALTH, "Sport converted to json!")
+                Log.i(TAG_HEALTH, "Sport json = $sportJson")
+
                 val json = "{" +
                         "\"device_id\": \"$deviceId\"," +
                         "\"utc_offset\": \"$offset\"," +
@@ -188,7 +240,7 @@ class YuchengRepository(
                 val baseUrl = apiConfig.healthBaseUrl
 
                 val url = "$baseUrl${YuchengApiConstants.health}"
-                Log.i(TAG_HEALTH, "saveHealth: url = $url \n json = $json")
+                Log.e(TAG_HEALTH, "saveHealth: url = $url\njson = $json")
 
                 val request = Request.Builder()
                     .header("Content-Type", "application/json")
@@ -204,8 +256,6 @@ class YuchengRepository(
                             Log.i(TAG_HEALTH, "Data sent successfully")
                         }
                     }
-
-
             } catch (e: Exception) {
                 Log.e(TAG_HEALTH, "Ошибка при отправке здоровья: $e")
             }

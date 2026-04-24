@@ -93,6 +93,7 @@ class YuchengBleService : Service() {
             return
         }
         val startEnd = StartEndTimestamp.service()
+        Log.i(YUCH_TAG, "startEnd timestamp for service = $startEnd")
         try {
             val sleepData = YuchengCore.getSleepData(
                 true, startTimestamp = startEnd.start, startEnd.end,

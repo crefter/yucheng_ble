@@ -187,7 +187,10 @@ object YuchengCore {
     ): Boolean {
         val bindMac = YCBTClient.getBindDeviceMac()
         delay(1000)
-        Log.e(YUCHENG_API, "START RECONNECT, bindMac: $bindMac, deviceMac: $uuid, isConnected = ${isConnected()}")
+        Log.e(
+            YUCHENG_API,
+            "START RECONNECT, bindMac: $bindMac, deviceMac: $uuid, isConnected = ${isConnected()}"
+        )
         if (connectState.value == 5) {
             Log.d(YUCHENG_API, "RECONNECT: device connecting, wait until state >= 6 (Connected)")
             connectState.first { it >= Constants.BLEState.Connected }
@@ -215,7 +218,7 @@ object YuchengCore {
         }
         val jobAutoReconnect = CoroutineScope(Dispatchers.Main).launch {
             Log.e(YUCHENG_API, "reconnect: start auto reconnect (listen state)")
-            connectState.first {it == Constants.BLEState.ReadWriteOK }
+            connectState.first { it == Constants.BLEState.ReadWriteOK }
             if (!completer.isCompleted) {
                 Log.e(YUCHENG_API, "reconnect: auto reconnect: complete!!!")
                 completer.complete(true)
@@ -334,7 +337,12 @@ object YuchengCore {
                                 return@reconnectDevice
                             }
                             val ycDevice =
-                                YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, macAddress, true)
+                                YuchengDevice(
+                                    deviceIndex.fetchAndAdd(1),
+                                    deviceName,
+                                    macAddress,
+                                    true
+                                )
                             selectedDevice = ycDevice
                             onDevice(
                                 YuchengDeviceDataEvent(
@@ -547,85 +555,110 @@ object YuchengCore {
             Log.d(YUCHENG_API, "No connection")
             throw NoConnectionException()
         }
-        val healthDataCompleter = CompletableDeferred<List<YuchengHealthData>>()
-        val healthDataList: MutableList<YuchengHealthData> = mutableListOf()
-        val sportDataCompleter = CompletableDeferred<List<YuchengSportData>>()
-        val sportDataList: MutableList<YuchengSportData> = mutableListOf()
-        try {
-            YCBTClient.healthHistoryData(Constants.DATATYPE.Health_HistorySport) { code, ratio, data ->
-                if (data != null) {
-                    val sportData = data["data"] as? List<*>? ?: return@healthHistoryData
-                    val mappedSport = sportData.map {
-                        val yuchengSportData = sportDataConverter.convert(it)
-                        return@map yuchengSportData
-                    }.filter {
-                        val isInRange =
-                            it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
-                        return@filter isInRange
-                    }
-                    sportDataList.addAll(mappedSport)
-                    Log.d(YUCHENG_API, "Sport data converted")
-                } else {
-                    Log.e(YUCHENG_API, "NO SPORT DATA")
-                }
-                Log.d("SPORT CODE", code.toString())
-                Log.d("SPORT RATIO", ratio.toString())
-                if (!sportDataCompleter.isCompleted) {
-                    sportDataCompleter.complete(sportDataList)
-                }
-            }
-            YCBTClient.healthHistoryData(
-                Constants.DATATYPE.Health_HistoryAll
-            ) { code, ratio, data ->
-                if (data != null) {
-                    val healthData = data["data"] as? List<*>? ?: return@healthHistoryData
-                    val healthDatas = healthData.map {
-                        val yuchengHealthData = healthDataConverter.convert(it)
-                        return@map yuchengHealthData
-                    }.filter {
-                        it.startTimestamp in startTimestamp..endTimestamp
-                    }
-                    healthDataList.addAll(healthDatas)
-                    Log.d(GET_HEALTH_DATA, "HEALTH DATA CONVERTED")
-                } else {
-                    Log.e(GET_HEALTH_DATA, "NO HEALTH DATA")
-                }
-                Log.d("HEALTH CODE", code.toString())
-                Log.d("HEALTH RATIO", ratio.toString())
-                if (!healthDataCompleter.isCompleted) {
-                    healthDataCompleter.complete(healthDataList)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(GET_HEALTH_DATA, "Error when get health sport data: $e")
-            if (!healthDataCompleter.isCompleted) {
-                healthDataCompleter.completeExceptionally(e)
-            }
-        }
+        return withContext(Dispatchers.IO) {
+            val healthDataCompleter = CompletableDeferred<List<YuchengHealthData>>()
+            val sportDataCompleter = CompletableDeferred<List<YuchengSportData>>()
 
-        try {
+            launch {
+                try {
+                    val sportDataList: MutableList<YuchengSportData> = mutableListOf()
+                    YCBTClient.healthHistoryData(Constants.DATATYPE.Health_HistorySport) { code, ratio, data ->
+                        if (data != null) {
+                            val sportData =
+                                data["data"] as? List<*>? ?: return@healthHistoryData
+                            val mappedSport = sportData.map {
+                                val yuchengSportData = sportDataConverter.convert(it)
+                                return@map yuchengSportData
+                            }.filter {
+                                val isInRange =
+                                    it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
+                                return@filter isInRange
+                            }
+                            sportDataList.addAll(mappedSport)
+                            Log.d(YUCHENG_API, "Sport data converted")
+                        } else {
+                            Log.e(YUCHENG_API, "NO SPORT DATA")
+                        }
+                        Log.d("SPORT CODE", code.toString())
+                        Log.d("SPORT RATIO", ratio.toString())
+                        if (!sportDataCompleter.isCompleted) {
+                            sportDataCompleter.complete(sportDataList)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(GET_HEALTH_DATA, "Error when get sport data: $e")
+                    if (!sportDataCompleter.isCompleted) {
+                        sportDataCompleter.completeExceptionally(e)
+                    }
+                }
+            }
+
+            val sportData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
+                sportDataCompleter.await()
+            }
+            if (sportData == null) {
+                Log.d(YUCHENG_API, "Sport data is null, timeout!")
+            } else {
+                Log.d(YUCHENG_API, "Sport data got!")
+            }
+
+            launch {
+                try {
+                    val healthDataList: MutableList<YuchengHealthData> = mutableListOf()
+                    YCBTClient.healthHistoryData(
+                        Constants.DATATYPE.Health_HistoryAll
+                    ) { code, ratio, data ->
+                        if (data != null) {
+                            val healthData =
+                                data["data"] as? List<*>? ?: return@healthHistoryData
+                            val healthDatas = healthData.map {
+                                val yuchengHealthData = healthDataConverter.convert(it)
+                                return@map yuchengHealthData
+                            }.filter {
+                                it.startTimestamp in startTimestamp..endTimestamp
+                            }
+                            healthDataList.addAll(healthDatas)
+                            Log.d(GET_HEALTH_DATA, "HEALTH DATA CONVERTED")
+                        } else {
+                            Log.e(GET_HEALTH_DATA, "NO HEALTH DATA")
+                        }
+                        Log.d("HEALTH CODE", code.toString())
+                        Log.d("HEALTH RATIO", ratio.toString())
+                        if (!healthDataCompleter.isCompleted) {
+                            healthDataCompleter.complete(healthDataList)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(GET_HEALTH_DATA, "Error when get health  data: $e")
+                    if (!healthDataCompleter.isCompleted) {
+                        healthDataCompleter.completeExceptionally(e)
+                    }
+                }
+            }
             val healthData =
                 withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
                     healthDataCompleter.await()
                 }
-            val sportData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
-                sportDataCompleter.await()
+            if (healthData == null) {
+                Log.d(YUCHENG_API, "Health data is null, timeout!")
+            } else {
+                Log.d(YUCHENG_API, "Health data got!")
             }
 
             Log.d(YUCHENG_API, "HEALTH DATA: $healthData")
             Log.d(YUCHENG_API, "SPORT DATA: $sportData")
             if (!skipHandler) {
-                val healthSportData = YuchengHealthSportData(healthDataList, sportDataList)
+                val healthSportData = YuchengHealthSportData(emptyList(), emptyList())
                 val ycDataEvent = YuchengHealthDataEvent(healthSportData)
                 onHealthData(ycDataEvent)
             }
             if (healthData == null || sportData == null) {
                 onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
             }
-            return YuchengHealthSportData(healthData ?: healthDataList, sportData ?: sportDataList)
-        } catch (e: Exception) {
-            Log.e(YUCHENG_API, "Error when get health sport data: $e")
-            throw e
+            return@withContext YuchengHealthSportData(
+                healthData ?: emptyList(),
+                sportData ?: emptyList()
+            )
         }
     }
 
