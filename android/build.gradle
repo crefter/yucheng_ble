@@ -158,7 +158,7 @@ dependencies {
     implementation(name: 'JL_Watch_V1.13.1_11214-release', ext: 'aar')
     implementation(name: 'ycbtsdk-release-4.0.9', ext: 'aar')
     implementation 'com.google.code.gson:gson:2.10.1'
-    implementation "androidx.datastore:datastore-preferences:1.2.1
+    implementation 'androidx.datastore:datastore-preferences:1.2.1'
     implementation "androidx.datastore:datastore-preferences-core:1.2.1"
     implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0'
     implementation 'androidx.security:security-crypto-ktx:1.1.0'
