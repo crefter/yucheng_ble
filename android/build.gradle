@@ -52,7 +52,10 @@ android {
     sourceSets {
         main.java.srcDirs += "src/main/kotlin"
         test.java.srcDirs += "src/test/kotlin"
-        main {
+        // These optional ECG/dial helpers are prebuilt with NDK r20b.
+        // Keep them available for internal tooling, but do not ship them
+        // in production until Yucheng publishes rebuilt binaries.
+        debug {
             jniLibs.srcDirs = ['libs']
         }
     }
