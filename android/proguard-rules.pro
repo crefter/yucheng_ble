@@ -95,3 +95,12 @@
 -dontwarn org.springframework.web.servlet.view.AbstractView
 -dontwarn org.springframework.web.socket.sockjs.frame.AbstractSockJsMessageCodec
 -dontwarn springfox.documentation.spring.web.json.Json
+-dontwarn com.realsil.sdk.core.logger.ZLogger
+-dontwarn com.realsil.sdk.dfu.image.BinFactory
+-dontwarn com.realsil.sdk.dfu.image.LoadParams$Builder
+-dontwarn com.realsil.sdk.dfu.image.LoadParams
+-dontwarn com.realsil.sdk.dfu.model.BinInfo
+-dontwarn com.realsil.sdk.dfu.model.DfuConfig
+-dontwarn com.realsil.sdk.dfu.model.OtaDeviceInfo
+-dontwarn com.realsil.sdk.dfu.utils.DfuAdapter$DfuHelperCallback
+-dontwarn com.realsil.sdk.dfu.utils.GattDfuAdapter
