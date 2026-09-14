@@ -43,9 +43,9 @@ object ApiClient { fun getClientForCheckInternet()=Any(); fun getClient(apiConfi
 class YuchengApiConfig { val sleepBaseUrl="http://test.invalid"; val healthBaseUrl="http://test.invalid"; companion object { fun fromFlavor(value:Any)=YuchengApiConfig() } }
 data class StartEndTimestamp(val start:Long=0,val end:Long=100) { companion object { fun service()=StartEndTimestamp() } }
 class YuchengRepository(client:Any,config:Any) {
- companion object { val sent=mutableListOf<String>(); var sleepError:Exception?=null; var healthError:Exception?=null }
- suspend fun saveSleep(data:List<YuchengSleepData>, id:String) { sent.add("sleep"); sleepError?.let {throw it} }
- suspend fun saveHealth(data:YuchengHealthSportData, id:String) { sent.add("health"); healthError?.let {throw it} }
+ companion object { val sent=mutableListOf<String>(); var sleepError:Exception?=null; var healthError:Exception?=null; var httpClient:OkHttpClient?=null }
+ suspend fun saveSleep(data:List<YuchengSleepData>, id:String) { sent.add("sleep"); sleepError?.let {throw it}; httpClient?.let { ProductionRepository(it,YuchengApiConfig()).saveSleep(data,id) } }
+ suspend fun saveHealth(data:YuchengHealthSportData, id:String) { sent.add("health"); healthError?.let {throw it}; httpClient?.let { ProductionRepository(it,YuchengApiConfig()).saveHealth(data,id) } }
 }
 class GsonBuilder { fun create()=this; fun toJson(value:Any?)="[]" }
 fun YuchengSleepData.toJson()=emptyMap<String,Any>()
@@ -55,15 +55,16 @@ fun Long.isValidEpochMs()=true
 fun String.toMediaType()=this
 fun String.toRequestBody(media:String)=this
 object YuchengApiConstants { const val sleep="/sleep"; const val health="/health" }
-class Request { class Builder { fun header(name:String,value:String)=this; fun url(value:String)=this; fun post(value:String)=this; fun build()=Request() } }
-class OkHttpClient(val code:Int=200,val error:Exception?=null) {
- fun newCall(request:Request)=this
- fun execute():Response { error?.let { throw it }; return Response(code) }
+class Request(val url:String,val body:String) { class Builder { var url=""; var body=""; fun header(name:String,value:String)=this; fun url(value:String)=apply {url=value}; fun post(value:String)=apply {body=value}; fun build()=Request(url,body) } }
+class OkHttpClient(val code:Int=200,val error:Exception?=null,val responseBody:String="{}") {
+ val requests=mutableListOf<Request>()
+ fun newCall(request:Request)=apply { requests.add(request) }
+ fun execute():Response { error?.let { throw it }; return Response(code,responseBody) }
 }
-class Response(val code:Int):AutoCloseable { val isSuccessful get()=code in 200..299; override fun close() {} }
+class Response(val code:Int,val body:String):AutoCloseable { val isSuccessful get()=code in 200..299; override fun close() {} }
 var passed=0; var failed=0
 suspend fun test(name:String, body:suspend () -> Unit) {
- YCBTClient.modes.clear(); YCBTClient.reads.clear(); YuchengRepository.sent.clear(); YuchengRepository.sleepError=null; YuchengRepository.healthError=null
+ YCBTClient.modes.clear(); YCBTClient.reads.clear(); YuchengRepository.sent.clear(); YuchengRepository.sleepError=null; YuchengRepository.healthError=null; YuchengRepository.httpClient=null
  try { body(); println("PASS $name"); passed++ } catch(e:Throwable) { println("FAIL $name: $e"); failed++ }
 }
 suspend fun sleepRead(events:(YuchengSleepEvent)->Unit={}) = YuchengCore.getSleepData(false,0,100,YuchengSleepDataConverter(),events)
@@ -79,6 +80,17 @@ suspend fun deleteHealth():Boolean {
  val result=withTimeout(200) {reply.await()}; delay(80); check(count.get()==1); return result
 }
 fun main() = runBlocking {
+ test("empty_background_reads_post_both_payloads_without_delete") {
+   val client=OkHttpClient(responseBody="""{"saved_sessions":[],"saved_health_data":[],"should_clear_sleep_data":true,"should_clear_health_data":true}""")
+   YuchengRepository.httpClient=client
+   for(type in listOf(1,2,3)) YCBTClient.modes[type]="empty"
+   val deletesBefore=YCBTClient.deletes.size
+   YuchengBleService().readData()
+   check(client.requests.map {it.url}==listOf("http://test.invalid/sleep","http://test.invalid/health"))
+   check(client.requests[0].body.contains("\"sleep_data\": []"))
+   check(client.requests[1].body.contains("\"health_data\": []") && client.requests[1].body.contains("\"sport_data\": []"))
+   check(YCBTClient.deletes.size==deletesBefore)
+ }
  test("complete_read_ack_deletes_history") {
    sleepRead(); healthRead(); check(deleteSleep()); check(deleteHealth()); check(YCBTClient.deletes.toSet()==setOf(4,5,6)); YCBTClient.deletes.clear()
  }
@@ -108,6 +120,26 @@ fun main() = runBlocking {
  }
  test("read_sleep_failure_still_uploads_health") { YCBTClient.modes[1]="throw"; YuchengBleService().readData(); check(YuchengRepository.sent==listOf("health")) }
  test("read_health_failure_still_uploads_sleep") { YCBTClient.modes[2]="throw"; YCBTClient.modes[3]="throw"; YuchengBleService().readData(); check(YuchengRepository.sent==listOf("sleep")) }
+ for(failure in listOf("throw","error","null","timeout")) {
+   test("failed_sleep_${failure}_only_posts_successful_empty_health") {
+     YCBTClient.modes[1]=failure; YCBTClient.modes[2]="empty"; YCBTClient.modes[3]="empty"
+     YuchengBleService().readData(); check(YuchengRepository.sent==listOf("health"))
+   }
+   test("failed_health_${failure}_only_posts_successful_empty_sleep") {
+     YCBTClient.modes[1]="empty"; YCBTClient.modes[2]=failure; YCBTClient.modes[3]=failure
+     YuchengBleService().readData(); check(YuchengRepository.sent==listOf("sleep"))
+   }
+ }
+ test("failed_reads_do_not_post_fake_empty_payloads") {
+   for(type in listOf(1,2,3)) YCBTClient.modes[type]="error"
+   YuchengBleService().readData(); check(YuchengRepository.sent.isEmpty())
+ }
+ test("empty_sleep_upload_failure_still_posts_empty_health") {
+   for(type in listOf(1,2,3)) YCBTClient.modes[type]="empty"
+   val client=OkHttpClient(code=500); YuchengRepository.httpClient=client
+   YuchengBleService().readData()
+   check(client.requests.map {it.url}==listOf("http://test.invalid/sleep","http://test.invalid/health"))
+ }
  test("upload_sleep_failure_still_uploads_health") { YuchengRepository.sleepError=IllegalStateException("upload"); YuchengBleService().sendDataToServer(listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList())); check(YuchengRepository.sent==listOf("sleep","health")) }
  test("upload_cancel_does_not_upload_health") { YuchengRepository.sleepError=CancellationException("cancel"); check(runCatching { YuchengBleService().sendDataToServer(listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList())) }.exceptionOrNull() is CancellationException); check(YuchengRepository.sent==listOf("sleep")) }
  test("read_cancel_does_not_continue") { YCBTClient.modes[2]="timeout"; val job=async { healthRead() }; delay(10); job.cancel(); check(runCatching { job.await() }.exceptionOrNull() is CancellationException); check(3 !in YCBTClient.reads) }
@@ -131,6 +163,15 @@ fun main() = runBlocking {
      val result=runCatching { if(category=="sleep") repo.saveSleep(listOf(YuchengSleepData()),"test") else repo.saveHealth(YuchengHealthSportData(listOf(YuchengHealthData()),emptyList()),"test") }
      check(result.isSuccess==(failure=="success"))
      if(failure=="cancel") check(result.exceptionOrNull() is CancellationException)
+   }
+ }
+ for(category in listOf("sleep","health")) for(code in listOf(200,500)) {
+   test("repository_empty_${category}_http_${code}_never_deletes") {
+     val client=OkHttpClient(code=code,responseBody="""{"saved_sessions":[],"saved_health_data":[],"should_clear_sleep_data":true,"should_clear_health_data":true}""")
+     val repo=ProductionRepository(client,YuchengApiConfig()); val deletesBefore=YCBTClient.deletes.size
+     val result=runCatching { if(category=="sleep") repo.saveSleep(emptyList(),"test") else repo.saveHealth(YuchengHealthSportData(emptyList(),emptyList()),"test") }
+     check(result.isSuccess==(code==200)); check(client.requests.size==1)
+     check(YCBTClient.deletes.size==deletesBefore)
    }
  }
  println("$passed passed, $failed failed"); check(failed==0)

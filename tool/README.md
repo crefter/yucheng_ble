@@ -7,7 +7,7 @@
 
 `python3 tool/test_android_history.py` извлекает реальные методы YuchengCore,
 YuchengApiImpl, YuchengBleService и методы HTTP-репозитория. JVM doubles заменяют Android,
-BLE, данные конвертеров и HTTP-транспорт. 37 сценариев проверяют независимость категорий,
+BLE, данные конвертеров и HTTP-транспорт. 52 сценария проверяют независимость категорий,
 null/error, timeout, cancellation, поздние callbacks и защиту SDK delete. Нужен JDK
 (`JAVA_HOME`, по умолчанию Android Studio JBR) и уже скачанные в Gradle cache Kotlin
 2.4.10, coroutines 1.9.0, kotlin-reflect 1.9.24 и annotations 23.0.0. Скрипт ничего
@@ -17,6 +17,15 @@ null/error, timeout, cancellation, поздние callbacks и защиту SDK 
 Android расширен до 37/37. Полный iOS typecheck с реальными SDK прошёл; standalone
 Android Gradle compile остановился до Kotlin-компиляции на существующем
 `build.gradle:45` (`kotlinOptions()` в AGP 9.0.1). Это не заменяет сборку на телефоне.
+
+Проверки пустых фоновых загрузок: до исправления Android-сервиса на базе `9b1e25f`
+проходили 42/52, после исправления 52/52. Успешное пустое чтение отправляется на
+backend; ошибка, null-пакет SDK и timeout не превращаются в пустой POST. Отмена
+прерывает попытку, ошибка одной категории не мешает загрузить успешную соседнюю.
+Проверяется цепочка чтение → сервис → реальные методы HTTP-репозитория, включая
+пустые payload, HTTP 500 и ответ `should_clear_*_data: true` без удаления истории.
+Android native upload не вызывает очистку ни для пустых, ни для непустых данных.
+У Sleepring 1 iOS native background/upload не реализован; отправка идёт через Dart.
 
 Автоматическая очистка после неполного чтения заблокирована до перезапуска процесса.
 Следующий полный read не снимает запрет: API не передаёт token пары read/ack,

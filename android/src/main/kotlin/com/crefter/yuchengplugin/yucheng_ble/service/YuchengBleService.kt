@@ -106,7 +106,7 @@ class YuchengBleService : Service() {
             throw e
         } catch (e: Exception) {
             Log.e(YUCH_TAG, "Sleep history failed: $e")
-            emptyList()
+            null
         }
         val healthData = try {
             YuchengCore.getHealthSportData(
@@ -117,7 +117,7 @@ class YuchengBleService : Service() {
             throw e
         } catch (e: Exception) {
             Log.e(YUCH_TAG, "Health history failed: $e")
-            YuchengHealthSportData(emptyList(), emptyList())
+            null
         }
         sendDataToServer(sleepData, healthData)
         Log.i(YUCH_TAG, "READ DATA FROM SERVICE!!!")
@@ -125,8 +125,8 @@ class YuchengBleService : Service() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun sendDataToServer(
-        sleepData: List<YuchengSleepData>,
-        healthData: YuchengHealthSportData
+        sleepData: List<YuchengSleepData>?,
+        healthData: YuchengHealthSportData?
     ) {
         Log.i(YUCH_TAG, "sendDataToServer")
         val tokenStorage = YuchengCore.tokenStorage ?: return
@@ -144,7 +144,8 @@ class YuchengBleService : Service() {
         )
         val id = Build.ID
 
-        if (sleepData.isNotEmpty()) {
+        // Null means the read failed; successful empty reads still reach the backend.
+        if (sleepData != null) {
             try {
                 repo.saveSleep(sleepData, id)
             } catch (e: CancellationException) {
@@ -153,7 +154,7 @@ class YuchengBleService : Service() {
                 Log.e(YUCH_TAG, "Sleep upload failed: $e")
             }
         }
-        if (healthData.healthData.isNotEmpty() || healthData.sportData.isNotEmpty()) {
+        if (healthData != null) {
             try {
                 repo.saveHealth(healthData, id)
             } catch (e: CancellationException) {
