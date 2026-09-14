@@ -451,157 +451,155 @@ public class YuchengCore {
         return (start: start, end: end)
     }
     
-    func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, sleepConverter: YuchengSleepDataConverter,onSleepData: SleepHandler? = nil) -> AnyPublisher<[YuchengSleepData], Error> {
-        let defaultDate = getDefaultStartAndEndDate()
+    func getSleepData(startTimestamp: Int64?, endTimestamp: Int64?, sleepConverter: YuchengSleepDataConverter, onSleepData: SleepHandler? = nil) -> AnyPublisher<[YuchengSleepData], Error> {
         let completer = Completer<[YuchengSleepData]>()
-        if !YuchengCore.shared.isConnected(){
-            completer.completeError(NoConnectionException())
+        let safety = HistoryReadSafety.sleep
+        guard safety.begin() else {
+            completer.completeError(NSError(domain: "YuchengHistory", code: 3, userInfo: [NSLocalizedDescriptionKey: "History clear is in progress"]))
             return completer.future
         }
-        let start = startTimestamp ?? defaultDate.start
-        let end = endTimestamp ?? defaultDate.end
-        do {
-            if (start >= end) {
-                onSleepData?(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
-                completer.complete([])
-                return completer.future
-            }
-            var sleepDataList: [YuchengSleepData] = []
-            let device = YCProduct.shared.currentPeripheral;
-            let _ = device?.macAddress
-            let _ = device?.name
-            
-            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.sleep) { state, response in
-                if state == .succeed, let datas = response as? [YCHealthDataSleep] {
-                    for info in datas {
-                        let sleepData = sleepConverter.convert(sleepDataFromDevice: info)
-                        let isInRange = sleepData.startTimeStamp >= start && sleepData.endTimeStamp <= end
-                        if (!isInRange) { continue }
-                        sleepDataList.append(sleepData)
-                        let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
-                        DispatchQueue.main.async {
-                            onSleepData?(ycSleepEvent)
-                        }
-                    }
-                } else {
-                    print("No data")
-                }
-                if (!completer.isCompleted) {
-                    DispatchQueue.main.async {
-                        completer.complete(sleepDataList)
-                    }
-                }
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) {
-                if (completer.isCompleted) {
-                    return;
-                }
-                for sleepData in sleepDataList {
-                    let ycSleepEvent = YuchengSleepDataEvent(sleepData: sleepData)
-                    DispatchQueue.main.async {
-                        onSleepData?(ycSleepEvent)
-                    }
-                }
-                DispatchQueue.main.async {
-                    onSleepData?(YuchengSleepTimeOutEvent(isTimeout: true))
-                }
-            }
-        } catch {
-            DispatchQueue.main.async {
+        var finished = false
+        func finish(_ result: Result<[YuchengSleepData], Error>, complete: Bool) {
+            guard !finished else { return }
+            finished = true
+            safety.finish(complete: complete)
+            switch result {
+            case .success(let data):
+                completer.complete(data)
+                data.forEach { onSleepData?(YuchengSleepDataEvent(sleepData: $0)) }
+            case .failure(let error):
                 completer.completeError(error)
             }
         }
-        
-        return completer.future
+        if !isConnected() {
+            finish(.failure(NoConnectionException()), complete: false)
+            return completer.future
+        }
+        let defaults = getDefaultStartAndEndDate()
+        let start = startTimestamp ?? defaults.start
+        let end = endTimestamp ?? defaults.end
+        guard start < end else {
+            let message = "Start timestamp must precede end timestamp"
+            onSleepData?(YuchengSleepErrorEvent(error: message))
+            finish(.failure(NSError(domain: "YuchengHistory", code: 1, userInfo: [NSLocalizedDescriptionKey: message])), complete: false)
+            return completer.future
+        }
+        let device = currentDevice ?? YCProduct.shared.currentPeripheral
+        YCProduct.queryHealthData(device, dataType: .sleep) { state, response in
+            DispatchQueue.main.async {
+                guard !finished else { return }
+                if state == .noRecord {
+                    finish(.success([]), complete: true)
+                } else if state == .succeed, let rows = response as? [YCHealthDataSleep] {
+                    let all = rows.map { sleepConverter.convert(sleepDataFromDevice: $0) }
+                    let data = all.filter { $0.startTimeStamp >= start && $0.endTimeStamp <= end }
+                    finish(.success(data), complete: data.count == all.count)
+                } else {
+                    let error = NSError(domain: "YuchengHistory", code: 2, userInfo: [NSLocalizedDescriptionKey: "Sleep history query failed: \(state)"])
+                    onSleepData?(YuchengSleepErrorEvent(error: error.localizedDescription))
+                    finish(.failure(error), complete: false)
+                }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) {
+            guard !finished else { return }
+            onSleepData?(YuchengSleepTimeOutEvent(isTimeout: true))
+            finish(.failure(TimeoutError()), complete: false)
+        }
+        return completer.future.handleEvents(receiveCancel: {
+            DispatchQueue.main.async {
+                finish(.failure(CancellationError()), complete: false)
+            }
+        }).eraseToAnyPublisher()
     }
-    
+
     func getHealthData(startTimestamp: Int64?, endTimestamp: Int64?, sportConverter: YuchengSportDataConverter, healthConverter: YuchengHealthDataConverter, onHealth: HealthHandler? = nil) -> AnyPublisher<YuchengHealthSportData, Error> {
         let completer = Completer<YuchengHealthSportData>()
-        if !YuchengCore.shared.isConnected() {
-            completer.completeError(NoConnectionException())
+        let safety = HistoryReadSafety.health
+        guard safety.begin() else {
+            completer.completeError(NSError(domain: "YuchengHistory", code: 3, userInfo: [NSLocalizedDescriptionKey: "History clear is in progress"]))
             return completer.future
         }
-        let defaultDate = getDefaultStartAndEndDate()
-        let start = startTimestamp ?? defaultDate.start
-        let end = endTimestamp ?? defaultDate.end
-        var isHealthCompleted = false
-        var isSportCompleted = false
-        do {
-            if (start >= end) {
-                onHealth?(YuchengHealthErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
-                completer.complete(YuchengHealthSportData(healthData: [], sportData: []))
-                return completer.future
-            }
-            
-            var healthDataList: [YuchengHealthData] = []
-            var sportDataList: [YuchengSportData] = []
-            let device = YuchengCore.shared.currentDevice ?? YCProduct.shared.currentPeripheral;
-            let _ = device?.macAddress
-            let _ = device?.name
-            
-            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.step) { state, response in
-                if state == .succeed, let datas = response as? [YCHealthDataStep] {
-                    for info in datas {
-                        let sportData = sportConverter.convert(sportDataFromDevice: info)
-                        let isInRange = sportData.startTimeStamp >= start && sportData.endTimeStamp <= end
-                        if (!isInRange) { continue }
-                        sportDataList.append(sportData)
-                    }
-                }
-                else {
-                    print("No sport data")
-                }
-                if (isHealthCompleted && !isSportCompleted) {
-                    DispatchQueue.main.async {
-                        let healthSportData = YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)
-                        completer.complete(healthSportData)
-                        onHealth?(YuchengHealthDataEvent(healthData: healthSportData))
-                    }
-                }
-                
-                isSportCompleted = true
-            }
-            
-            YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.combinedData) { state, response in
-                if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
-                    for info in datas {
-                        let healthData = healthConverter.convert(healthDataFromDevice: info)
-                        let isInRange = healthData.startTimestamp >= start && healthData.startTimestamp <= end
-                        if (!isInRange) { continue }
-                        healthDataList.append(healthData)
-                    }
-                } else {
-                    print("No data")
-                }
-                if (isSportCompleted && !isHealthCompleted) {
-                    DispatchQueue.main.async {
-                        let healthSportData = YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)
-                        completer.complete(healthSportData)
-                        onHealth?(YuchengHealthDataEvent(healthData: healthSportData))
-                    }
-                }
-                isHealthCompleted = true
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) {
-                if (isHealthCompleted || isSportCompleted) {
-                    return;
-                }
-                DispatchQueue.main.async {
-                    onHealth?(YuchengHealthDataEvent(healthData: YuchengHealthSportData(healthData: healthDataList, sportData: sportDataList)))
-                }
-                DispatchQueue.main.async { onHealth?(YuchengHealthTimeOutEvent(isTimeout: true)) }
-            }
-        } catch {
-            isHealthCompleted = true
-            DispatchQueue.main.async {
-                completer.completeError(error)
+        var finished = false
+        var healthDone = false
+        var sportDone = false
+        var health: [YuchengHealthData] = []
+        var sport: [YuchengSportData] = []
+        var errors: [Error] = []
+        var filtered = false
+        func finish(cancelled: Bool = false) {
+            guard !finished else { return }
+            finished = true
+            let complete = healthDone && sportDone && errors.isEmpty && !cancelled
+            safety.finish(complete: complete && !filtered)
+            if cancelled {
+                completer.completeError(CancellationError())
+            } else if complete || !health.isEmpty || !sport.isEmpty {
+                let data = YuchengHealthSportData(healthData: health, sportData: sport)
+                completer.complete(data)
+                onHealth?(YuchengHealthDataEvent(healthData: data))
+            } else {
+                completer.completeError(errors.first ?? TimeoutError())
             }
         }
-        
-        return completer.future
+        if !isConnected() {
+            errors.append(NoConnectionException())
+            finish()
+            return completer.future
+        }
+        let defaults = getDefaultStartAndEndDate()
+        let start = startTimestamp ?? defaults.start
+        let end = endTimestamp ?? defaults.end
+        guard start < end else {
+            let message = "Start timestamp must precede end timestamp"
+            onHealth?(YuchengHealthErrorEvent(error: message))
+            errors.append(NSError(domain: "YuchengHistory", code: 1, userInfo: [NSLocalizedDescriptionKey: message]))
+            finish()
+            return completer.future
+        }
+        let device = currentDevice ?? YCProduct.shared.currentPeripheral
+        YCProduct.queryHealthData(device, dataType: .step) { state, response in
+            DispatchQueue.main.async {
+                guard !finished && !sportDone else { return }
+                sportDone = true
+                if state == .noRecord {
+                    sport = []
+                } else if state == .succeed, let rows = response as? [YCHealthDataStep] {
+                    let all = rows.map { sportConverter.convert(sportDataFromDevice: $0) }
+                    sport = all.filter { $0.startTimeStamp >= start && $0.endTimeStamp <= end }
+                    filtered = filtered || sport.count != all.count
+                } else {
+                    errors.append(NSError(domain: "YuchengHistory", code: 2, userInfo: [NSLocalizedDescriptionKey: "Sport history query failed: \(state)"]))
+                }
+                if healthDone { finish() }
+            }
+        }
+        YCProduct.queryHealthData(device, dataType: .combinedData) { state, response in
+            DispatchQueue.main.async {
+                guard !finished && !healthDone else { return }
+                healthDone = true
+                if state == .noRecord {
+                    health = []
+                } else if state == .succeed, let rows = response as? [YCHealthDataCombinedData] {
+                    let all = rows.map { healthConverter.convert(healthDataFromDevice: $0) }
+                    health = all.filter { $0.startTimestamp >= start && $0.startTimestamp <= end }
+                    filtered = filtered || health.count != all.count
+                } else {
+                    errors.append(NSError(domain: "YuchengHistory", code: 2, userInfo: [NSLocalizedDescriptionKey: "Health history query failed: \(state)"]))
+                }
+                if sportDone { finish() }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) {
+            guard !finished else { return }
+            onHealth?(YuchengHealthTimeOutEvent(isTimeout: true))
+            finish()
+        }
+        return completer.future.handleEvents(receiveCancel: {
+            DispatchQueue.main.async { finish(cancelled: true) }
+        }).eraseToAnyPublisher()
     }
-    
+
     func otaUpdate(device: CBPeripheral, path: String, onUpdate: UpdateHandler?, completion: @escaping (Result<Bool, any Error>) -> Void) {
         YCProduct.jlDeviceUpgradeFirmware(device, filePath: path) { state, progress, didSend in
             print("UPGRADE PROGRESS = " + String(progress))

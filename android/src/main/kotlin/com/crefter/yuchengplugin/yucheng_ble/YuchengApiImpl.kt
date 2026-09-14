@@ -25,6 +25,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.time.Instant
@@ -400,32 +401,40 @@ class YuchengApiImpl(
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun deleteSleepData(
-        callback: (Result<Boolean>) -> Unit
-    ) {
+    override fun deleteSleepData(callback: (Result<Boolean>) -> Unit) {
         GlobalScope.launch {
-            try {
-                val isDeleted = deleteData(Constants.DATATYPE.Health_DeleteSleep)
-                callback(Result.success(isDeleted))
+            val safety = HistoryReadSafety.sleep
+            if (!safety.beginDelete()) { callback(Result.success(false)); return@launch }
+            val result = try {
+                Result.success(withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
+                    deleteData(Constants.DATATYPE.Health_DeleteSleep)
+                } ?: false)
             } catch (e: Exception) {
-                callback(Result.failure(e))
+                Result.failure(e)
+            } finally {
+                safety.finishDelete()
             }
+            callback(result)
         }
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    override fun deleteHealthSportData(
-        callback: (Result<Boolean>) -> Unit
-    ) {
+    override fun deleteHealthSportData(callback: (Result<Boolean>) -> Unit) {
         GlobalScope.launch {
-            try {
-                val isDeletedHealth = deleteData(Constants.DATATYPE.Health_DeleteAll)
-                val isDeletedSport = deleteData(Constants.DATATYPE.Health_DeleteSport)
-                val isDeleted = isDeletedHealth && isDeletedSport
-                callback(Result.success(isDeleted))
+            val safety = HistoryReadSafety.health
+            if (!safety.beginDelete()) { callback(Result.success(false)); return@launch }
+            val result = try {
+                Result.success(withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
+                    val health = deleteData(Constants.DATATYPE.Health_DeleteAll)
+                    val sport = deleteData(Constants.DATATYPE.Health_DeleteSport)
+                    health && sport
+                } ?: false)
             } catch (e: Exception) {
-                callback(Result.failure(e))
+                Result.failure(e)
+            } finally {
+                safety.finishDelete()
             }
+            callback(result)
         }
     }
 
