@@ -59,8 +59,9 @@ base mixin YuchengServicePermissionsMixin {
 
   Future<bool> isPermissionsGranted() async {
     final permissions = await _permissions;
-    final permissionsGranted =
-        await [for (final p in permissions) p.isGranted].wait;
+    final permissionsGranted = await [
+      for (final p in permissions) p.isGranted,
+    ].wait;
     final isGranted = permissionsGranted.every((isGranted) => isGranted);
     return isGranted;
   }
@@ -80,8 +81,9 @@ base mixin YuchengServicePermissionsMixin {
       ],
       Permission.bluetooth,
     ];
-    final isAllDenied =
-        await [for (final p in permissions) p.isPermanentlyDenied].wait;
+    final isAllDenied = await [
+      for (final p in permissions) p.isPermanentlyDenied,
+    ].wait;
     final isDenied = isAllDenied.any((e) => e);
     return isDenied;
   }
