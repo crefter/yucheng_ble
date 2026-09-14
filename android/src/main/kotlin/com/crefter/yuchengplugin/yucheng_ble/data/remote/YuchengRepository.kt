@@ -12,6 +12,8 @@ import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepDataDetail
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepType
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSportData
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.CancellationException
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -184,13 +186,16 @@ class YuchengRepository(
                 apiClient
                     .newCall(request).execute().use { response ->
                         if (!response.isSuccessful) {
-                            Log.e(TAG_SLEEP, "Send failed ${response.code}")
+                            throw IOException("Sleep upload failed: HTTP ${response.code}")
                         } else {
                             Log.i(TAG_SLEEP, "Data sent successfully")
                         }
                     }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG_SLEEP, "Ошибка при отправке сна: $e")
+                throw e
             }
         }
     }
@@ -251,13 +256,16 @@ class YuchengRepository(
                 apiClient
                     .newCall(request).execute().use { response ->
                         if (!response.isSuccessful) {
-                            Log.e(TAG_HEALTH, "Send failed ${response.code}")
+                            throw IOException("Health upload failed: HTTP ${response.code}")
                         } else {
                             Log.i(TAG_HEALTH, "Data sent successfully")
                         }
                     }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG_HEALTH, "Ошибка при отправке здоровья: $e")
+                throw e
             }
         }
     }

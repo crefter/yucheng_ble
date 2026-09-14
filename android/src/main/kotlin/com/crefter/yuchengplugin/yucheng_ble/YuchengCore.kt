@@ -14,6 +14,8 @@ import com.crefter.yuchengplugin.yucheng_ble.data.remote.startDate
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.bean.ScanDeviceBean
+import kotlinx.coroutines.CancellationException
+import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -479,6 +481,37 @@ object YuchengCore {
         }
     }
 
+    private suspend fun <T> readHistory(
+        type: Int,
+        convert: (Any?) -> T,
+    ): List<T> {
+        val result = CompletableDeferred<List<T>>()
+        val callbackLock = Any()
+        try {
+            YCBTClient.healthHistoryData(type) { code, _, data ->
+                synchronized(callbackLock) {
+                    if (result.isCompleted) return@healthHistoryData
+                    try {
+                        check(code == 0) { "History query failed: $code" }
+                        // SDK 4.0.9 also returns (0, 0, null) after CRC failure.
+                        // Only an actual empty data list proves successful emptiness.
+                        val rows = data?.get("data") as? List<*>
+                            ?: throw IllegalStateException("History query returned no valid payload")
+                        result.complete(rows.map(convert))
+                    } catch (e: Exception) {
+                        result.completeExceptionally(e)
+                    }
+                }
+            }
+            return withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) { result.await() }
+                ?: throw TimeoutException("History query timed out")
+        } finally {
+            // A late or duplicate SDK callback must not mutate a returned list
+            // or emit data after timeout/cancellation.
+            synchronized(callbackLock) { result.cancel() }
+        }
+    }
+
     suspend fun getSleepData(
         skipHandler: Boolean = false,
         startTimestamp: Long,
@@ -486,61 +519,22 @@ object YuchengCore {
         sleepDataConverter: YuchengSleepDataConverter,
         onSleepData: (sleepData: YuchengSleepEvent) -> Unit = {}
     ): List<YuchengSleepData> {
-        Log.d(GET_SLEEP_DATA, "Get sleep data")
-        if (!isConnected()) {
-            Log.d(GET_SLEEP_DATA, "No connection")
-            throw NoConnectionException()
-        }
-        val sleepDataCompleter = CompletableDeferred<List<YuchengSleepData>>()
-        val sleepDataList: MutableList<YuchengSleepData> = mutableListOf()
+        val safety = HistoryReadSafety.sleep
+        check(safety.begin()) { "History clear is in progress" }
+        var complete = false
         try {
-            YCBTClient.healthHistoryData(
-                Constants.DATATYPE.Health_HistorySleep
-            ) { code, ratio, data ->
-                if (data != null) {
-                    val sleepData = data["data"] as? List<*>? ?: return@healthHistoryData
-                    val mappedSleep = sleepData.map {
-                        val yuchengSleepData = sleepDataConverter.convert(it)
-                        Log.d(GET_SLEEP_DATA, "Converted sleep: $yuchengSleepData")
-                        return@map yuchengSleepData
-                    }.filter {
-                        val isInRange =
-                            it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
-                        return@filter isInRange
-                    }
-                    sleepDataList.addAll(mappedSleep)
-                    if (!skipHandler) {
-                        for (sleep in sleepDataList) {
-                            val ycDataEvent = YuchengSleepDataEvent(sleep)
-                            onSleepData(ycDataEvent)
-                        }
-                    }
-                    Log.d(GET_SLEEP_DATA, "Sleeps: $mappedSleep")
-                } else {
-                    Log.e(GET_SLEEP_DATA, "NO SLEEP DATA")
-                }
-                Log.d("SLEEP CODE", code.toString())
-                Log.d("SLEEP RATIO", ratio.toString())
-                if (!sleepDataCompleter.isCompleted) sleepDataCompleter.complete(sleepDataList)
-            }
-        } catch (e: Exception) {
-            if (!sleepDataCompleter.isCompleted) sleepDataCompleter.completeExceptionally(e)
-        }
-        try {
-            val sleepData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) { sleepDataCompleter.await() }
-            if (sleepData == null) {
-                if (!skipHandler) {
-                    for (sleep in sleepDataList) {
-                        val ycDataEvent = YuchengSleepDataEvent(sleep)
-                        onSleepData(ycDataEvent)
-                    }
-                }
-                onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
-            }
-            return sleepData ?: sleepDataList
-        } catch (e: Exception) {
-            Log.e(GET_SLEEP_DATA, "Error when get sleep data:$e")
+            if (!isConnected()) throw NoConnectionException()
+            require(startTimestamp < endTimestamp) { "Start timestamp must precede end timestamp" }
+            val all = readHistory(Constants.DATATYPE.Health_HistorySleep, sleepDataConverter::convert)
+            val data = all.filter { it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp }
+            complete = data.size == all.size
+            if (!skipHandler) data.forEach { onSleepData(YuchengSleepDataEvent(it)) }
+            return data
+        } catch (e: TimeoutException) {
+            if (!skipHandler) onSleepData(YuchengSleepTimeOutEvent(isTimeout = true))
             throw e
+        } finally {
+            safety.finish(complete)
         }
     }
 
@@ -551,129 +545,47 @@ object YuchengCore {
         sportDataConverter: YuchengSportDataConverter,
         healthDataConverter: YuchengHealthDataConverter,
         onHealthData: (healthData: YuchengHealthEvent) -> Unit = {},
-    ): YuchengHealthSportData {
-        Log.d(YUCHENG_API, "Get health data")
-        if (!isConnected()) {
-            Log.d(YUCHENG_API, "No connection")
-            throw NoConnectionException()
-        }
-        return withContext(Dispatchers.IO) {
-            val healthDataCompleter = CompletableDeferred<List<YuchengHealthData>>()
-            val sportDataCompleter = CompletableDeferred<List<YuchengSportData>>()
-
-            launch {
-                try {
-                    val sportDataList: MutableList<YuchengSportData> = mutableListOf()
-                    YCBTClient.healthHistoryData(Constants.DATATYPE.Health_HistorySport) { code, ratio, data ->
-                        if (data != null) {
-                            val sportData =
-                                data["data"] as? List<*>? ?: return@healthHistoryData
-                            val mappedSport = sportData.map {
-                                val yuchengSportData = sportDataConverter.convert(it)
-                                return@map yuchengSportData
-                            }.filter {
-                                val isInRange =
-                                    it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp
-                                return@filter isInRange
-                            }
-                            sportDataList.addAll(mappedSport)
-                            Log.d(YUCHENG_API, "Sport data converted")
-                        } else {
-                            Log.e(YUCHENG_API, "NO SPORT DATA")
-                        }
-                        Log.d("SPORT CODE", code.toString())
-                        Log.d("SPORT RATIO", ratio.toString())
-                        if (!sportDataCompleter.isCompleted) {
-                            sportDataCompleter.complete(sportDataList)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(GET_HEALTH_DATA, "Error when get sport data: $e")
-                    if (!sportDataCompleter.isCompleted) {
-                        sportDataCompleter.completeExceptionally(e)
-                    }
-                }
+    ): YuchengHealthSportData = withContext(Dispatchers.IO) {
+        val safety = HistoryReadSafety.health
+        check(safety.begin()) { "History clear is in progress" }
+        var complete = false
+        try {
+            if (!isConnected()) throw NoConnectionException()
+            require(startTimestamp < endTimestamp) { "Start timestamp must precede end timestamp" }
+            val errors = mutableListOf<Exception>()
+            var filtered = false
+            // Preserve the SDK's sequential command ordering; a failed category
+            // must not prevent trying the next one. Cancellation still stops it.
+            val sport = try {
+                val all = readHistory(Constants.DATATYPE.Health_HistorySport, sportDataConverter::convert)
+                all.filter { it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp }
+                    .also { filtered = filtered || it.size != all.size }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errors.add(e)
+                emptyList()
             }
-
-            val sportData = withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
-                sportDataCompleter.await()
+            val health = try {
+                val all = readHistory(Constants.DATATYPE.Health_HistoryAll, healthDataConverter::convert)
+                all.filter { it.startTimestamp in startTimestamp..endTimestamp }
+                    .also { filtered = filtered || it.size != all.size }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errors.add(e)
+                emptyList()
             }
-            if (sportData == null) {
-                Log.d(YUCHENG_API, "Sport data is null, timeout!")
-            } else {
-                Log.d(YUCHENG_API, "Sport data got!")
-                val groupedByDateSport = sportData.groupBy {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        it.startDate.dayOfMonth
-                    } else {
-                        it.startTimeStamp
-                    }
-                }
-                for (entry in groupedByDateSport.entries) {
-                    val sumSteps = entry.value.sumOf { it.steps }
-                    val sumCalories = entry.value.sumOf { it.calories }
-                    val sumDist = entry.value.sumOf { it.distance }
-                    Log.e(YUCHENG_API, "Sport at ${entry.key}: sumSteps = $sumSteps, sumCalories = $sumCalories, sumDist = $sumDist")
-                }
-            }
-
-            launch {
-                try {
-                    val healthDataList: MutableList<YuchengHealthData> = mutableListOf()
-                    YCBTClient.healthHistoryData(
-                        Constants.DATATYPE.Health_HistoryAll
-                    ) { code, ratio, data ->
-                        if (data != null) {
-                            val healthData =
-                                data["data"] as? List<*>? ?: return@healthHistoryData
-                            val healthDatas = healthData.map {
-                                val yuchengHealthData = healthDataConverter.convert(it)
-                                return@map yuchengHealthData
-                            }.filter {
-                                it.startTimestamp in startTimestamp..endTimestamp
-                            }
-                            healthDataList.addAll(healthDatas)
-                            Log.d(GET_HEALTH_DATA, "HEALTH DATA CONVERTED")
-                        } else {
-                            Log.e(GET_HEALTH_DATA, "NO HEALTH DATA")
-                        }
-                        Log.d("HEALTH CODE", code.toString())
-                        Log.d("HEALTH RATIO", ratio.toString())
-                        if (!healthDataCompleter.isCompleted) {
-                            healthDataCompleter.complete(healthDataList)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(GET_HEALTH_DATA, "Error when get health  data: $e")
-                    if (!healthDataCompleter.isCompleted) {
-                        healthDataCompleter.completeExceptionally(e)
-                    }
-                }
-            }
-            val healthData =
-                withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) {
-                    healthDataCompleter.await()
-                }
-            if (healthData == null) {
-                Log.d(YUCHENG_API, "Health data is null, timeout!")
-            } else {
-                Log.d(YUCHENG_API, "Health data got!")
-            }
-
-            Log.d(YUCHENG_API, "HEALTH DATA: $healthData")
-            Log.d(YUCHENG_API, "SPORT DATA: $sportData")
-            if (!skipHandler) {
-                val healthSportData = YuchengHealthSportData(emptyList(), emptyList())
-                val ycDataEvent = YuchengHealthDataEvent(healthSportData)
-                onHealthData(ycDataEvent)
-            }
-            if (healthData == null || sportData == null) {
+            complete = errors.isEmpty() && !filtered
+            if (!skipHandler && errors.any { it is TimeoutException }) {
                 onHealthData(YuchengHealthTimeOutEvent(isTimeout = true))
             }
-            return@withContext YuchengHealthSportData(
-                healthData ?: emptyList(),
-                sportData ?: emptyList()
-            )
+            if (errors.isNotEmpty() && sport.isEmpty() && health.isEmpty()) throw errors.first()
+            val data = YuchengHealthSportData(health, sport)
+            if (!skipHandler) onHealthData(YuchengHealthDataEvent(data))
+            data
+        } finally {
+            safety.finish(complete)
         }
     }
 

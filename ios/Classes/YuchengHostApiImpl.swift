@@ -619,74 +619,51 @@ final class YuchengHostApiImpl : YuchengHostApi {
         })
     }
     
-    func deleteSleepData( completion: @escaping (Result<Bool, any Error>) -> Void) {
-        var isCompleted = false
-        do {
-            let selectedDevice = YuchengCore.shared.currentDevice ?? YCProduct.shared.currentPeripheral
-            let _ = selectedDevice?.macAddress
-            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.sleep) { state, response in
-                let isDeleted = state == YCProductState.succeed
-                DispatchQueue.main.async {
-                    completion(.success(isDeleted))
-                }
-                isCompleted = true
-            }
-        } catch {
-            DispatchQueue.main.async {
-                completion(.failure(error))
-            }
-            isCompleted = true
+    func deleteSleepData(completion: @escaping (Result<Bool, any Error>) -> Void) {
+        guard HistoryReadSafety.sleep.beginDelete() else { completion(.success(false)); return }
+        var finished = false
+        func finish(_ value: Bool) {
+            guard !finished else { return }
+            finished = true
+            HistoryReadSafety.sleep.finishDelete()
+            completion(.success(value))
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT, execute: {
-            if (isCompleted) {
-                return
-            }
-            DispatchQueue.main.async {
-                completion(.success(false))
-            }
-        })
+        let selectedDevice = YuchengCore.shared.currentDevice ?? YCProduct.shared.currentPeripheral
+        YCProduct.deleteHealthData(selectedDevice, dataType: .sleep) { state, _ in
+            DispatchQueue.main.async { finish(state == .succeed) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) { finish(false) }
     }
-    
+
     func deleteHealthSportData(completion: @escaping (Result<Bool, any Error>) -> Void) {
-        var isHealthDeleted = false
-        var isSportDeleted = false
-        do {
-            let selectedDevice = YuchengCore.shared.currentDevice ?? YCProduct.shared.currentPeripheral
-            let _ = selectedDevice?.macAddress
-            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.step) {
-                state, response in
-                let isDeleted = state == YCProductState.succeed
-                isSportDeleted = isDeleted
-                if (isHealthDeleted && isSportDeleted) {
-                    DispatchQueue.main.async {
-                        completion(.success(true))
-                    }
-                }
-            }
-            YCProduct.deleteHealthData(selectedDevice, dataType: YCDeleteHealthDataType.combinedData) { state, response in
-                let isDeleted = state == YCProductState.succeed
-                isHealthDeleted = isDeleted
-                if (isHealthDeleted && isSportDeleted) {
-                    DispatchQueue.main.async {
-                        completion(.success(true))
-                    }
-                }
-            }
-        } catch {
+        guard HistoryReadSafety.health.beginDelete() else { completion(.success(false)); return }
+        var finished = false
+        var health: Bool?
+        var sport: Bool?
+        func finish(_ value: Bool) {
+            guard !finished else { return }
+            finished = true
+            HistoryReadSafety.health.finishDelete()
+            completion(.success(value))
+        }
+        let selectedDevice = YuchengCore.shared.currentDevice ?? YCProduct.shared.currentPeripheral
+        YCProduct.deleteHealthData(selectedDevice, dataType: .step) { state, _ in
             DispatchQueue.main.async {
-                completion(.failure(error))
+                guard !finished && sport == nil else { return }
+                sport = state == .succeed
+                if let health { finish(health && sport == true) }
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT, execute: {
-            if (isHealthDeleted && isSportDeleted) {
-                return
-            }
+        YCProduct.deleteHealthData(selectedDevice, dataType: .combinedData) { state, _ in
             DispatchQueue.main.async {
-                completion(.success(false))
+                guard !finished && health == nil else { return }
+                health = state == .succeed
+                if let sport { finish(sport && health == true) }
             }
-        })
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) { finish(false) }
     }
-    
+
     func deleteAllData(completion: @escaping (Result<Bool, any Error>) -> Void) {
         var isHealthCompleted = false
         var isSleepCompleted = false

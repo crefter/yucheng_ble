@@ -28,6 +28,7 @@ import com.crefter.yuchengplugin.yucheng_ble.entity.StartEndTimestamp
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -63,6 +64,8 @@ class YuchengBleService : Service() {
             Log.i(YUCH_TAG, "Service: Not connected, try reconnect!")
             try {
                 YuchengCore.reconnect(null, 30)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(YUCH_TAG, "Service: RECONNECT EXCEPTION: $e")
                 return
@@ -94,19 +97,29 @@ class YuchengBleService : Service() {
         }
         val startEnd = StartEndTimestamp.service()
         Log.i(YUCH_TAG, "startEnd timestamp for service = $startEnd")
-        try {
-            val sleepData = YuchengCore.getSleepData(
+        val sleepData = try {
+            YuchengCore.getSleepData(
                 true, startTimestamp = startEnd.start, startEnd.end,
                 YuchengSleepDataConverter(gson!!)
             )
-            val healthData = YuchengCore.getHealthSportData(
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e(YUCH_TAG, "Sleep history failed: $e")
+            emptyList()
+        }
+        val healthData = try {
+            YuchengCore.getHealthSportData(
                 true, startEnd.start, startEnd.end,
                 YuchengSportDataConverter(gson!!), YuchengHealthDataConverter(gson!!)
             )
-            sendDataToServer(sleepData, healthData)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.e(YUCH_TAG, "Exception when read sleep/health data! $e")
+            Log.e(YUCH_TAG, "Health history failed: $e")
+            YuchengHealthSportData(emptyList(), emptyList())
         }
+        sendDataToServer(sleepData, healthData)
         Log.i(YUCH_TAG, "READ DATA FROM SERVICE!!!")
     }
 
@@ -132,10 +145,22 @@ class YuchengBleService : Service() {
         val id = Build.ID
 
         if (sleepData.isNotEmpty()) {
-            repo.saveSleep(sleepData, id)
+            try {
+                repo.saveSleep(sleepData, id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(YUCH_TAG, "Sleep upload failed: $e")
+            }
         }
         if (healthData.healthData.isNotEmpty() || healthData.sportData.isNotEmpty()) {
-            repo.saveHealth(healthData, id)
+            try {
+                repo.saveHealth(healthData, id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(YUCH_TAG, "Health upload failed: $e")
+            }
         }
     }
 
