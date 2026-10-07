@@ -1,112 +1,59 @@
 import Combine
 import Foundation
 
-func completer<T>(
-    _ body: (Completer<T>) -> Void
-) -> AnyPublisher<T, Error> {
+func completer<T>(_ body: (Completer<T>) -> Void) -> AnyPublisher<T, Error> {
     let c = Completer<T>()
     body(c)
     return c.future
 }
 
 final class Completer<T> {
-    private let subject = PassthroughSubject<T, Error>()
-    private let lock = NSRecursiveLock()
-    private var result: Result<T, Error>?
-    
-    private var _isCompleted = false
+    private let lock = NSLock()
+    private let publisher: AnyPublisher<T, Error>
+    private let resolve: Future<T, Error>.Promise
+    private var completed = false
     private var timeoutWorkItem: DispatchWorkItem?
-    
-    public var future: AnyPublisher<T, Error> {
-        lock.withLock {
-                if let result {
-                    return Result.Publisher(result)
-                        .eraseToAnyPublisher()
-                } else {
-                    return subject.eraseToAnyPublisher()
-                }
-            }
+
+    init() {
+        var promise: Future<T, Error>.Promise!
+        let future = Future<T, Error> { promise = $0 }
+        publisher = future.eraseToAnyPublisher()
+        resolve = promise
     }
-    
-    public var isCompleted: Bool {
-        lock.withLock { _isCompleted }
-    }
-    
-    // MARK: - Completion
-    
-    public func complete(_ value: T) {
-        guard !markAsCompleted() else { return }
-        
-        lock.withLock {
-                result = .success(value)
-        }
-        
-        cancelTimeout()
-        subject.send(value)
-        subject.send(completion: .finished)
-    }
-    
-    public func completeError(_ error: Error) {
-        guard !markAsCompleted() else { return }
-        
-        lock.withLock {
-            result = .failure(error)
-        }
-        
-        cancelTimeout()
-        subject.send(completion: .failure(error))
-    }
-    
-    // MARK: - Timeout
-    
-    public func setTimeout(
-        _ interval: TimeInterval,
-        queue: DispatchQueue = .main,
-        error: Error = TimeoutError()
-    ) {
-        lock.withLock {
-            guard !_isCompleted else { return }
-            
-            timeoutWorkItem?.cancel()
-            
-            let workItem = DispatchWorkItem { [weak self] in
-                self?.completeError(error)
-            }
-            
-            timeoutWorkItem = workItem
-            queue.asyncAfter(deadline: .now() + interval, execute: workItem)
-        }
-    }
-    
-    private func cancelTimeout() {
-        lock.withLock {
+
+    // Future сохраняет ответ, в том числе между получением publisher и sink.
+    var future: AnyPublisher<T, Error> { publisher }
+    var isCompleted: Bool { lock.withLock { completed } }
+
+    func complete(_ value: T) { finish(.success(value)) }
+    func completeError(_ error: Error) { finish(.failure(error)) }
+
+    private func finish(_ result: Result<T, Error>) {
+        let claimed = lock.withLock {
+            guard !completed else { return false }
+            completed = true
             timeoutWorkItem?.cancel()
             timeoutWorkItem = nil
+            return true
         }
+        // Подписчики могут повторно обратиться к Completer: вызываем их без lock.
+        if claimed { resolve(result) }
     }
-    
-    // MARK: - Internal
-    
-    private func markAsCompleted() -> Bool {
+
+    func setTimeout(_ interval: TimeInterval, queue: DispatchQueue = .main,
+                    error: Error = TimeoutError()) {
         lock.withLock {
-            guard !_isCompleted else {
-                debugPrint("⚠️ Completer already completed")
-                return true
-            }
-            _isCompleted = true
-            return false
+            guard !completed else { return }
+            timeoutWorkItem?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.completeError(error) }
+            timeoutWorkItem = work
+            queue.asyncAfter(deadline: .now() + interval, execute: work)
         }
     }
-    
-    deinit {
-        cancelTimeout()
-    }
+
+    deinit { timeoutWorkItem?.cancel() }
 }
 
-// MARK: - Timeout Error
-
 struct TimeoutError: Error, LocalizedError {
-    var errorDescription: String? {
-        "Operation timed out"
-    }
+    var errorDescription: String? { "Operation timed out" }
 }
