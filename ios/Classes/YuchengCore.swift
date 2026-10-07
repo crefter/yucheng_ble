@@ -112,6 +112,19 @@ public class YuchengCore {
         }
     }
     
+    // Имя не идентифицирует кольцо: один MAC сравниваем независимо от регистра и разделителя.
+    static func normalizedConnectionMAC(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let compact = trimmed.replacingOccurrences(of: ":", with: "")
+            .replacingOccurrences(of: "-", with: "").uppercased()
+        guard compact.count == 12,
+              compact.unicodeScalars.allSatisfy({ (48...57).contains($0.value) || (65...70).contains($0.value) }) else { return nil }
+        return stride(from: 0, to: 12, by: 2).map { offset in
+            let start = compact.index(compact.startIndex, offsetBy: offset)
+            return String(compact[start..<compact.index(start, offsetBy: 2)])
+        }.joined(separator: ":")
+    }
+
     func scanDevices(scanTimeInSeconds: Double?, onDevice: DeviceHandler? = nil) -> AnyPublisher<[YuchengDevice], Error> {
         let completer = Completer<[YuchengDevice]>()
         let lastConnectedDevice = YCProduct.shared.currentPeripheral;
@@ -128,10 +141,11 @@ public class YuchengCore {
                             print("UUID DEVICE = " + device.identifier.uuidString)
                             let deviceMac = device.macAddress
                             let deviceName = device.name
-                            let isReconnected = lastConnectedDevice?.macAddress == deviceMac && self.isConnected();
-                            self.currentDevice = isReconnected ? device : nil;
+                            guard let normalizedMac = Self.normalizedConnectionMAC(deviceMac) else { return }
+                            let isReconnected = lastConnectedDevice?.state == .connected && Self.normalizedConnectionMAC(lastConnectedDevice?.macAddress ?? "") == normalizedMac && self.isConnected()
+                            if isReconnected { self.currentDevice = device }
                             if (!ycDevices.contains(where: { dev in
-                                dev.uuid == deviceMac || dev.deviceName == deviceName
+                                Self.normalizedConnectionMAC(dev.uuid) == normalizedMac
                             })) {
                                 let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device.name ?? "", uuid: device.macAddress, isReconnected: isReconnected)
                                 onDevice?(YuchengDeviceDataEvent(index: Int64(self.index), mac: deviceMac, isReconnected: ycDevice.isReconnected, deviceName: deviceName ?? device.deviceModel))
@@ -167,14 +181,19 @@ public class YuchengCore {
     func connect(device: YuchengDevice, connectTimeInSeconds: Int64?, onDevice: DeviceHandler? = nil) -> AnyPublisher<Bool, Error> {
         let timeout = connectTimeInSeconds ?? Int64((YuchengCore.TIME_TO_TIMEOUT + 10))
         let completer = Completer<Bool>()
-        if (self.currentDevice != nil) {
-            if (device.deviceName == self.currentDevice?.name || device.uuid == self.currentDevice?.macAddress && isConnected()) {
-                completer.complete(true)
-                return completer.future;
-            }
+        guard let expectedMac = Self.normalizedConnectionMAC(device.uuid) else {
+            completer.completeError(NoDeviceError.noDevice("A valid device MAC is required"))
+            return completer.future
         }
-        
-        if (self.scannedDevices.isEmpty) {
+        if let live = YCProduct.shared.currentPeripheral,
+           live.state == .connected, isConnected(),
+           Self.normalizedConnectionMAC(live.macAddress) == expectedMac {
+            self.currentDevice = live
+            completer.complete(true)
+            return completer.future
+        }
+
+        if !self.scannedDevices.contains(where: { Self.normalizedConnectionMAC($0.macAddress) == expectedMac }) {
             let sub = scanDevices(scanTimeInSeconds: Double(timeout) - 5)
             YuchengCancelableStore.shared.subscribe(sub) { result in
                 switch (result) {
@@ -193,7 +212,7 @@ public class YuchengCore {
                     return
                 }
                     let foundDevice = devices.first { ycDevice in
-                        device.deviceName == ycDevice.deviceName || device.uuid == ycDevice.uuid
+                        Self.normalizedConnectionMAC(ycDevice.uuid) == expectedMac
                     }
                     if (foundDevice == nil) {
                         completer.completeError(NoDeviceError.noDevice("No device found"))
@@ -235,26 +254,33 @@ public class YuchengCore {
     
     private func internalConnect(device: YuchengDevice, timeout: Int, onDevice: DeviceHandler? = nil) -> AnyPublisher<Bool, Error> {
         let completer = Completer<Bool>()
-        self.currentDevice = scannedDevices.first(where: { scannedDevice in
-            scannedDevice.name == device.deviceName
-        })
-        
-        if (self.currentDevice == nil) {
-            self.currentDevice = YCProduct.shared.currentPeripheral;
-        }
-        
-        if (YuchengCore.shared.currentDevice == nil) {
-            completer.completeError(NoDeviceError.noDevice("Current device is nil"))
+        guard let expectedMac = Self.normalizedConnectionMAC(device.uuid) else {
+            completer.completeError(NoDeviceError.noDevice("A valid device MAC is required"))
             return completer.future
         }
-        
-        YCProduct.connectDevice(self.currentDevice!) { state, error in
+        let scanned = scannedDevices.first { Self.normalizedConnectionMAC($0.macAddress) == expectedMac }
+        let live = YCProduct.shared.currentPeripheral
+        let matchingLive = live.flatMap { Self.normalizedConnectionMAC($0.macAddress) == expectedMac ? $0 : nil }
+        guard let target = scanned ?? matchingLive else {
+            completer.completeError(NoDeviceError.noDevice("Requested device not found"))
+            return completer.future
+        }
+        self.currentDevice = target
+
+        YCProduct.connectDevice(target) { state, error in
+            guard !completer.isCompleted else { return }
             if let error = error {
                 completer.completeError(error)
             } else {
                 if state == .connected {
-                    let device = YCProduct.shared.currentPeripheral;
-                    let mac = device?.macAddress ?? "";
+                    guard let actual = YCProduct.shared.currentPeripheral,
+                          actual.state == .connected,
+                          Self.normalizedConnectionMAC(actual.macAddress) == expectedMac else {
+                        completer.completeError(NoDeviceError.noDevice("Connected device does not match requested MAC"))
+                        return
+                    }
+                    let device = Optional(actual)
+                    let mac = actual.macAddress;
                     let name = device?.name ?? "";
                     completer.complete(true)
                     if (device != nil) {
@@ -285,138 +311,83 @@ public class YuchengCore {
     
     func reconnect(uuid: String?, reconnectTimeInSeconds: Int64?, onDevice: DeviceHandler? = nil) -> AnyPublisher<Bool, Error> {
         let completer = Completer<Bool>()
-        if (uuid != nil && self.currentDevice != nil && self.currentDevice?.macAddress == uuid && isConnected()) {
-            print("RECONNECT! uuid != nil && self.currentDevice != nil && self.currentDevice.macAddress == uuid && isConnected()")
-            let device = YuchengCore.shared.currentDevice
-            let deviceMacAddress = device?.macAddress
-            let isReconnected = deviceMacAddress != nil
-            let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device?.name ?? "", uuid: deviceMacAddress ?? "", isReconnected: isReconnected)
-            DispatchQueue.main.async {
-                onDevice?(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
-            }
-            completer.complete(true)
+        guard let expectedMac = Self.normalizedConnectionMAC(uuid ?? "") else {
+            completer.completeError(NoDeviceError.noDevice("A valid device MAC is required"))
             return completer.future
         }
-        do {
-            let isOtaForce = YCProduct.isJLDeviceForceOTA()
-            if (isOtaForce) {
-                YuchengCore.shared.currentDevice = YCProduct.shared.currentPeripheral
-                self.reconnectMacAddress = YuchengCore.shared.currentDevice?.macAddress ?? uuid ?? ""
-                self.connectForceOtaDevice(onUpdate: nil) { res in }
+        func matches(_ device: CBPeripheral?) -> Bool {
+            device.map { Self.normalizedConnectionMAC($0.macAddress) == expectedMac } ?? false
+        }
+        func completeConnected() {
+            guard !completer.isCompleted else { return }
+            guard let device = YCProduct.shared.currentPeripheral,
+                  device.state == .connected, matches(device) else {
+                completer.complete(false)
+                return
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(YuchengCore.TIME_TO_QUERY_MAC_ADDR)) {
-                YCProduct.queryDeviceMacAddress { state, response in
-                    YuchengCore.shared.currentDevice = YCProduct.shared.currentPeripheral
-                    if state == YCProductState.succeed,
-                       let macAddress = response as? String {
-                        print("Reconnect: state == success")
-                        YuchengCore.shared.currentDevice = YCProduct.shared.currentPeripheral
-                        let device = YuchengCore.shared.currentDevice
-                        let deviceMacAddress = device?.macAddress
-                        let isReconnected = deviceMacAddress != nil
-                        let isDevice = device != nil
-                        if (isDevice) {
-                            print("Reconnect: state == success, isDevice = true")
-                            let ycDevice = YuchengDevice(index: Int64(self.index), deviceName: device?.name ?? "", uuid: deviceMacAddress ?? macAddress, isReconnected: isReconnected)
-                            DispatchQueue.main.async {
-                                self.onState?(YuchengDeviceStateDataEvent(state: .readWriteOK))
-                                onDevice?(YuchengDeviceDataEvent(index: ycDevice.index, mac: ycDevice.uuid, isReconnected: ycDevice.isReconnected, deviceName: ycDevice.deviceName))
-                            }
-                            completer.complete(isDevice)
-                            self.index += 1
-                        } else {
-                            print("Reconnect: state == success, isDevice = false, try forward connect")
-                            YCProduct.connectDevice(YuchengCore.shared.currentDevice!) { state, error in
-                                if let error = error {
-                                    print("Reconnect: state == success, forward connect with error")
-                                    completer.completeError(error)
-                                } else {
-                                    if state == .connected {
-                                        print("Reconnect: state == success, connected!")
-                                        let device = YCProduct.shared.currentPeripheral;
-                                        let mac = device?.macAddress ?? "";
-                                        let name = device?.name ?? "";
-                                        completer.complete(true)
-                                        if (device != nil) {
-                                            YuchengCore.shared.currentDevice = device
-                                            let isOtaForce = YCProduct.isJLDeviceForceOTA()
-                                            if (isOtaForce) {
-                                                self.reconnectMacAddress = mac
-                                                self.connectForceOtaDevice(onUpdate: nil) { res in }
-                                            }
-                                            DispatchQueue.main.async(execute:  {
-                                                self.onState?(YuchengDeviceStateDataEvent(state: .readWriteOK))
-                                                onDevice?(YuchengDeviceDataEvent(index: Int64(self.index), mac: mac, isReconnected: true, deviceName: name))
-                                            })
-                                            self.index += 1
-                                        }
-                                    } else {
-                                        print("Reconnect: state == success, cant connect")
-                                        if (!completer.isCompleted) {
-                                            completer.complete(false)
-                                        }
-                                    }
-                                }
-                                self.index += 1
-                            }
+            self.currentDevice = device
+            let event = YuchengDeviceDataEvent(index: Int64(self.index), mac: device.macAddress,
+                isReconnected: true, deviceName: device.name ?? "")
+            self.index += 1
+            DispatchQueue.main.async {
+                self.onState?(YuchengDeviceStateDataEvent(state: .readWriteOK))
+                onDevice?(event)
+            }
+            completer.complete(true)
+        }
+        if let live = YCProduct.shared.currentPeripheral,
+           live.state == .connected, matches(live), isConnected() {
+            completeConnected()
+            return completer.future
+        }
+        let rememberedTarget = self.currentDevice
+        // OTA сохраняем, но восстановление чужого кольца по текущему SDK-состоянию запрещено.
+        if YCProduct.isJLDeviceForceOTA(), matches(YCProduct.shared.currentPeripheral) {
+            self.currentDevice = YCProduct.shared.currentPeripheral
+            self.reconnectMacAddress = expectedMac
+            self.connectForceOtaDevice(onUpdate: nil) { _ in }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(YuchengCore.TIME_TO_QUERY_MAC_ADDR)) {
+            guard !completer.isCompleted else { return }
+            YCProduct.queryDeviceMacAddress { state, response in
+                guard !completer.isCompleted else { return }
+                let live = YCProduct.shared.currentPeripheral
+                if state == .succeed,
+                   let mac = response as? String,
+                   Self.normalizedConnectionMAC(mac) == expectedMac,
+                   live?.state == .connected, matches(live) {
+                    completeConnected()
+                    return
+                }
+                // SDK мог вернуть старое устройство или nil. Не подменяем запрошенный MAC.
+                let candidate = matches(live) ? live : rememberedTarget
+                guard let target = candidate, matches(target) else {
+                    completer.complete(false)
+                    return
+                }
+                YCProduct.connectDevice(target) { state, error in
+                    guard !completer.isCompleted else { return }
+                    if let error {
+                        completer.completeError(error)
+                    } else if state == .connected {
+                        if YCProduct.isJLDeviceForceOTA(), matches(YCProduct.shared.currentPeripheral) {
+                            self.reconnectMacAddress = expectedMac
+                            self.connectForceOtaDevice(onUpdate: nil) { _ in }
                         }
+                        completeConnected()
                     } else {
-                        print("Reconnect: state != success")
-                        if YuchengCore.shared.currentDevice == nil {
-                            print("Reconnect: state != success, currentDevice == nil")
-                            completer.complete(false)
-                            return
-                        }
-                        print("Reconnect: state != success, try forward connect")
-                        YCProduct.connectDevice(YuchengCore.shared.currentDevice!) { state, error in
-                            if let error = error {
-                                print("Reconnect: state != success, try forward connect, done = error")
-                                completer.completeError(error)
-                            } else {
-                                if state == .connected {
-                                    print("Reconnect: state != success, try forward connect, connected!")
-                                    let device = YCProduct.shared.currentPeripheral;
-                                    let mac = device?.macAddress ?? "";
-                                    let name = device?.name ?? "";
-                                    completer.complete(true)
-                                    if (device != nil) {
-                                        YuchengCore.shared.currentDevice = device
-                                        let isOtaForce = YCProduct.isJLDeviceForceOTA()
-                                        if (isOtaForce) {
-                                            self.reconnectMacAddress = mac
-                                            self.connectForceOtaDevice(onUpdate: nil) { res in }
-                                        }
-                                        DispatchQueue.main.async(execute:  {
-                                            self.onState?(YuchengDeviceStateDataEvent(state: .readWriteOK))
-                                            onDevice?(YuchengDeviceDataEvent(index: Int64(self.index), mac: mac, isReconnected: true, deviceName: name))
-                                        })
-                                        self.index += 1
-                                    }
-                                } else {
-                                    print("Reconnect: state != success, try forward connect, NOT connected!")
-                                    if (!completer.isCompleted) {
-                                        completer.complete(false)
-                                    }
-                                }
-                            }
-                        }
+                        completer.complete(false)
                     }
                 }
             }
-        } catch {
-            completer.completeError(error)
         }
-        let seconds = reconnectTimeInSeconds == nil ? DispatchTimeInterval.seconds(YuchengCore.TIME_TO_RECONNECT) : DispatchTimeInterval.seconds(Int(reconnectTimeInSeconds!))
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: {
-            if (completer.isCompleted) {
-                return
-            }
-            completer.complete(false)
-        })
-        
+        let timeout = max(1, reconnectTimeInSeconds ?? Int64(YuchengCore.TIME_TO_RECONNECT))
+        DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(Int(timeout))) {
+            if !completer.isCompleted { completer.complete(false) }
+        }
         return completer.future
     }
-    
+
     func disconnect() -> AnyPublisher<Void, Error> {
         let completer = Completer<Void>()
         YCProduct.disconnectDevice(YuchengCore.shared.currentDevice ?? YCProduct.shared.currentPeripheral) { state, error in
