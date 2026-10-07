@@ -254,24 +254,18 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
     }
     
-    func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, any Error>) -> Void)
-    {
-        do {
-            if YuchengCore.shared.isConnected() {
-                completion(.success(true))
-                return
-            }
-            let lastConnectedDevice = YCProduct.shared.currentPeripheral;
-            if (device == nil) {
-                completion(.success(lastConnectedDevice != nil))
-            }
-            let isConnected = (lastConnectedDevice?.macAddress == device?.uuid);
-            completion(.success(isConnected))
-        } catch (let e) {
-            completion(.failure(e))
+    func isDeviceConnected(device: YuchengDevice?, completion: @escaping (Result<Bool, any Error>) -> Void) {
+        guard YuchengCore.shared.isConnected(),
+              let live = YCProduct.shared.currentPeripheral,
+              live.state == .connected,
+              let liveMac = YuchengCore.normalizedConnectionMAC(live.macAddress) else {
+            completion(.success(false))
+            return
         }
+        guard let device else { completion(.success(true)); return }
+        completion(.success(YuchengCore.normalizedConnectionMAC(device.uuid) == liveMac))
     }
-    
+
     func connect(device: YuchengDevice, connectTimeInSeconds: Int64?, completion: @escaping (Result<Bool, any Error>) -> Void) {
         let sub = YuchengCore.shared.connect(device: device, connectTimeInSeconds: connectTimeInSeconds, onDevice: self.onDevice)
         YuchengCancelableStore.shared.subscribe(sub) { result in
@@ -332,54 +326,61 @@ final class YuchengHostApiImpl : YuchengHostApi {
     }
     
     func getCurrentConnectedDevice(completion: @escaping (Result<YuchengDevice?, any Error>) -> Void) {
-        let timeoutForGetDevice = 5.0
-        let timeout = timeoutForGetDevice * 2
-        
-        if (YuchengCore.shared.currentDevice != nil) {
-            completion(.success(YuchengDevice(index: Int64(YuchengCore.shared.index), deviceName: YuchengCore.shared.currentDevice!.name ?? YuchengCore.shared.currentDevice!.deviceModel, uuid: YuchengCore.shared.currentDevice!.macAddress, isReconnected: true)))
+        // Живой SDK-снимок важнее старого кэша и не требует запроса MAC с задержкой.
+        if let live = YCProduct.shared.currentPeripheral,
+           live.state == .connected,
+           YuchengCore.normalizedConnectionMAC(live.macAddress) != nil {
+            YuchengCore.shared.currentDevice = live
+            completion(.success(YuchengDevice(index: Int64(YuchengCore.shared.index),
+                deviceName: live.name ?? live.deviceModel, uuid: live.macAddress,
+                isReconnected: YuchengCore.shared.isConnected())))
             return
         }
-        
-        var isCompleted = false
-        do {
-            DispatchQueue.main.asyncAfter(deadline: .now() + timeoutForGetDevice) {
-                YuchengCore.shared.currentDevice = YCProduct.shared.currentPeripheral
-                let device = YuchengCore.shared.currentDevice
-                if device == nil {
-                    if (isCompleted) { return }
-                    completion(.success(nil))
+        if let cached = YuchengCore.shared.currentDevice {
+            // Сохранённое устройство - кандидат для reconnect, а не подтверждение связи.
+            completion(.success(YuchengDevice(index: Int64(YuchengCore.shared.index),
+                deviceName: cached.name ?? cached.deviceModel, uuid: cached.macAddress,
+                isReconnected: false)))
+            return
+        }
+        let lock = NSLock()
+        var completed = false
+        func finish(_ device: YuchengDevice?, live: CBPeripheral? = nil) {
+            let claimed = lock.withLock {
+                guard !completed else { return false }
+                completed = true
+                return true
+            }
+            guard claimed else { return }
+            if let live {
+                YuchengCore.shared.currentDevice = live
+                YuchengCore.shared.ringState = .readWriteOK
+            }
+            completion(.success(device))
+        }
+        let timeoutForGetDevice = 5.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeoutForGetDevice) {
+            guard !lock.withLock({ completed }) else { return }
+            guard let candidate = YCProduct.shared.currentPeripheral else { finish(nil); return }
+            YCProduct.queryDeviceMacAddress(candidate) { state, response in
+                guard !lock.withLock({ completed }) else { return }
+                guard state == .succeed, let mac = response as? String,
+                      let expected = YuchengCore.normalizedConnectionMAC(candidate.macAddress),
+                      YuchengCore.normalizedConnectionMAC(mac) == expected,
+                      let live = YCProduct.shared.currentPeripheral,
+                      live.state == .connected,
+                      YuchengCore.normalizedConnectionMAC(live.macAddress) == expected else {
+                    finish(nil)
                     return
                 }
-                YCProduct.queryDeviceMacAddress(device) { state, response in
-                    if state == .succeed, let mac = response as? String {
-                        YuchengCore.shared.ringState = .readWriteOK
-                        print("getCurrentConnectedDevice: state = \(state), mac = \(mac)")
-                        YuchengCore.shared.currentDevice = YCProduct.shared.currentPeripheral
-                        let ycDevice = YuchengDevice(index: Int64(YuchengCore.shared.index), deviceName: device!.name ?? device!.deviceModel, uuid: device!.macAddress, isReconnected: true)
-                        print("getCurrentConnectedDevice: ycDevice = \(ycDevice)")
-                        if (isCompleted) { return }
-                        completion(.success(ycDevice))
-                        YuchengCore.shared.index += 1
-                        isCompleted = true
-                    }
-                }
+                finish(YuchengDevice(index: Int64(YuchengCore.shared.index),
+                    deviceName: live.name ?? live.deviceModel, uuid: live.macAddress,
+                    isReconnected: true), live: live)
             }
-        } catch (let e) {
-            DispatchQueue.main.async {
-                completion(.failure(e))
-            }
-            isCompleted = true
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-            print("getCurrentConnectedDevice: timeout!")
-            if (isCompleted) {
-                return
-            }
-            completion(.success(nil))
-            isCompleted = true
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeoutForGetDevice * 2) { finish(nil) }
     }
-    
+
     func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) {
         var startComponents = DateComponents()
         startComponents.weekOfYear = -1
