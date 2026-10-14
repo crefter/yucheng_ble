@@ -15,18 +15,13 @@ import kotlinx.serialization.json.Json
 import kotlin.time.ExperimentalTime
 
 class YuchengTokenStorage(private val storage: SharedPreferences) {
-    private var savedToken: YuchengToken? = null
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
         encodeDefaults = true
     }
 
-    fun getToken(): YuchengToken? {
-        return savedToken
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
+    @Synchronized
     fun getToken(flavor: YuchengFlavor): YuchengToken? {
         Log.d(TAG, "getToken: flavor = $flavor")
         try {
@@ -46,7 +41,6 @@ class YuchengTokenStorage(private val storage: SharedPreferences) {
             )
             if (access == null || refresh == null) return null
             val token = YuchengToken(access, refresh, timestamp)
-            savedToken = token
             return token
         } catch (e: Exception) {
             Log.e(TAG, "$e")
@@ -54,6 +48,7 @@ class YuchengTokenStorage(private val storage: SharedPreferences) {
         }
     }
 
+    @Synchronized
     fun saveTokens(token: YuchengAuthToken, flavor: YuchengFlavor) {
         Log.d(TAG, "saveTokens: flavor = $flavor")
         try {
@@ -62,11 +57,7 @@ class YuchengTokenStorage(private val storage: SharedPreferences) {
                 putString(key(flavor), json)
                 apply()
             }
-            savedToken = YuchengToken(
-                token.accessToken,
-                token.refreshToken ?: "",
-                token.issuedAt?.toEpochMilliseconds() ?: 0
-            )
+
         } catch (e: Exception) {
             Log.e(TAG, "$e")
         }
@@ -76,6 +67,7 @@ class YuchengTokenStorage(private val storage: SharedPreferences) {
         )
     }
 
+    @Synchronized
     fun clear(flavor: YuchengFlavor) {
         try {
             storage.edit {
@@ -85,6 +77,13 @@ class YuchengTokenStorage(private val storage: SharedPreferences) {
         } catch (e: Exception) {
             Log.e(TAG, "$e")
         }
+    }
+
+    @Synchronized
+    fun saveRefreshedToken(token: YuchengAuthToken, flavor: YuchengFlavor, expectedRefresh: String): Boolean {
+        if (getToken(flavor)?.refresh != expectedRefresh) return false
+        saveTokens(token, flavor)
+        return true
     }
 
     private fun key(flavor: YuchengFlavor): String {

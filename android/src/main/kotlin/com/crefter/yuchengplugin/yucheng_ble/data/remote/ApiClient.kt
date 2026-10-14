@@ -14,18 +14,24 @@ object ApiClient {
     private const val TAG = "YUCH_API api client"
 
     private var client: OkHttpClient? = null
+    private var clientFlavor: YuchengFlavor? = null
+    private var clientConfig: YuchengApiConfig? = null
+    private var clientStorage: YuchengTokenStorage? = null
     private val lock = Any()
 
     @RequiresApi(Build.VERSION_CODES.GINGERBREAD)
     fun getClient(tokenStorage: YuchengTokenStorage,
                   apiConfig: YuchengApiConfig, flavor: YuchengFlavor): OkHttpClient {
-        if (client != null) {
-            return client!!
-        }
         synchronized(lock) {
-            if (client != null) {
+            if (client != null && clientFlavor == flavor &&
+                clientConfig == apiConfig && clientStorage === tokenStorage) {
                 return client!!
             }
+            client?.dispatcher?.cancelAll()
+            client?.connectionPool?.evictAll()
+            clientFlavor = flavor
+            clientConfig = apiConfig
+            clientStorage = tokenStorage
             client = OkHttpClient.Builder()
                 .connectTimeout(15.seconds)
                 .writeTimeout(45.seconds)
@@ -39,10 +45,21 @@ object ApiClient {
                     response
                 }
                 .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES))
-                .addInterceptor(YuchengAuthInterceptor(tokenStorage = tokenStorage))
+                .addInterceptor(YuchengAuthInterceptor(tokenStorage = tokenStorage, flavor = flavor))
                 .authenticator(YuchengTokenAuthenticator(tokenStorage, apiConfig, flavor))
                 .build()
             return client!!
+        }
+    }
+
+    fun reset() {
+        synchronized(lock) {
+            client?.dispatcher?.cancelAll()
+            client?.connectionPool?.evictAll()
+            client = null
+            clientFlavor = null
+            clientConfig = null
+            clientStorage = null
         }
     }
 

@@ -1237,6 +1237,9 @@ class YuchengApiImpl(
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                if (YuchengCore.storage?.readFlavor() != flavorName) {
+                    com.crefter.yuchengplugin.yucheng_ble.data.remote.ApiClient.reset()
+                }
                 YuchengCore.storage?.saveFlavor(flavorName)
                 withContext(Dispatchers.Main) {
                     callback(Result.success(Unit))
@@ -1257,6 +1260,7 @@ class YuchengApiImpl(
                 val flavorStr = YuchengCore.storage?.readFlavor()
                 val flavor = YuchengFlavor.fromString(flavorStr)
                 if (token == null) {
+                    com.crefter.yuchengplugin.yucheng_ble.data.remote.ApiClient.reset()
                     YuchengCore.tokenStorage?.clear(flavor)
                 } else {
                     val ycAuthToken = YuchengAuthToken(

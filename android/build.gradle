@@ -54,6 +54,10 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
     defaultConfig {
         minSdk = 24
         multiDexEnabled true
