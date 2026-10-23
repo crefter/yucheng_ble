@@ -20,6 +20,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +51,9 @@ object YuchengCore {
     var storage: YuchengBleStorage? = null
     var serviceOn: Boolean = false
     var connectState = MutableStateFlow(3)
+    private val reconnectLock = Any()
+    private var reconnectGeneration = 0L
+    private var reconnectScanGeneration: Long? = null
     var tokenStorage: YuchengTokenStorage? = null
     fun init(context: Context) {
         if (isInit) {
@@ -103,35 +108,40 @@ object YuchengCore {
         val devices = mutableSetOf<ScanDeviceBean>()
         val completer = CompletableDeferred<Set<ScanDeviceBean>>()
         withContext(Dispatchers.Main) {
-            YCBTClient.startScanBle({ _, device ->
-                if (device == null) {
-                    onDevice(YuchengDeviceCompleteEvent(completed = true))
-                    if (!completer.isCompleted) completer.complete(devices)
-                    Log.d(YUCHENG_API, "End scan")
-                } else {
-                    val deviceName = device.deviceName
-                    val deviceMac = device.deviceMac
-                    if (deviceMac == null || deviceName == null) {
-                        return@startScanBle
+            synchronized(reconnectLock) {
+                // A user scan takes ownership from background reconnect scans.
+                ++reconnectGeneration
+                reconnectScanGeneration = null
+                YCBTClient.startScanBle({ _, device ->
+                    if (device == null) {
+                        onDevice(YuchengDeviceCompleteEvent(completed = true))
+                        if (!completer.isCompleted) completer.complete(devices)
+                        Log.d(YUCHENG_API, "End scan")
+                    } else {
+                        val deviceName = device.deviceName
+                        val deviceMac = device.deviceMac
+                        if (deviceMac == null || deviceName == null) {
+                            return@startScanBle
+                        }
+                        devices.add(device)
+                        Log.d(YUCHENG_API, "name: " + device.deviceName)
+                        Log.d(
+                            YUCHENG_API, "address: " + device.deviceMac
+                        )
+                        val ycDevice =
+                            YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, deviceMac, false)
+                        ycDevices.add(ycDevice)
+                        onDevice(
+                            YuchengDeviceDataEvent(
+                                ycDevice.index,
+                                ycDevice.uuid,
+                                false,
+                                ycDevice.deviceName,
+                            ),
+                        )
                     }
-                    devices.add(device)
-                    Log.d(YUCHENG_API, "name: " + device.deviceName)
-                    Log.d(
-                        YUCHENG_API, "address: " + device.deviceMac
-                    )
-                    val ycDevice =
-                        YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, deviceMac, false)
-                    ycDevices.add(ycDevice)
-                    onDevice(
-                        YuchengDeviceDataEvent(
-                            ycDevice.index,
-                            ycDevice.uuid,
-                            false,
-                            ycDevice.deviceName,
-                        ),
-                    )
-                }
-            }, scanTimeInSeconds?.toInt() ?: SCAN_PERIOD)
+                }, scanTimeInSeconds?.toInt() ?: SCAN_PERIOD)
+            }
         }
 
         val result = withTimeoutOrNull((scanTimeInSeconds ?: SCAN_PERIOD.toLong()) * 1000) {
@@ -188,7 +198,17 @@ object YuchengCore {
         reconnectTimeInSeconds: Long,
         scanPeriod: Int = 20,
         onDevice: (device: YuchengDeviceEvent) -> Unit = {}
-    ): Boolean {
+    ): Boolean = withTimeout(reconnectTimeInSeconds * 1000) {
+        val generation = synchronized(reconnectLock) { ++reconnectGeneration }
+        var active = true
+        fun stopScanIfOwned() {
+            synchronized(reconnectLock) {
+                if (reconnectScanGeneration == generation) {
+                    reconnectScanGeneration = null
+                    YCBTClient.stopScanBle()
+                }
+            }
+        }
         val bindMac = YCBTClient.getBindDeviceMac()
         delay(1000)
         Log.e(
@@ -199,274 +219,335 @@ object YuchengCore {
             Log.d(YUCHENG_API, "RECONNECT: device connecting, wait until state >= 6 (Connected)")
             connectState.first { it >= Constants.BLEState.Connected }
         }
-        if (bindMac != null && uuid == bindMac && isConnected()) {
-            Log.d(YUCHENG_API, "UUID == BIND MAC and CONNECTED!")
-            val deviceName = YCBTClient.getBindDeviceName()
-            val ycDevice = YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, bindMac, true)
-            selectedDevice = ycDevice
-            onDevice(
-                YuchengDeviceDataEvent(
-                    ycDevice.index,
-                    ycDevice.uuid,
-                    ycDevice.isReconnected,
-                    ycDevice.deviceName,
+        synchronized(reconnectLock) {
+            if (generation != reconnectGeneration) return@withTimeout false
+            val currentMac = YCBTClient.getBindDeviceMac()
+            if (currentMac != null && uuid.equals(currentMac, ignoreCase = true) && isConnected()) {
+                Log.d(YUCHENG_API, "UUID == BIND MAC and CONNECTED!")
+                val deviceName = YCBTClient.getBindDeviceName()
+                val ycDevice = YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, currentMac, true)
+                selectedDevice = ycDevice
+                onDevice(
+                    YuchengDeviceDataEvent(
+                        ycDevice.index,
+                        ycDevice.uuid,
+                        ycDevice.isReconnected,
+                        ycDevice.deviceName,
+                    )
                 )
-            )
-            return true
+                return@withTimeout true
+            }
         }
-        val macAddress = uuid ?: bindMac
+        val macAddress = (uuid ?: YCBTClient.getBindDeviceMac())?.uppercase()
         Log.e(YUCHENG_API, "RECONNECT, BIND MAC != DEVICE MAC, bindMac: $bindMac, deviceMac: $uuid")
         val completer = CompletableDeferred<Boolean>()
         if (macAddress == null) {
-            return false
+            return@withTimeout false
         }
-        val jobAutoReconnect = CoroutineScope(Dispatchers.Main).launch {
-            Log.e(YUCHENG_API, "reconnect: start auto reconnect (listen state)")
-            connectState.first { it == Constants.BLEState.ReadWriteOK }
-            if (!completer.isCompleted) {
-                Log.e(YUCHENG_API, "reconnect: auto reconnect: complete!!!")
-                completer.complete(true)
+        fun hasExpectedDevice(): Boolean =
+            YCBTClient.getBindDeviceMac()?.equals(macAddress, ignoreCase = true) == true
+        coroutineScope {
+            val jobAutoReconnect = launch(Dispatchers.Main) {
+                Log.e(YUCHENG_API, "reconnect: start auto reconnect (listen state)")
+                connectState.first {
+                    it == Constants.BLEState.ReadWriteOK && hasExpectedDevice()
+                }
+                synchronized(reconnectLock) {
+                    if (!active || generation != reconnectGeneration || completer.isCompleted ||
+                        !hasExpectedDevice()) return@launch
+                    val ycDevice = YuchengDevice(
+                        deviceIndex.fetchAndAdd(1), YCBTClient.getBindDeviceName(), macAddress, true
+                    )
+                    selectedDevice = ycDevice
+                    onDevice(YuchengDeviceDataEvent(
+                        ycDevice.index, ycDevice.uuid, ycDevice.isReconnected, ycDevice.deviceName
+                    ))
+                    Log.e(YUCHENG_API, "reconnect: auto reconnect: complete!!!")
+                    completer.complete(true)
+                }
             }
-        }
-        val jobReconnect = CoroutineScope(Dispatchers.Main).launch {
-            Log.e(YUCHENG_API, "reconnect: start manual reconnect")
-            try {
-                YCBTClient.reconnectDevice(macAddress) { code ->
-                    Log.e("RECONNECT BLE", "CODE = $code")
-                    Log.e(YUCHENG_API, "RECONNECT, CODE = $code")
-                    if (code == 0) {
-                        val isConnected = isConnected()
-                        if (!isConnected) {
-                            Log.d(YUCHENG_API, "Test when isConnected = false")
-                            YCBTClient.startScanBle({ _, device ->
-                                Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
-                                val deviceMac = device.deviceMac
-                                if (deviceMac == null) {
-                                    Log.d(YUCHENG_API, "code == 0, deviceMac is null")
-                                    return@startScanBle
-                                }
-                                if (deviceMac == macAddress) {
-                                    Log.d(
-                                        YUCHENG_API,
-                                        "DEVICE FOUND! Device: ${device.deviceName}:${device.deviceMac}, Mac: $macAddress"
-                                    )
-                                    val deviceDevice = device.device
-                                    if (deviceDevice == null) {
-                                        Log.d(YUCHENG_API, "code == 0, device.device is null")
-                                        return@startScanBle
-                                    }
-                                    YCBTClient.connectBleDevice(deviceDevice) { code ->
-                                        Log.d(YUCHENG_API, "Try connect, code = $code")
-                                        if (code == 0) {
-                                            val isConnected = isConnected()
-                                            if (isConnected) {
-                                                Log.d(
-                                                    YUCHENG_API,
-                                                    "Code = 0, isConnected = true, but CONNECTED!"
-                                                )
-                                                val macAddress = device.deviceMac
-                                                val deviceName = device.deviceName
-                                                if (macAddress == null || deviceName == null) {
+            val jobReconnect = launch(Dispatchers.Main) {
+                Log.e(YUCHENG_API, "reconnect: start manual reconnect")
+                try {
+                    synchronized(reconnectLock) {
+                        if (!active || generation != reconnectGeneration || completer.isCompleted) return@launch
+                        YCBTClient.reconnectDevice(macAddress) { code ->
+                            synchronized(reconnectLock) {
+                                if (!active || generation != reconnectGeneration || completer.isCompleted) return@reconnectDevice
+                                Log.e("RECONNECT BLE", "CODE = $code")
+                                Log.e(YUCHENG_API, "RECONNECT, CODE = $code")
+                                if (code == 0) {
+                                    val isConnected = isConnected()
+                                    if (!isConnected) {
+                                        Log.d(YUCHENG_API, "Test when isConnected = false")
+                                        reconnectScanGeneration = generation
+                                        YCBTClient.startScanBle({ _, device ->
+                                            synchronized(reconnectLock) {
+                                                if (!active || generation != reconnectGeneration || completer.isCompleted) return@startScanBle
+                                                Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
+                                                val deviceMac = device.deviceMac
+                                                if (deviceMac == null) {
+                                                    Log.d(YUCHENG_API, "code == 0, deviceMac is null")
+                                                    return@startScanBle
+                                                }
+                                                if (deviceMac.equals(macAddress, ignoreCase = true)) {
                                                     Log.d(
                                                         YUCHENG_API,
-                                                        "macAddress = $macAddress, deviceName = $deviceName, NULL!"
+                                                        "DEVICE FOUND! Device: ${device.deviceName}:${device.deviceMac}, Mac: $macAddress"
                                                     )
-                                                    if (!completer.isCompleted) {
-                                                        completer.complete(false)
-                                                        return@connectBleDevice
+                                                    val deviceDevice = device.device
+                                                    if (deviceDevice == null) {
+                                                        Log.d(YUCHENG_API, "code == 0, device.device is null")
+                                                        return@startScanBle
+                                                    }
+                                                    YCBTClient.connectBleDevice(deviceDevice) { code ->
+                                                        synchronized(reconnectLock) {
+                                                            if (!active || generation != reconnectGeneration || completer.isCompleted) return@connectBleDevice
+                                                            Log.d(YUCHENG_API, "Try connect, code = $code")
+                                                            if (code == 0) {
+                                                                val isConnected = isConnected()
+                                                                if (isConnected) {
+                                                                    if (!hasExpectedDevice()) {
+                                                                        completer.complete(false)
+                                                                        return@connectBleDevice
+                                                                    }
+                                                                    Log.d(
+                                                                        YUCHENG_API,
+                                                                        "Code = 0, isConnected = true, but CONNECTED!"
+                                                                    )
+                                                                    val deviceName = device.deviceName
+                                                                    if (deviceName == null) {
+                                                                        Log.d(
+                                                                            YUCHENG_API,
+                                                                            "macAddress = $macAddress, deviceName = $deviceName, NULL!"
+                                                                        )
+                                                                        if (!completer.isCompleted) {
+                                                                            completer.complete(false)
+                                                                            return@connectBleDevice
+                                                                        }
+                                                                    }
+                                                                    val ycDevice =
+                                                                        YuchengDevice(
+                                                                            deviceIndex.fetchAndAdd(1),
+                                                                            deviceName,
+                                                                            macAddress,
+                                                                            true
+                                                                        )
+                                                                    selectedDevice = ycDevice
+                                                                    onDevice(
+                                                                        YuchengDeviceDataEvent(
+                                                                            ycDevice.index,
+                                                                            ycDevice.uuid,
+                                                                            ycDevice.isReconnected,
+                                                                            ycDevice.deviceName,
+                                                                        )
+                                                                    )
+                                                                    if (!completer.isCompleted) {
+                                                                        Log.d(
+                                                                            YUCHENG_API,
+                                                                            "Completer is NOT completed, value = true"
+                                                                        )
+                                                                        completer.complete(
+                                                                            true
+                                                                        )
+                                                                    } else {
+                                                                        Log.d(YUCHENG_API, "Completed is completed")
+                                                                    }
+                                                                    stopScanIfOwned()
+                                                                } else {
+                                                                    if (!completer.isCompleted) {
+                                                                        Log.d(
+                                                                            YUCHENG_API,
+                                                                            "Completer is NOT completed, value = false"
+                                                                        )
+                                                                        completer.complete(
+                                                                            false
+                                                                        )
+                                                                    } else {
+                                                                        Log.d(YUCHENG_API, "Completed is completed")
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                Log.d(
+                                                                    YUCHENG_API,
+                                                                    "Code != 0, isConnected = false, cant connect"
+                                                                )
+                                                            }
+                                                        }
                                                     }
                                                 }
-                                                val ycDevice =
-                                                    YuchengDevice(
-                                                        deviceIndex.fetchAndAdd(1),
-                                                        deviceName,
-                                                        macAddress,
-                                                        true
-                                                    )
-                                                selectedDevice = ycDevice
-                                                onDevice(
-                                                    YuchengDeviceDataEvent(
-                                                        ycDevice.index,
-                                                        ycDevice.uuid,
-                                                        ycDevice.isReconnected,
-                                                        ycDevice.deviceName,
-                                                    )
-                                                )
-                                                if (!completer.isCompleted) {
-                                                    Log.d(
-                                                        YUCHENG_API,
-                                                        "Completer is NOT completed, value = true"
-                                                    )
-                                                    completer.complete(
-                                                        true
-                                                    )
-                                                } else {
-                                                    Log.d(YUCHENG_API, "Completed is completed")
-                                                }
-                                                YCBTClient.stopScanBle()
-                                            } else {
-                                                if (!completer.isCompleted) {
-                                                    Log.d(
-                                                        YUCHENG_API,
-                                                        "Completer is NOT completed, value = false"
-                                                    )
-                                                    completer.complete(
-                                                        false
-                                                    )
-                                                } else {
-                                                    Log.d(YUCHENG_API, "Completed is completed")
-                                                }
                                             }
-                                        } else {
+                                        }, scanPeriod)
+                                    } else {
+                                        Log.d(YUCHENG_API, "NORMAL RECONNECT")
+                                        if (!hasExpectedDevice()) {
+                                            completer.complete(false)
+                                            return@reconnectDevice
+                                        }
+                                        val deviceName = YCBTClient.getBindDeviceName()
+                                        if (deviceName == null) {
                                             Log.d(
                                                 YUCHENG_API,
-                                                "Code != 0, isConnected = false, cant connect"
+                                                "macAddress = $macAddress, deviceName = $deviceName, NULL!"
                                             )
+                                            if (!completer.isCompleted) {
+                                                completer.complete(false)
+                                            }
+                                            return@reconnectDevice
                                         }
+                                        val ycDevice =
+                                            YuchengDevice(
+                                                deviceIndex.fetchAndAdd(1),
+                                                deviceName,
+                                                macAddress,
+                                                true
+                                            )
+                                        selectedDevice = ycDevice
+                                        onDevice(
+                                            YuchengDeviceDataEvent(
+                                                ycDevice.index,
+                                                ycDevice.uuid,
+                                                ycDevice.isReconnected,
+                                                ycDevice.deviceName,
+                                            )
+                                        )
+                                        if (!completer.isCompleted) completer.complete(true)
                                     }
+                                } else {
+                                    Log.d(YUCHENG_API, "Test when cant reconnect (code != 0)")
+                                    reconnectScanGeneration = generation
+                                    YCBTClient.startScanBle(
+                                        { _, device ->
+                                            synchronized(reconnectLock) {
+                                                if (!active || generation != reconnectGeneration || completer.isCompleted) return@startScanBle
+                                                Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
+                                                if (device == null) {
+                                                    return@startScanBle
+                                                }
+                                                val deviceMac = device.deviceMac
+                                                if (deviceMac == null) {
+                                                    Log.d(YUCHENG_API, "code != 0, deviceMac is null")
+                                                    return@startScanBle
+                                                }
+                                                if (deviceMac.equals(macAddress, ignoreCase = true)) {
+                                                    Log.d(
+                                                        YUCHENG_API,
+                                                        "DEVICE FOUND! Device: ${device.deviceName}:$deviceMac, Mac: $macAddress"
+                                                    )
+                                                    val deviceDevice = device.device
+                                                    if (deviceDevice == null) {
+                                                        Log.d(YUCHENG_API, "code != 0, device.device is null")
+                                                        return@startScanBle
+                                                    }
+                                                    YCBTClient.connectBleDevice(deviceDevice) { code ->
+                                                        synchronized(reconnectLock) {
+                                                            if (!active || generation != reconnectGeneration || completer.isCompleted) return@connectBleDevice
+                                                            Log.d(YUCHENG_API, "Try connect, code = $code")
+                                                            if (code == 0) {
+                                                                Log.d(YUCHENG_API, "Code = 0, device connected!")
+                                                                val isConnected = isConnected()
+                                                                if (isConnected) {
+                                                                    if (!hasExpectedDevice()) {
+                                                                        completer.complete(false)
+                                                                        return@connectBleDevice
+                                                                    }
+                                                                    Log.d(
+                                                                        YUCHENG_API,
+                                                                        "Code = 0, isConnected = true, but CONNECTED!"
+                                                                    )
+                                                                    val deviceName = device.deviceName
+                                                                    if (deviceName == null) {
+                                                                        Log.d(
+                                                                            YUCHENG_API,
+                                                                            "macAddress = $deviceMac, deviceName = $deviceName, NULL!"
+                                                                        )
+                                                                        if (!completer.isCompleted) {
+                                                                            completer.complete(false)
+                                                                            return@connectBleDevice
+                                                                        }
+                                                                    }
+                                                                    val ycDevice =
+                                                                        YuchengDevice(
+                                                                            deviceIndex.fetchAndAdd(1),
+                                                                            deviceName,
+                                                                            deviceMac,
+                                                                            true
+                                                                        )
+                                                                    selectedDevice = ycDevice
+                                                                    onDevice(
+                                                                        YuchengDeviceDataEvent(
+                                                                            ycDevice.index,
+                                                                            ycDevice.uuid,
+                                                                            ycDevice.isReconnected,
+                                                                            ycDevice.deviceName,
+                                                                        )
+                                                                    )
+                                                                    if (!completer.isCompleted) {
+                                                                        Log.d(
+                                                                            YUCHENG_API,
+                                                                            "Completer is NOT completed, value = true"
+                                                                        )
+                                                                        completer.complete(
+                                                                            true
+                                                                        )
+                                                                    } else {
+                                                                        Log.d(YUCHENG_API, "Completer is completed")
+                                                                    }
+                                                                    stopScanIfOwned()
+                                                                } else {
+                                                                    if (!completer.isCompleted) {
+                                                                        Log.d(
+                                                                            YUCHENG_API,
+                                                                            "Completer is NOT completed, value = false"
+                                                                        )
+                                                                        completer.complete(
+                                                                            false
+                                                                        )
+                                                                    } else {
+                                                                        Log.d(YUCHENG_API, "Completer is completed")
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                Log.d(
+                                                                    YUCHENG_API,
+                                                                    "Code != 0, isConnected = false, cant connect"
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        scanPeriod,
+                                    )
                                 }
-                            }, scanPeriod)
-                        } else {
-                            Log.d(YUCHENG_API, "NORMAL RECONNECT")
-                            val macAddress = YCBTClient.getBindDeviceMac()
-                            val deviceName = YCBTClient.getBindDeviceName()
-                            if (macAddress == null || deviceName == null) {
-                                Log.d(
-                                    YUCHENG_API,
-                                    "macAddress = $macAddress, deviceName = $deviceName, NULL!"
-                                )
-                                if (!completer.isCompleted) {
-                                    completer.complete(false)
-                                }
-                                return@reconnectDevice
                             }
-                            val ycDevice =
-                                YuchengDevice(
-                                    deviceIndex.fetchAndAdd(1),
-                                    deviceName,
-                                    macAddress,
-                                    true
-                                )
-                            selectedDevice = ycDevice
-                            onDevice(
-                                YuchengDeviceDataEvent(
-                                    ycDevice.index,
-                                    ycDevice.uuid,
-                                    ycDevice.isReconnected,
-                                    ycDevice.deviceName,
-                                )
-                            )
-                            if (!completer.isCompleted) completer.complete(true)
                         }
-                    } else {
-                        Log.d(YUCHENG_API, "Test when cant reconnect (code != 0)")
-                        YCBTClient.startScanBle(
-                            { _, device ->
-                                Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
-                                if (device == null) {
-                                    return@startScanBle
-                                }
-                                val deviceMac = device.deviceMac
-                                if (deviceMac == null) {
-                                    Log.d(YUCHENG_API, "code != 0, deviceMac is null")
-                                    return@startScanBle
-                                }
-                                if (deviceMac == macAddress) {
-                                    Log.d(
-                                        YUCHENG_API,
-                                        "DEVICE FOUND! Device: ${device.deviceName}:$deviceMac, Mac: $macAddress"
-                                    )
-                                    val deviceDevice = device.device
-                                    if (deviceDevice == null) {
-                                        Log.d(YUCHENG_API, "code != 0, device.device is null")
-                                        return@startScanBle
-                                    }
-                                    YCBTClient.connectBleDevice(deviceDevice) { code ->
-                                        Log.d(YUCHENG_API, "Try connect, code = $code")
-                                        if (code == 0) {
-                                            Log.d(YUCHENG_API, "Code = 0, device connected!")
-                                            val isConnected = isConnected()
-                                            if (isConnected) {
-                                                Log.d(
-                                                    YUCHENG_API,
-                                                    "Code = 0, isConnected = true, but CONNECTED!"
-                                                )
-                                                val deviceName = device.deviceName
-                                                if (deviceName == null) {
-                                                    Log.d(
-                                                        YUCHENG_API,
-                                                        "macAddress = $deviceMac, deviceName = $deviceName, NULL!"
-                                                    )
-                                                    if (!completer.isCompleted) {
-                                                        completer.complete(false)
-                                                        return@connectBleDevice
-                                                    }
-                                                }
-                                                val ycDevice =
-                                                    YuchengDevice(
-                                                        deviceIndex.fetchAndAdd(1),
-                                                        deviceName,
-                                                        deviceMac,
-                                                        true
-                                                    )
-                                                selectedDevice = ycDevice
-                                                onDevice(
-                                                    YuchengDeviceDataEvent(
-                                                        ycDevice.index,
-                                                        ycDevice.uuid,
-                                                        ycDevice.isReconnected,
-                                                        ycDevice.deviceName,
-                                                    )
-                                                )
-                                                if (!completer.isCompleted) {
-                                                    Log.d(
-                                                        YUCHENG_API,
-                                                        "Completer is NOT completed, value = true"
-                                                    )
-                                                    completer.complete(
-                                                        true
-                                                    )
-                                                } else {
-                                                    Log.d(YUCHENG_API, "Completer is completed")
-                                                }
-                                                YCBTClient.stopScanBle()
-                                            } else {
-                                                if (!completer.isCompleted) {
-                                                    Log.d(
-                                                        YUCHENG_API,
-                                                        "Completer is NOT completed, value = false"
-                                                    )
-                                                    completer.complete(
-                                                        false
-                                                    )
-                                                } else {
-                                                    Log.d(YUCHENG_API, "Completer is completed")
-                                                }
-                                            }
-                                        } else {
-                                            Log.d(
-                                                YUCHENG_API,
-                                                "Code != 0, isConnected = false, cant connect"
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            scanPeriod,
-                        )
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (!completer.isCompleted) completer.completeExceptionally(e)
+                }
+            }
+            try {
+                completer.await()
+            } finally {
+                // Close the attempt on success as well as timeout/cancellation.
+                val stopOwnedScan = synchronized(reconnectLock) {
+                    active = false
+                    completer.cancel()
+                    reconnectScanGeneration == generation
+                }
+                jobReconnect.cancel()
+                jobAutoReconnect.cancel()
+                if (stopOwnedScan) {
+                    withContext(NonCancellable + Dispatchers.Main) {
+                        stopScanIfOwned()
                     }
                 }
-            } catch (e: Exception) {
-                if (!completer.isCompleted) completer.completeExceptionally(e)
             }
         }
-        val result = withTimeout(reconnectTimeInSeconds * 1000) {
-            completer.await()
-        }
-        jobReconnect.cancel()
-        jobAutoReconnect.cancel()
-
-        return result
     }
 
     fun disconnect() {

@@ -58,10 +58,12 @@ class YuchengTokenAuthenticator(
                 return null
             }
             val requestToken = response.request.header("Authorization")
-            Log.d(TAG, "currentToken = ${currentToken.strToken()}, requestToken = $requestToken")
+
 
             // если токен уже обновился пока мы ждали lock
             if (requestToken != "Bearer $currentToken") {
+                val requested = requestToken?.removePrefix("Bearer ") ?: return null
+                if (!sameAccount(requested, currentToken)) return null
                 return response.request.newBuilder()
                     .header("Authorization", "Bearer $currentToken")
                     .build()
@@ -77,23 +79,30 @@ class YuchengTokenAuthenticator(
 
             Log.i(TAG, "start refreshing!")
             YuchengCore.isTokenRefreshing.value = true
-            val newToken = refreshTokens(refreshToken)
-            if (newToken == null) {
-                Log.i(TAG, "new token is null!")
+            val newToken = try {
+                val refreshed = refreshTokens(refreshToken) ?: return null
+                if (!tokenStorage.saveRefreshedToken(refreshed, flavor, refreshToken)) return null
+                refreshed
+            } finally {
                 YuchengCore.isTokenRefreshing.value = false
-                return null
-            }
-
-            CoroutineScope(Dispatchers.Main).launch {
-                tokenStorage.saveTokens(newToken, flavor)
-                YuchengCore.isTokenRefreshing.value = false
-                Log.i(TAG, "new tokens saved! End refreshing!")
             }
 
             return response.request.newBuilder()
                 .header("Authorization", "Bearer ${newToken.accessToken}")
                 .build()
         }
+    }
+
+    private fun sameAccount(first: String, second: String): Boolean {
+        fun subject(value: String): String? = try {
+            val payload = value.split('.')[1]
+            val json = JSONObject(String(android.util.Base64.decode(payload, android.util.Base64.URL_SAFE)))
+            listOf("uuid", "sub", "user_id", "userId").firstNotNullOfOrNull { key ->
+                if (json.has(key) && !json.isNull(key)) json.getString(key) else null
+            }
+        } catch (_: Exception) { null }
+        val id = subject(first)
+        return id != null && id == subject(second)
     }
 
     fun refreshTokens(refreshToken: String?): YuchengAuthToken? {
