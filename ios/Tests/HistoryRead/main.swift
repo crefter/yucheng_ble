@@ -10,6 +10,18 @@ enum YCQueryHealthDataType: Hashable { case sleep, step, combinedData }
 struct YCHealthDataSleep {}
 struct YCHealthDataStep {}
 struct YCHealthDataCombinedData {}
+final class YuchengDiagnostics {
+    static let shared = YuchengDiagnostics()
+    func summary(_ event: String, _ fields: String) {}
+    func detailedSession() -> Int? { nil }
+}
+enum YuchengHistoryDiagnostics {
+    static func callback(_ category: String, state: YCProductState, count: Int?) {}
+    static func sleep(_ rows: [YCHealthDataSleep], session: Int?) {}
+    static func sport(_ rows: [YCHealthDataStep], session: Int?) {}
+    static func health(_ rows: [YCHealthDataCombinedData], session: Int?) {}
+}
+
 struct YuchengSleepData { var startTimeStamp: Int64 = 10; var endTimeStamp: Int64 = 20 }
 struct YuchengSportData { var startTimeStamp: Int64 = 10; var endTimeStamp: Int64 = 20 }
 struct YuchengHealthData { var startTimestamp: Int64 = 10 }

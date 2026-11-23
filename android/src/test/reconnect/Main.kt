@@ -311,3 +311,7 @@ fun main() = runBlocking {
   println("Yucheng reconnect: $passed checks passed")
  } finally { mainDispatcher.close() }
 }
+
+object YuchengDiagnostics {
+    fun summary(event: String, fields: String) {}
+}

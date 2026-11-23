@@ -65,7 +65,7 @@ public class YuchengCore {
               let state = info[YCProduct.connecteStateKey] as? YCProductState else {
             return
         }
-        print("deviceStateChange: state = \(state)")
+        YuchengDiagnostics.shared.summary("ble_state", "sdk_state=\(state.rawValue)")
         if (state == YCProductState.connected) {
             self.ringState = YuchengDeviceState.connected
             self.onState?(YuchengDeviceStateDataEvent(state: YuchengDeviceState.connected))
@@ -92,7 +92,6 @@ public class YuchengCore {
             self.ringState = YuchengDeviceState.unknown
             self.onState?(YuchengDeviceStateDataEvent(state: YuchengDeviceState.unknown))
         }
-        print("STATE: " + state.toString)
     }
     
     func initialize(onState: StateHandler? = nil, onDevice: DeviceHandler? = nil) {
@@ -138,7 +137,6 @@ public class YuchengCore {
                     self.scannedDevices = devices;
                     for device in devices {
                         DispatchQueue.main.async {
-                            print("UUID DEVICE = " + device.identifier.uuidString)
                             let deviceMac = device.macAddress
                             let deviceName = device.name
                             guard let normalizedMac = Self.normalizedConnectionMAC(deviceMac) else { return }
@@ -151,7 +149,6 @@ public class YuchengCore {
                                 onDevice?(YuchengDeviceDataEvent(index: Int64(self.index), mac: deviceMac, isReconnected: ycDevice.isReconnected, deviceName: deviceName ?? device.deviceModel))
                                 self.index += 1
                                 ycDevices.append(ycDevice)
-                                print("SCAN DEVICES : DEVICE = " + ycDevice.uuid + ", " + ycDevice.deviceName)
                             }
                         }
                     }
@@ -456,14 +453,23 @@ public class YuchengCore {
             return completer.future
         }
         let device = currentDevice ?? YCProduct.shared.currentPeripheral
+        let sleepDiagnosticSession = YuchengDiagnostics.shared.detailedSession()
+        YuchengDiagnostics.shared.summary("history_requested", "category=sleep")
         YCProduct.queryHealthData(device, dataType: .sleep) { state, response in
             DispatchQueue.main.async {
-                guard !finished else { return }
+                let rows = response as? [YCHealthDataSleep]
+                guard !finished else {
+                    YuchengDiagnostics.shared.summary("history_late_callback", "category=sleep")
+                    return
+                }
+                YuchengHistoryDiagnostics.callback("sleep", state: state, count: rows?.count)
                 if state == .noRecord {
                     finish(.success([]), complete: true)
-                } else if state == .succeed, let rows = response as? [YCHealthDataSleep] {
+                } else if state == .succeed, let rows {
+                    YuchengHistoryDiagnostics.sleep(rows, session: sleepDiagnosticSession)
                     let all = rows.map { sleepConverter.convert(sleepDataFromDevice: $0) }
                     let data = all.filter { $0.startTimeStamp >= start && $0.endTimeStamp <= end }
+                    YuchengDiagnostics.shared.summary("history_filtered", "category=sleep returned=\(data.count)")
                     finish(.success(data), complete: data.count == all.count)
                 } else {
                     let error = NSError(domain: "YuchengHistory", code: 2, userInfo: [NSLocalizedDescriptionKey: "Sleep history query failed: \(state)"])
@@ -474,6 +480,7 @@ public class YuchengCore {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) {
             guard !finished else { return }
+            YuchengDiagnostics.shared.summary("history_timeout", "category=sleep")
             onSleepData?(YuchengSleepTimeOutEvent(isTimeout: true))
             finish(.failure(TimeoutError()), complete: false)
         }
@@ -529,15 +536,24 @@ public class YuchengCore {
             return completer.future
         }
         let device = currentDevice ?? YCProduct.shared.currentPeripheral
+        let sportDiagnosticSession = YuchengDiagnostics.shared.detailedSession()
+        YuchengDiagnostics.shared.summary("history_requested", "category=sport")
         YCProduct.queryHealthData(device, dataType: .step) { state, response in
             DispatchQueue.main.async {
-                guard !finished && !sportDone else { return }
+                let rows = response as? [YCHealthDataStep]
+                guard !finished && !sportDone else {
+                    YuchengDiagnostics.shared.summary("history_late_callback", "category=sport")
+                    return
+                }
+                YuchengHistoryDiagnostics.callback("sport", state: state, count: rows?.count)
                 sportDone = true
                 if state == .noRecord {
                     sport = []
-                } else if state == .succeed, let rows = response as? [YCHealthDataStep] {
+                } else if state == .succeed, let rows {
+                    YuchengHistoryDiagnostics.sport(rows, session: sportDiagnosticSession)
                     let all = rows.map { sportConverter.convert(sportDataFromDevice: $0) }
                     sport = all.filter { $0.startTimeStamp >= start && $0.endTimeStamp <= end }
+                    YuchengDiagnostics.shared.summary("history_filtered", "category=sport returned=\(sport.count)")
                     filtered = filtered || sport.count != all.count
                 } else {
                     errors.append(NSError(domain: "YuchengHistory", code: 2, userInfo: [NSLocalizedDescriptionKey: "Sport history query failed: \(state)"]))
@@ -545,15 +561,24 @@ public class YuchengCore {
                 if healthDone { finish() }
             }
         }
+        let healthDiagnosticSession = YuchengDiagnostics.shared.detailedSession()
+        YuchengDiagnostics.shared.summary("history_requested", "category=health")
         YCProduct.queryHealthData(device, dataType: .combinedData) { state, response in
             DispatchQueue.main.async {
-                guard !finished && !healthDone else { return }
+                let rows = response as? [YCHealthDataCombinedData]
+                guard !finished && !healthDone else {
+                    YuchengDiagnostics.shared.summary("history_late_callback", "category=health")
+                    return
+                }
+                YuchengHistoryDiagnostics.callback("health", state: state, count: rows?.count)
                 healthDone = true
                 if state == .noRecord {
                     health = []
-                } else if state == .succeed, let rows = response as? [YCHealthDataCombinedData] {
+                } else if state == .succeed, let rows {
+                    YuchengHistoryDiagnostics.health(rows, session: healthDiagnosticSession)
                     let all = rows.map { healthConverter.convert(healthDataFromDevice: $0) }
                     health = all.filter { $0.startTimestamp >= start && $0.startTimestamp <= end }
+                    YuchengDiagnostics.shared.summary("history_filtered", "category=health returned=\(health.count)")
                     filtered = filtered || health.count != all.count
                 } else {
                     errors.append(NSError(domain: "YuchengHistory", code: 2, userInfo: [NSLocalizedDescriptionKey: "Health history query failed: \(state)"]))
@@ -563,6 +588,7 @@ public class YuchengCore {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + YuchengCore.TIME_TO_TIMEOUT) {
             guard !finished else { return }
+            YuchengDiagnostics.shared.summary("history_timeout", "category=health_sport health_done=\(healthDone) sport_done=\(sportDone)")
             onHealth?(YuchengHealthTimeOutEvent(isTimeout: true))
             finish()
         }
@@ -662,7 +688,6 @@ public class YuchengCore {
             }
             for device in devices {
                 if (!self.scannedDevicesToUpdate.contains(device)) {
-                    print("Device found, try connect force ota device: \(device.macAddress)")
                     self.scannedDevicesToUpdate.append(device)
                     self.connectForceOtaDevice(onUpdate: onUpdate, completion: completion)
                 }
@@ -673,14 +698,8 @@ public class YuchengCore {
     private func connectForceOtaDevice(onUpdate: UpdateHandler?, completion: @escaping (Result<Bool, any Error>) -> Void) {
         if (self.scannedDevicesToUpdate.isEmpty && YuchengCore.shared.currentDevice != nil) {
             let device = YuchengCore.shared.currentDevice!
-            print("Device mac : Reconnect mac = " + device.macAddress.uppercased() + " : " + YuchengCore.shared.reconnectMacAddress.uppercased())
             if device.macAddress.uppercased() == YuchengCore.shared.reconnectMacAddress.uppercased() {
-                YCProduct.connectDevice(device) { [weak self] state, error
-                    in
-                    print(state)
-                    if (error != nil) {
-                        print(error!)
-                    }
+                YCProduct.connectDevice(device) { [weak self] state, _ in
                     if state == .connected {
                         self?.otaUpdate(device: device, path: self?.filePathToUpdate ?? "", onUpdate: onUpdate, completion: completion)
                     } else {
@@ -691,14 +710,8 @@ public class YuchengCore {
             }
         } else {
             for device in scannedDevicesToUpdate {
-                print("Device mac : Reconnect mac = " + device.macAddress.uppercased() + " : " + YuchengCore.shared.reconnectMacAddress.uppercased())
                 if device.macAddress.uppercased() == YuchengCore.shared.reconnectMacAddress.uppercased() {
-                    YCProduct.connectDevice(device) { [weak self] state, error
-                        in
-                        print(state)
-                        if (error != nil) {
-                            print(error!)
-                        }
+                    YCProduct.connectDevice(device) { [weak self] state, _ in
                         if state == .connected {
                             self?.otaUpdate(device: device, path: self?.filePathToUpdate ?? "", onUpdate: onUpdate, completion: completion)
                         } else {
@@ -714,7 +727,6 @@ public class YuchengCore {
     
     func isConnected() -> Bool {
         let isConn = ringState == .connected || ringState == .readWriteOK
-        print("isConnected() = \(isConn)")
         return isConn
     }
 }

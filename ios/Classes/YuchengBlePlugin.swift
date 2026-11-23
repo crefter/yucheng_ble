@@ -4,6 +4,7 @@ import CoreBluetooth
 import YCProductSDK
 
 public class YuchengBlePlugin: NSObject, FlutterPlugin, FlutterSceneLifeCycleDelegate {
+    private var diagnosticsChannel: FlutterMethodChannel?
     private static var api: YuchengHostApiImpl? = nil
     private static var devicesHandler: DeviceStreamHandlerImpl? = nil
     private static var sleepDataHandler: SleepDataHandlerImpl? = nil
@@ -18,6 +19,24 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin, FlutterSceneLifeCycleDel
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = YuchengBlePlugin()
+        let diagnosticsChannel = FlutterMethodChannel(name: "yucheng_ble/diagnostics",
+            binaryMessenger: registrar.messenger())
+        diagnosticsChannel.setMethodCallHandler { call, result in
+            switch call.method {
+            case "setDetailedEnabled":
+                guard let enabled = call.arguments as? Bool else {
+                    result(FlutterError(code: "invalid_argument", message: "Expected a boolean", details: nil))
+                    return
+                }
+                YuchengDiagnostics.shared.setDetailedEnabled(enabled) { result($0) }
+            case "flush":
+                YuchengDiagnostics.shared.flush { result($0) }
+            default:
+                result(FlutterMethodNotImplemented)
+            }
+        }
+        instance.diagnosticsChannel = diagnosticsChannel
+        YuchengDiagnostics.shared.summary("engine_attached")
         registrar.addApplicationDelegate(instance)
         registrar.addSceneDelegate(instance)
         if (devicesHandler == nil) {
@@ -79,10 +98,14 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin, FlutterSceneLifeCycleDel
         
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: api!)
         
+        YCProduct.setLogLevel(.off, saveLevel: .off)
         _ = YCProduct.shared;
     }
     
     public func detachFromEngine(for registrar: any FlutterPluginRegistrar) {
+        YuchengDiagnostics.shared.summary("engine_detached")
+        diagnosticsChannel?.setMethodCallHandler(nil)
+        diagnosticsChannel = nil
         YuchengHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: nil)
         YCProduct.stopSearchDevice()
         YuchengBlePlugin.devicesHandler?.detach()
@@ -93,22 +116,22 @@ public class YuchengBlePlugin: NSObject, FlutterPlugin, FlutterSceneLifeCycleDel
     }
     
     public func sceneDidBecomeActive(_ scene: UIScene) {
-        print("SceneDidBecomeActive")
+        YuchengDiagnostics.shared.summary("app_active")
     }
     
     public func sceneWillResignActive(_ scene: UIScene) {
-        print("SceneWillResignActive")
+        YuchengDiagnostics.shared.summary("app_inactive")
     }
     
     public func sceneDidDisconnect(_ scene: UIScene) {
-        print("SceneDidDisconnect")
+        YuchengDiagnostics.shared.summary("scene_disconnected")
     }
     
     public func sceneDidEnterBackground(_ scene: UIScene) {
-        print("SceneDidEnterBackground")
+        YuchengDiagnostics.shared.summary("app_background")
     }
     
     public func sceneWillEnterForeground(_ scene: UIScene) {
-        print("SceneWillEnterForeground")
+        YuchengDiagnostics.shared.summary("app_foreground")
     }
 }

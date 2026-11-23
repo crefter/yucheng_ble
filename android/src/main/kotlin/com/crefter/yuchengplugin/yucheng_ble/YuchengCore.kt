@@ -14,6 +14,8 @@ import com.crefter.yuchengplugin.yucheng_ble.data.remote.startDate
 import com.yucheng.ycbtsdk.Constants
 import com.yucheng.ycbtsdk.YCBTClient
 import com.yucheng.ycbtsdk.bean.ScanDeviceBean
+import com.yucheng.ycbtsdk.log.LogLevel
+import com.yucheng.ycbtsdk.log.LoggerFactory
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.CompletableDeferred
@@ -56,13 +58,15 @@ object YuchengCore {
     private var reconnectScanGeneration: Long? = null
     var tokenStorage: YuchengTokenStorage? = null
     fun init(context: Context) {
+        YuchengDiagnostics.initialize(context)
         if (isInit) {
             Log.e(YUCHENG_API, "YCBTClient init yet!!!")
             return
         }
         synchronized(lock) {
             if (isInit) return
-            YCBTClient.initClient(context, true)
+            YCBTClient.initClient(context, false)
+            LoggerFactory.setGlobalLogLevel(LogLevel.FATAL)
             YCBTClient.setReconnect(true)
             isInit = true
             Log.e(YUCHENG_API, "YCBTClient Init!")
@@ -83,6 +87,7 @@ object YuchengCore {
             }
         }
         YCBTClient.registerBleStateChange {
+            YuchengDiagnostics.summary("ble_state", "sdk_state=$it")
             connectState.value = it
         }
     }
@@ -124,10 +129,6 @@ object YuchengCore {
                             return@startScanBle
                         }
                         devices.add(device)
-                        Log.d(YUCHENG_API, "name: " + device.deviceName)
-                        Log.d(
-                            YUCHENG_API, "address: " + device.deviceMac
-                        )
                         val ycDevice =
                             YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, deviceMac, false)
                         ycDevices.add(ycDevice)
@@ -209,12 +210,8 @@ object YuchengCore {
                 }
             }
         }
-        val bindMac = YCBTClient.getBindDeviceMac()
         delay(1000)
-        Log.e(
-            YUCHENG_API,
-            "START RECONNECT, bindMac: $bindMac, deviceMac: $uuid, isConnected = ${isConnected()}"
-        )
+        YuchengDiagnostics.summary("reconnect_requested", "connected=${isConnected()}")
         if (connectState.value == 5) {
             Log.d(YUCHENG_API, "RECONNECT: device connecting, wait until state >= 6 (Connected)")
             connectState.first { it >= Constants.BLEState.Connected }
@@ -239,7 +236,6 @@ object YuchengCore {
             }
         }
         val macAddress = (uuid ?: YCBTClient.getBindDeviceMac())?.uppercase()
-        Log.e(YUCHENG_API, "RECONNECT, BIND MAC != DEVICE MAC, bindMac: $bindMac, deviceMac: $uuid")
         val completer = CompletableDeferred<Boolean>()
         if (macAddress == null) {
             return@withTimeout false
@@ -284,17 +280,12 @@ object YuchengCore {
                                         YCBTClient.startScanBle({ _, device ->
                                             synchronized(reconnectLock) {
                                                 if (!active || generation != reconnectGeneration || completer.isCompleted) return@startScanBle
-                                                Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
                                                 val deviceMac = device.deviceMac
                                                 if (deviceMac == null) {
                                                     Log.d(YUCHENG_API, "code == 0, deviceMac is null")
                                                     return@startScanBle
                                                 }
                                                 if (deviceMac.equals(macAddress, ignoreCase = true)) {
-                                                    Log.d(
-                                                        YUCHENG_API,
-                                                        "DEVICE FOUND! Device: ${device.deviceName}:${device.deviceMac}, Mac: $macAddress"
-                                                    )
                                                     val deviceDevice = device.device
                                                     if (deviceDevice == null) {
                                                         Log.d(YUCHENG_API, "code == 0, device.device is null")
@@ -420,7 +411,6 @@ object YuchengCore {
                                         { _, device ->
                                             synchronized(reconnectLock) {
                                                 if (!active || generation != reconnectGeneration || completer.isCompleted) return@startScanBle
-                                                Log.d(YUCHENG_API, "RECONNECT, DEVICE SCAN: $device")
                                                 if (device == null) {
                                                     return@startScanBle
                                                 }
@@ -430,10 +420,6 @@ object YuchengCore {
                                                     return@startScanBle
                                                 }
                                                 if (deviceMac.equals(macAddress, ignoreCase = true)) {
-                                                    Log.d(
-                                                        YUCHENG_API,
-                                                        "DEVICE FOUND! Device: ${device.deviceName}:$deviceMac, Mac: $macAddress"
-                                                    )
                                                     val deviceDevice = device.device
                                                     if (deviceDevice == null) {
                                                         Log.d(YUCHENG_API, "code != 0, device.device is null")
@@ -563,29 +549,40 @@ object YuchengCore {
     }
 
     private suspend fun <T> readHistory(
-        type: Int,
+        history: YuchengHistoryDiagnostics,
         convert: (Any?) -> T,
     ): List<T> {
+        val diagnosticSession = YuchengDiagnostics.detailedSession()
+        YuchengDiagnostics.summary("history_requested", "category=${history.category}")
         val result = CompletableDeferred<List<T>>()
         val callbackLock = Any()
         try {
-            YCBTClient.healthHistoryData(type) { code, _, data ->
+            YCBTClient.healthHistoryData(history.type) { code, _, data ->
                 synchronized(callbackLock) {
-                    if (result.isCompleted) return@healthHistoryData
+                    val rows = data?.get("data") as? List<*>
+                    if (result.isCompleted) {
+                        YuchengDiagnostics.summary("history_late_callback", "category=${history.category} sdk_code=$code rows=${rows?.size ?: -1}")
+                        return@healthHistoryData
+                    }
+                    history.callback(code, rows, diagnosticSession)
                     try {
                         check(code == 0) { "History query failed: $code" }
                         // SDK 4.0.9 also returns (0, 0, null) after CRC failure.
                         // Only an actual empty data list proves successful emptiness.
-                        val rows = data?.get("data") as? List<*>
-                            ?: throw IllegalStateException("History query returned no valid payload")
+                        checkNotNull(rows) { "History query returned no valid payload" }
                         result.complete(rows.map(convert))
                     } catch (e: Exception) {
+                        if (code == 0 && rows != null) {
+                            YuchengDiagnostics.summary("history_conversion_failed", "category=${history.category}")
+                        }
                         result.completeExceptionally(e)
                     }
                 }
             }
             return withTimeoutOrNull(1000 * TIME_TO_TIMEOUT) { result.await() }
-                ?: throw TimeoutException("History query timed out")
+                ?: throw TimeoutException("History query timed out").also {
+                    YuchengDiagnostics.summary("history_timeout", "category=${history.category}")
+                }
         } finally {
             // A late or duplicate SDK callback must not mutate a returned list
             // or emit data after timeout/cancellation.
@@ -606,8 +603,9 @@ object YuchengCore {
         try {
             if (!isConnected()) throw NoConnectionException()
             require(startTimestamp < endTimestamp) { "Start timestamp must precede end timestamp" }
-            val all = readHistory(Constants.DATATYPE.Health_HistorySleep, sleepDataConverter::convert)
+            val all = readHistory(YuchengHistoryDiagnostics.SLEEP, sleepDataConverter::convert)
             val data = all.filter { it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp }
+            YuchengDiagnostics.summary("history_filtered", "category=sleep returned=${data.size}")
             complete = data.size == all.size
             if (!skipHandler) data.forEach { onSleepData(YuchengSleepDataEvent(it)) }
             return data
@@ -638,9 +636,12 @@ object YuchengCore {
             // Preserve the SDK's sequential command ordering; a failed category
             // must not prevent trying the next one. Cancellation still stops it.
             val sport = try {
-                val all = readHistory(Constants.DATATYPE.Health_HistorySport, sportDataConverter::convert)
+                val all = readHistory(YuchengHistoryDiagnostics.SPORT, sportDataConverter::convert)
                 all.filter { it.startTimeStamp >= startTimestamp && it.endTimeStamp <= endTimestamp }
-                    .also { filtered = filtered || it.size != all.size }
+                    .also {
+                        YuchengDiagnostics.summary("history_filtered", "category=sport returned=${it.size}")
+                        filtered = filtered || it.size != all.size
+                    }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -648,9 +649,12 @@ object YuchengCore {
                 emptyList()
             }
             val health = try {
-                val all = readHistory(Constants.DATATYPE.Health_HistoryAll, healthDataConverter::convert)
+                val all = readHistory(YuchengHistoryDiagnostics.HEALTH, healthDataConverter::convert)
                 all.filter { it.startTimestamp in startTimestamp..endTimestamp }
-                    .also { filtered = filtered || it.size != all.size }
+                    .also {
+                        YuchengDiagnostics.summary("history_filtered", "category=health returned=${it.size}")
+                        filtered = filtered || it.size != all.size
+                    }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

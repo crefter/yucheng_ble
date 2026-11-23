@@ -285,14 +285,13 @@ class YuchengApiImpl(
                     onHealthData = onHealthData
                 )
                 val sleepHealthData = YuchengAllData(sleepData, healthData)
-                Log.d(GET_SLEEP_HEALTH_DATA, "Sleep Health data = $sleepHealthData")
                 if (!sleepHealthDataCompleter.isCompleted) {
                     onAllData(YuchengAllDataEvent(sleepHealthData))
                     sleepHealthDataCompleter.complete(sleepHealthData)
                 }
             } catch (e: Exception) {
                 if (!sleepHealthDataCompleter.isCompleted) {
-                    Log.e(GET_SLEEP_HEALTH_DATA, "Sleep Health error = $e")
+                    YuchengDiagnostics.summary("history_read_failed", "source=get_all")
                     onAllData(YuchengAllErrorEvent(error = e.toString()))
                     sleepHealthDataCompleter.completeExceptionally(e)
                 }
@@ -732,13 +731,11 @@ class YuchengApiImpl(
         GlobalScope.launch {
             try {
                 YCBTClient.deviceToApp { code, data ->
-                    Log.d(YUCHENG_API, "DEVICETOAPP code = $code data = $data")
                     if (code == 0 && data != null) {
                         val dataType = data["dataType"] as Int
                         Log.d(YUCHENG_API, "DEVICETOAPP dataType = $dataType")
                         if (dataType == Constants.DATATYPE.DeviceMeasurementResult) {
                             val datas = data["datas"] as ByteArray
-                            Log.d(YUCHENG_API, "DEVICETOAPP datas = $datas")
                             if (datas.isNotEmpty()) {
                                 val type = datas[0].toInt()
                                 val result = datas[1].toInt()
@@ -752,7 +749,6 @@ class YuchengApiImpl(
                                             var count = heartRates.count()
                                             count = if (count < 1) 1 else count
                                             val mean = sum / count
-                                            Log.d(YUCHENG_API, "Heart rate mean: $mean")
                                             heartRateCompleter.complete(mean)
                                         }
 
@@ -762,7 +758,6 @@ class YuchengApiImpl(
                                             var count = bloodOxygens.count()
                                             count = if (count < 1) 1 else count
                                             val mean = sum / count
-                                            Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
                                             bloodOxygenCompleter.complete(mean)
                                         }
 
@@ -773,8 +768,6 @@ class YuchengApiImpl(
                                             val meanDbp = sumDbp / count
                                             val sumSbp = bloodPressures.sumOf { item -> item.sbp }
                                             val meanSbp = sumSbp / count
-                                            Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
-                                            Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
                                             bloodPressureCompleter.complete(
                                                 MeanBloodPressure(
                                                     sbp = meanSbp, dbp = meanDbp
@@ -802,19 +795,15 @@ class YuchengApiImpl(
                         }
                         if (type == Constants.DATATYPE.Real_UploadHeart) {
                             val value = data["heartValue"] as Int
-                            Log.d(YUCHENG_API, "heart rate = $value")
                             heartRates.add(value.toLong())
                         }
                         if (type == Constants.DATATYPE.Real_UploadBloodOxygen) {
                             val value = data["bloodOxygenValue"] as Int
-                            Log.d(YUCHENG_API, "blood oxygen = $value")
                             bloodOxygens.add(value.toLong())
                         }
                         if (type == Constants.DATATYPE.Real_UploadBlood) {
                             val dbp = data["bloodDBP"] as Int
                             val sbp = data["bloodSBP"] as Int
-                            Log.d(YUCHENG_API, "blood DBP = $dbp")
-                            Log.d(YUCHENG_API, "blood SBP = $sbp")
                             bloodPressures.add(
                                 MeanBloodPressure(
                                     sbp = sbp.toLong(), dbp = dbp.toLong()
@@ -829,20 +818,17 @@ class YuchengApiImpl(
                 }
                 Log.d(YUCHENG_API, "WAITING HEART RATE")
                 heartRate = heartRateCompleter.await()
-                Log.d(YUCHENG_API, "HEART RATE = $heartRate")
                 YCBTClient.appStartMeasurement(1, REAL_BLOOD_PRESSURE_TYPE) { _, _, _ ->
                     Log.d(YUCHENG_API, "START BLOOD PRESSURE MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING BLOOD PRESSURE")
                 bloodPressure = bloodPressureCompleter.await()
-                Log.d(YUCHENG_API, "BLOOD PRESSURE = $bloodPressure")
 
                 YCBTClient.appStartMeasurement(1, REAL_BLOOD_OXYGEN_TYPE) { _, _, _ ->
                     Log.d(YUCHENG_API, "START BLOOD OXYGEN MEASURE")
                 }
                 Log.d(YUCHENG_API, "WAITING BLOOD OXYGEN")
                 bloodOxygen = bloodOxygenCompleter.await()
-                Log.d(YUCHENG_API, "BLOOD OXYGEN = $bloodOxygen")
                 YCBTClient.appRealDataFromDevice(1, 0) { _, _, _ ->
                     Log.d(YUCHENG_API, "START SPORT MEASURE")
                 }
@@ -851,7 +837,7 @@ class YuchengApiImpl(
                 Log.d(YUCHENG_API, "SPORT COMPLETED")
                 if (!completer.isCompleted) completer.complete(true)
             } catch (e: Exception) {
-                Log.d(YUCHENG_API, "ERROR = $e")
+                Log.d(YUCHENG_API, "Measurement failed")
                 if (!completer.isCompleted) {
                     completer.completeExceptionally(e)
                 }
@@ -890,10 +876,9 @@ class YuchengApiImpl(
                         healthSportData
                     )
                 )
-                Log.d(YUCHENG_API, "Health sport data = $healthSportData")
                 callback(Result.success(healthSportData))
             } catch (e: Exception) {
-                Log.d(YUCHENG_API, "ERROR = $e")
+                Log.d(YUCHENG_API, "Measurement failed")
                 callback(Result.failure(e))
             }
         }
@@ -925,7 +910,6 @@ class YuchengApiImpl(
                         var count = values.count()
                         count = if (count < 1) 1 else count
                         val mean = (sum / count).roundToLong()
-                        Log.d(YUCHENG_API, "Blood oxygen mean: $mean")
                         return@getRealTimeData mean
                     },
                     convert = { data ->
@@ -933,17 +917,15 @@ class YuchengApiImpl(
                             return@getRealTimeData 0
                         }
                         val value = data["bloodOxygenValue"] as Int
-                        Log.d(YUCHENG_API, "blood oxygen = $value")
                         return@getRealTimeData value.toLong()
                     },
                 )
-                Log.d(YUCHENG_API, "Blood oxygen = $value")
                 if (!completer.isCompleted) {
                     callback(Result.success(value))
                     completer.complete(true)
                 }
             } catch (e: Exception) {
-                Log.d(YUCHENG_API, "ERROR = $e")
+                Log.d(YUCHENG_API, "Measurement failed")
                 if (!completer.isCompleted) {
                     callback(Result.failure(e))
                     completer.complete(true)
@@ -978,7 +960,6 @@ class YuchengApiImpl(
                         var count = values.count()
                         count = if (count < 1) 1 else count
                         val mean = (sum / count).roundToLong()
-                        Log.d(YUCHENG_API, "Heart rate mean: $mean")
                         return@getRealTimeData mean
                     },
                     convert = { data ->
@@ -986,7 +967,6 @@ class YuchengApiImpl(
                             return@getRealTimeData 0
                         }
                         val value = data["heartValue"] as Int
-                        Log.d(YUCHENG_API, "heart rate = $value")
                         return@getRealTimeData value.toLong()
                     },
                 )
@@ -995,7 +975,7 @@ class YuchengApiImpl(
                     completer.complete(true)
                 }
             } catch (e: Exception) {
-                Log.d(YUCHENG_API, "ERROR = $e")
+                Log.d(YUCHENG_API, "Measurement failed")
                 if (!completer.isCompleted) {
                     callback(Result.failure(e))
                     completer.complete(true)
@@ -1032,8 +1012,6 @@ class YuchengApiImpl(
                         val meanDbp = (sumDbp / count).roundToLong()
                         val sumSbp = values.sumOf { item -> item.sbp }.toDouble()
                         val meanSbp = (sumSbp / count).roundToLong()
-                        Log.d(YUCHENG_API, "Blood pressure SBP mean: $meanSbp")
-                        Log.d(YUCHENG_API, "Blood pressure DBP mean: $meanDbp")
                         return@getRealTimeData MeanBloodPressure(sbp = meanSbp, dbp = meanDbp)
                     },
                     convert = { data ->
@@ -1042,8 +1020,6 @@ class YuchengApiImpl(
                         }
                         val dbp = data["bloodDBP"] as Int
                         val sbp = data["bloodSBP"] as Int
-                        Log.d(YUCHENG_API, "blood DBP = $dbp")
-                        Log.d(YUCHENG_API, "blood SBP = $sbp")
                         return@getRealTimeData MeanBloodPressure(
                             sbp = sbp.toLong(), dbp = dbp.toLong()
                         )
@@ -1056,7 +1032,7 @@ class YuchengApiImpl(
                     completer.complete(true)
                 }
             } catch (e: Exception) {
-                Log.d(YUCHENG_API, "ERROR = $e")
+                Log.d(YUCHENG_API, "Measurement failed")
                 if (!completer.isCompleted) {
                     callback(Result.failure(e))
                     completer.complete(true)
@@ -1142,7 +1118,7 @@ class YuchengApiImpl(
         dbp: Long,
         callback: (Result<Boolean>) -> Unit
     ) {
-        Log.d(YUCHENG_API, "START calibrateBloodPressure sbp = $sbp dbp = $dbp")
+        Log.d(YUCHENG_API, "START calibrateBloodPressure")
         if (!YuchengCore.isConnected()) {
             Log.d(YUCHENG_API, "Device not connected")
             callback(Result.failure(NoConnectionException()))
@@ -1318,13 +1294,11 @@ class YuchengApiImpl(
 
         try {
             YCBTClient.deviceToApp { code, data ->
-                Log.d(YUCHENG_API, "DEVICETOAPP code = $code data = $data")
                 if (code == 0 && data != null) {
                     val dataType = data["dataType"] as Int
                     Log.d(YUCHENG_API, "DEVICETOAPP dataType = $dataType")
                     if (dataType == Constants.DATATYPE.DeviceMeasurementResult) {
                         val datas = data["datas"] as ByteArray
-                        Log.d(YUCHENG_API, "DEVICETOAPP datas = $datas")
                         if (datas.isNotEmpty()) {
                             val type = datas[0].toInt()
                             val result = datas[1].toInt()
@@ -1344,7 +1318,6 @@ class YuchengApiImpl(
                                 Log.d(YUCHENG_API, "result = 1: GOOD")
                                 if (type == measureDataType) {
                                     val mean = onReduce(values)
-                                    Log.d(YUCHENG_API, "Mean value: $mean")
                                     valueCompleter.complete(mean)
                                 }
                             }
@@ -1356,7 +1329,6 @@ class YuchengApiImpl(
                 if (data != null) {
                     if (type == sdkDataType) {
                         val value = convert(data)
-                        Log.d(YUCHENG_API, "value = $value")
                         values.add(value)
                     }
                 }
@@ -1368,9 +1340,8 @@ class YuchengApiImpl(
             meanValue = withTimeout(REAL_MEASUREMENT_TIMEOUT_MILLIS) {
                 valueCompleter.await()
             }
-            Log.d(YUCHENG_API, "MEAN VALUE = $meanValue")
         } catch (e: Exception) {
-            Log.d(YUCHENG_API, "ERROR = $e")
+            Log.d(YUCHENG_API, "Measurement failed")
             if (e is TimeoutCancellationException) {
                 Log.d(YUCHENG_API, "Timeout!")
                 throw RealTimeMeasurementFailedException()

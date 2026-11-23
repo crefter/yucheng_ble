@@ -15,6 +15,7 @@ import com.yucheng.ycbtsdk.Constants
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ import java.util.UUID
 /** YuchengBlePlugin */
 class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     private var activity: Activity? = null
+    private var diagnosticsChannel: MethodChannel? = null
     // TODO: потестить sleeptery (добавить кнопку в девайсе для запуска и отключения сервиса, передавать flavor, а также токен. Также настроить синхронизацию токенов)
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -32,6 +34,23 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
             handler = Handler(Looper.getMainLooper())
         }
         YuchengCore.init(flutterPluginBinding.applicationContext)
+        YuchengDiagnostics.summary("engine_attached")
+        diagnosticsChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "yucheng_ble/diagnostics").also {
+            it.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "setDetailedEnabled" -> {
+                        val enabled = call.arguments as? Boolean
+                        if (enabled == null) {
+                            result.error("invalid_argument", "Expected a boolean", null)
+                        } else {
+                            YuchengDiagnostics.setDetailedEnabled(enabled) { result.success(it) }
+                        }
+                    }
+                    "flush" -> YuchengDiagnostics.flush { result.success(it) }
+                    else -> result.notImplemented()
+                }
+            }
+        }
         if (devicesHandler == null) {
             devicesHandler = DevicesStreamHandlerImpl(handler!!)
         }
@@ -153,7 +172,9 @@ class YuchengBlePlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        Log.e(PLUGIN_TAG, "onDetachedFromEngine:")
+        YuchengDiagnostics.summary("engine_detached")
+        diagnosticsChannel?.setMethodCallHandler(null)
+        diagnosticsChannel = null
         YuchengHostApi.setUp(binding.binaryMessenger, null)
         YuchengCore.removeListenerState(listener = { state -> stateListener(state) })
         YuchengCore.dispose()

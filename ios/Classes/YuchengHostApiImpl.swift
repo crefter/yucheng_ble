@@ -100,7 +100,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
         if let response = info[YCDeviceControlType.healthDataMeasurementResult.toString] as?
             YCReceivedDeviceReportInfo,
-           let device = response.device,
+           response.device != nil,
            let data = response.data as? YCDeviceControlMeasureHealthDataResultInfo {
             let state = data.state
             let type = data.dataType
@@ -128,12 +128,6 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 }
 
             }
-            let description = data.description
-            print("CONTROL DATA RESULT",device.name ?? "",
-                  state,
-                  type,
-                  description
-            )
         }
     }
     
@@ -143,49 +137,23 @@ final class YuchengHostApiImpl : YuchengHostApi {
         }
         if let response = info[YCReceivedRealTimeDataType.step.toString] as?
             YCReceivedDeviceReportInfo,
-           let device = response.device,
+           response.device != nil,
            let sportInfo = response.data as? YCReceivedRealTimeStepInfo {
-            print("STEPS", device.name ?? ""
-                  ,
-                  sportInfo.step,
-                  sportInfo.calories,
-                  sportInfo.distance
-            )
             self.setSteps(steps: Int64(sportInfo.step))
             self.setCalories(calories: Int64(sportInfo.calories))
             self.setDistance(distance: Int64(sportInfo.distance))
-        }
-        if let response =
-            info[YCReceivedRealTimeDataType.realTimeMonitoringMode.toString] as?
-            YCReceivedDeviceReportInfo {
-           let device = response.device
-            print("REAL TIME MONITORING MODE", response.data ?? "")
-               if let data = response.data as? YCReceivedMonitoringModeInfo {
-                   print("MODE:", device?.name ?? "",
-                         data.startTimeStamp,
-                         data.modeStep,
-                         data.modeCalories,
-                         data.modeCalories
-                   )
-               }
         }
         // Blood pressure data
         if let response =
             info[YCReceivedRealTimeDataType.bloodPressure.toString] as?
             YCReceivedDeviceReportInfo
         {
-            let device = response.device
             if let healthData = response.data as? YCReceivedRealTimeBloodPressureInfo {
                 let heartRate = healthData.heartRate
                 let systolicBloodPressure =
                 healthData.systolicBloodPressure
                 let diastolicBloodPressure =
                 healthData.diastolicBloodPressure
-                print("BLOOD PRESSURE", device?.name ?? "",
-                      heartRate,
-                      systolicBloodPressure,
-                      diastolicBloodPressure
-                )
                 self.heartRates.append(Int64(heartRate))
                 self.dbps.append(Int64(diastolicBloodPressure))
                 self.sbps.append(Int64(systolicBloodPressure))
@@ -195,15 +163,11 @@ final class YuchengHostApiImpl : YuchengHostApi {
             info[YCReceivedRealTimeDataType.bloodOxygen.toString] as?
             YCReceivedDeviceReportInfo
         {
-            let device = response.device
             let data = response.data
             if (data != nil) {
                 let dataString = String(describing: data!)
                 let bloodOxygen = Int64(dataString) ?? 0
                 self.bloodOxygens.append(bloodOxygen)
-                print("BLOOD OXYGEN INT", device?.name ?? "",
-                      response.data ?? "no blood oxygen data"
-                )
             }
         }
     }
@@ -450,25 +414,26 @@ final class YuchengHostApiImpl : YuchengHostApi {
         var sleepDataList: [YuchengSleepData] = []
         var sportDataList: [YuchengSportData] = []
         let device = YuchengCore.shared.currentDevice ?? YCProduct.shared.currentPeripheral;
-        let _ = device?.macAddress
-        let _ = device?.name
         do {
             if (start >= end) {
                 onSleepData(YuchengSleepErrorEvent(error: "Start timestamp cant be larger than end timestamp!"))
                 completion(.success(empty))
             }
             do {
+                let sportDiagnosticSession = YuchengDiagnostics.shared.detailedSession()
+                YuchengDiagnostics.shared.summary("history_requested", "category=sport source=get_all")
                 YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.step) { state, response in
-                    if state == .succeed, let datas = response as? [YCHealthDataStep] {
+                    let datas = response as? [YCHealthDataStep]
+                    YuchengHistoryDiagnostics.callback("sport", state: state, count: datas?.count)
+                    if state == .succeed, let datas {
+                        YuchengHistoryDiagnostics.sport(datas, session: sportDiagnosticSession)
                         for info in datas {
                             let sportData = self.sportConverter.convert(sportDataFromDevice: info)
                             let isInRange = sportData.startTimeStamp >= start && sportData.endTimeStamp <= end
                             if (!isInRange) { continue }
                             sportDataList.append(sportData)
                         }
-                    }
-                    else {
-                        print("No sport data")
+                        YuchengDiagnostics.shared.summary("history_filtered", "category=sport source=get_all returned=\(sportDataList.count)")
                     }
                     
                     if (isHealthCompleted && isSleepCompleted && !isSportCompleted) {
@@ -483,20 +448,24 @@ final class YuchengHostApiImpl : YuchengHostApi {
                     isSportCompleted = true
                 }
                 
+                let healthDiagnosticSession = YuchengDiagnostics.shared.detailedSession()
+                YuchengDiagnostics.shared.summary("history_requested", "category=health source=get_all")
                 YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.combinedData) { state, response in
+                    let datas = response as? [YCHealthDataCombinedData]
+                    YuchengHistoryDiagnostics.callback("health", state: state, count: datas?.count)
                     if (isHealthCompleted) {
                         return
                     }
                     
-                    if state == .succeed, let datas = response as? [YCHealthDataCombinedData] {
+                    if state == .succeed, let datas {
+                        YuchengHistoryDiagnostics.health(datas, session: healthDiagnosticSession)
                         for info in datas {
                             let healthData = self.healthConverter.convert(healthDataFromDevice: info)
                             let isInRange = healthData.startTimestamp >= start && healthData.startTimestamp <= end
                             if (!isInRange) { continue }
                             healthDataList.append(healthData)
                         }
-                    } else {
-                        print("No data")
+                        YuchengDiagnostics.shared.summary("history_filtered", "category=health source=get_all returned=\(healthDataList.count)")
                     }
                     if (!isHealthCompleted && isSleepCompleted && isSportCompleted) {
                         DispatchQueue.main.async {
@@ -516,11 +485,16 @@ final class YuchengHostApiImpl : YuchengHostApi {
                 isSportCompleted = true
             }
             do {
+                let sleepDiagnosticSession = YuchengDiagnostics.shared.detailedSession()
+                YuchengDiagnostics.shared.summary("history_requested", "category=sleep source=get_all")
                 YCProduct.queryHealthData(device, dataType: YCQueryHealthDataType.sleep) { state, response in
-                    if state == .succeed, let datas = response as? [YCHealthDataSleep] {
+                    let datas = response as? [YCHealthDataSleep]
+                    YuchengHistoryDiagnostics.callback("sleep", state: state, count: datas?.count)
+                    if state == .succeed, let datas {
                         if (isSleepCompleted) {
                             return
                         }
+                        YuchengHistoryDiagnostics.sleep(datas, session: sleepDiagnosticSession)
                         for info in datas {
                             let sleepData = self.sleepConverter.convert(sleepDataFromDevice: info)
                             let isInRange = sleepData.startTimeStamp >= start && sleepData.endTimeStamp <= end
@@ -531,8 +505,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
                                 self.onSleepData(ycSleepEvent)
                             }
                         }
-                    } else {
-                        print("No data")
+                        YuchengDiagnostics.shared.summary("history_filtered", "category=sleep source=get_all returned=\(sleepDataList.count)")
                     }
                     if (!isSleepCompleted && isHealthCompleted && isSportCompleted) {
                         DispatchQueue.main.async {
@@ -565,6 +538,7 @@ final class YuchengHostApiImpl : YuchengHostApi {
             }
             DispatchQueue.main.async {
                 self.onAllData(YuchengAllDataEvent(data: empty))
+                YuchengDiagnostics.shared.summary("history_timeout", "category=all")
                 self.onAllData(YuchengAllTimeOutEvent(isTimeout: true))
                 completion(.success(empty))
             }
