@@ -5,6 +5,7 @@ package com.crefter.yuchengplugin.yucheng_ble.data.remote
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.crefter.yuchengplugin.yucheng_ble.YuchengDiagnostics
 import com.crefter.yuchengplugin.yucheng_ble.YuchengHealthData
 import com.crefter.yuchengplugin.yucheng_ble.YuchengHealthSportData
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepData
@@ -152,15 +153,14 @@ class YuchengRepository(
 
                 val sleepDataJson = sleepData.map {
                     if (!it.startTimeStamp.isValidEpochMs()) {
-                        Log.e(TAG_SLEEP, "NOT VALID SLEEP startTimestamp = ${it.startTimeStamp}")
+                        Log.e(TAG_SLEEP, "NOT VALID SLEEP startTimestamp")
                     }
                     if (!it.endTimeStamp.isValidEpochMs()) {
-                        Log.e(TAG_SLEEP, "NOT VALID SLEEP endTimeStamp = ${it.endTimeStamp}")
+                        Log.e(TAG_SLEEP, "NOT VALID SLEEP endTimeStamp")
                     }
                     return@map it.toJson()
                 }
                 val sleepJson = gson.toJson(sleepDataJson)
-                Log.i(TAG_SLEEP, "Sleep json = $sleepJson")
 
                 val json = "{" +
                         "\"device_id\": \"$deviceId\"," +
@@ -175,7 +175,6 @@ class YuchengRepository(
                 val baseUrl = apiConfig.sleepBaseUrl
 
                 val url = "$baseUrl${YuchengApiConstants.sleep}"
-                Log.i(TAG_SLEEP, "saveSleep: url = $url \n json = $json")
 
                 val request = Request.Builder()
                     .header("Content-Type", "application/json")
@@ -185,6 +184,7 @@ class YuchengRepository(
 
                 apiClient
                     .newCall(request).execute().use { response ->
+                        YuchengDiagnostics.summary("background_upload_response", "category=sleep http_code=${response.code}")
                         if (!response.isSuccessful) {
                             throw IOException("Sleep upload failed: HTTP ${response.code}")
                         } else {
@@ -194,7 +194,7 @@ class YuchengRepository(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG_SLEEP, "Ошибка при отправке сна: $e")
+                YuchengDiagnostics.summary("background_upload_failed", "category=sleep")
                 throw e
             }
         }
@@ -209,29 +209,27 @@ class YuchengRepository(
                 val offset = ZonedDateTime.now().offset.totalSeconds / 60
                 val healthDataJson = healthData.healthData.map {
                     if (!it.startTimestamp.isValidEpochMs()) {
-                        Log.e(TAG_HEALTH, "NOT VALID HEALTH startTimestamp = ${it.startTimestamp}")
+                        Log.e(TAG_HEALTH, "NOT VALID HEALTH startTimestamp")
                         return@map null
                     }
                     return@map it.toJson()
                 }.filterNotNull()
                 val healthJson = gson.toJson(healthDataJson)
                 Log.e(TAG_HEALTH, "Health converted to json!")
-                Log.i(TAG_HEALTH, "Health json = $healthJson")
 
                 val sportDataJson = healthData.sportData.map {
                     if (!it.startTimeStamp.isValidEpochMs()) {
-                        Log.e(TAG_HEALTH, "NOT VALID SPORT startTimestamp = ${it.startTimeStamp}")
+                        Log.e(TAG_HEALTH, "NOT VALID SPORT startTimestamp")
                         return@map null
                     }
                     if (!it.endTimeStamp.isValidEpochMs()) {
-                        Log.e(TAG_HEALTH, "NOT VALID SPORT endTimeStamp = ${it.endTimeStamp}")
+                        Log.e(TAG_HEALTH, "NOT VALID SPORT endTimeStamp")
                         return@map null
                     }
                     return@map it.toJson()
                 }.filterNotNull()
                 val sportJson = gson.toJson(sportDataJson)
                 Log.e(TAG_HEALTH, "Sport converted to json!")
-                Log.i(TAG_HEALTH, "Sport json = $sportJson")
 
                 val json = "{" +
                         "\"device_id\": \"$deviceId\"," +
@@ -245,7 +243,6 @@ class YuchengRepository(
                 val baseUrl = apiConfig.healthBaseUrl
 
                 val url = "$baseUrl${YuchengApiConstants.health}"
-                Log.e(TAG_HEALTH, "saveHealth: url = $url\njson = $json")
 
                 val request = Request.Builder()
                     .header("Content-Type", "application/json")
@@ -255,6 +252,7 @@ class YuchengRepository(
 
                 apiClient
                     .newCall(request).execute().use { response ->
+                        YuchengDiagnostics.summary("background_upload_response", "category=health_sport http_code=${response.code}")
                         if (!response.isSuccessful) {
                             throw IOException("Health upload failed: HTTP ${response.code}")
                         } else {
@@ -264,7 +262,7 @@ class YuchengRepository(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG_HEALTH, "Ошибка при отправке здоровья: $e")
+                YuchengDiagnostics.summary("background_upload_failed", "category=health_sport")
                 throw e
             }
         }

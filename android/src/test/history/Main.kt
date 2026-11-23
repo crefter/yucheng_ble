@@ -176,3 +176,14 @@ fun main() = runBlocking {
  }
  println("$passed passed, $failed failed"); check(failed==0)
 }
+
+object YuchengDiagnostics {
+    fun summary(event: String, fields: String = "") {}
+    fun detailedSession(): Long? = null
+}
+enum class YuchengHistoryDiagnostics(val category: String, val type: Int) {
+    SLEEP("sleep", Constants.DATATYPE.Health_HistorySleep),
+    SPORT("sport", Constants.DATATYPE.Health_HistorySport),
+    HEALTH("health", Constants.DATATYPE.Health_HistoryAll);
+    fun callback(code: Int, rows: List<*>?, session: Long?) {}
+}

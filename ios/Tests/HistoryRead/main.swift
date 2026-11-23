@@ -2,6 +2,7 @@ import Foundation
 import Combine
 
 var scenario = CommandLine.arguments[1]
+var recordedCategories: [String] = []
 struct NoConnectionException: Error {}
 struct Device { var macAddress = ""; var name = "" }
 enum YCProductState { case succeed, failed, noRecord, timeout }
@@ -10,6 +11,18 @@ enum YCQueryHealthDataType: Hashable { case sleep, step, combinedData }
 struct YCHealthDataSleep {}
 struct YCHealthDataStep {}
 struct YCHealthDataCombinedData {}
+final class YuchengDiagnostics {
+    static let shared = YuchengDiagnostics()
+    func summary(_ event: String, _ fields: String) {}
+    func detailedSession() -> Int? { nil }
+}
+enum YuchengHistoryDiagnostics {
+    static func callback(_ category: String, state: YCProductState, count: Int?) {}
+    static func sleep(_ rows: [YCHealthDataSleep], session: Int?) { recordedCategories.append("sleep") }
+    static func sport(_ rows: [YCHealthDataStep], session: Int?) { recordedCategories.append("sport") }
+    static func health(_ rows: [YCHealthDataCombinedData], session: Int?) { recordedCategories.append("health") }
+}
+
 struct YuchengSleepData { var startTimeStamp: Int64 = 10; var endTimeStamp: Int64 = 20 }
 struct YuchengSportData { var startTimeStamp: Int64 = 10; var endTimeStamp: Int64 = 20 }
 struct YuchengHealthData { var startTimestamp: Int64 = 10 }
@@ -25,11 +38,24 @@ struct YuchengSleepTimeOutEvent: SleepEvent { let isTimeout: Bool }
 struct YuchengHealthErrorEvent: HealthEvent { let error: String }
 struct YuchengHealthDataEvent: HealthEvent { let healthData: YuchengHealthSportData }
 struct YuchengHealthTimeOutEvent: HealthEvent { let isTimeout: Bool }
+struct YuchengAllData { var sleepData: [YuchengSleepData]; var healthSportData: YuchengHealthSportData }
+protocol AllEvent {}
+struct YuchengAllDataEvent: AllEvent { var data: YuchengAllData }
+struct YuchengAllTimeOutEvent: AllEvent { var isTimeout: Bool }
+final class HistoryHost {
+    let sleepConverter = YuchengSleepDataConverter()
+    let healthConverter = YuchengHealthDataConverter()
+    let sportConverter = YuchengSportDataConverter()
+    var onSleepData: (SleepEvent) -> Void = { _ in }
+    var onAllData: (AllEvent) -> Void = { _ in }
+    func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) { (0, 100) }
+}
 typealias SleepHandler = (SleepEvent) -> Void
 typealias HealthHandler = (HealthEvent) -> Void
 
 class YCProduct {
     static var deleteCalls = 0
+    static var queryCalls = 0
     static func deleteHealthData(_ device: Device?, dataType: YCDeleteHealthDataType,
                                  completion: @escaping (YCProductState, Any?) -> Void) {
         deleteCalls += 1
@@ -39,6 +65,7 @@ class YCProduct {
     var currentPeripheral: Device? = Device()
     static func queryHealthData(_ device: Device?, dataType: YCQueryHealthDataType,
                                 completion: @escaping (YCProductState, Any?) -> Void) {
+        queryCalls += 1
         let data: Any = dataType == .sleep ? [YCHealthDataSleep()] as Any :
             dataType == .step ? [YCHealthDataStep()] as Any : [YCHealthDataCombinedData()] as Any
         let empty: Any = dataType == .sleep ? [YCHealthDataSleep]() as Any :
@@ -73,6 +100,29 @@ var receivedHealth = -1
 var receivedSport = -1
 var subscription: AnyCancellable?
 let invalid = scenario.hasSuffix("_invalid")
+if scenario.hasPrefix("all_") {
+    let host = HistoryHost()
+    host.onSleepData = { if $0 is YuchengSleepDataEvent { dataEvents += 1 } }
+    host.onAllData = { if $0 is YuchengAllTimeOutEvent { timeoutEvents += 1 } }
+    host.getAllData(startTimestamp: invalid ? 100 : 0, endTimestamp: 100) {
+        completions += 1
+        if let value = try? $0.get() { receivedSleep = value.sleepData.count }
+    }
+    RunLoop.main.run(until: Date().addingTimeInterval(0.12))
+    precondition(completions == 1)
+    switch scenario {
+    case "all_invalid":
+        precondition(YCProduct.queryCalls == 0 && receivedSleep == 0 && recordedCategories.isEmpty)
+    case "all_late":
+        precondition(timeoutEvents == 1 && dataEvents == 0 && receivedSleep == 0 && recordedCategories.isEmpty)
+    case "all_duplicate":
+        precondition(timeoutEvents == 0 && dataEvents == 1 && receivedSleep == 1)
+        precondition(recordedCategories.sorted() == ["health", "sleep", "sport"])
+    default:
+        preconditionFailure()
+    }
+    exit(0)
+}
 if scenario.hasPrefix("sleep") {
     subscription = YuchengCore.shared.getSleepData(startTimestamp: invalid ? 100 : 0, endTimestamp: 100,
         sleepConverter: YuchengSleepDataConverter(), onSleepData: { event in

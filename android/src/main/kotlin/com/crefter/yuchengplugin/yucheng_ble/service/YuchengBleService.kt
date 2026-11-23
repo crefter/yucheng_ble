@@ -15,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.crefter.yuchengplugin.yucheng_ble.YuchengCore
+import com.crefter.yuchengplugin.yucheng_ble.YuchengDiagnostics
 import com.crefter.yuchengplugin.yucheng_ble.YuchengHealthDataConverter
 import com.crefter.yuchengplugin.yucheng_ble.YuchengHealthSportData
 import com.crefter.yuchengplugin.yucheng_ble.YuchengSleepData
@@ -53,12 +54,13 @@ class YuchengBleService : Service() {
         Log.e(YUCH_TAG, "Service: onCreate: begin!")
         gson = GsonBuilder().create()
         YuchengCore.init(applicationContext)
+        YuchengDiagnostics.summary("background_started")
     }
 
     @OptIn(FlowPreview::class)
     @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun readData() {
-        Log.i(YUCH_TAG, "Service: Try read data from service!")
+        YuchengDiagnostics.summary("background_read_requested")
         val isConnected = YuchengCore.isConnected()
         if (!isConnected) {
             Log.i(YUCH_TAG, "Service: Not connected, try reconnect!")
@@ -67,7 +69,7 @@ class YuchengBleService : Service() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(YUCH_TAG, "Service: RECONNECT EXCEPTION: $e")
+                YuchengDiagnostics.summary("background_read_skipped", "reason=reconnect_failed")
                 return
             }
         }
@@ -76,7 +78,7 @@ class YuchengBleService : Service() {
         Log.i(YUCH_TAG, "readData: flavor = $flavor")
         val token = YuchengCore.tokenStorage?.getToken(flavor)
         if (token == null) {
-            Log.e(YUCH_TAG, "Service: read data: token is null!")
+            YuchengDiagnostics.summary("background_read_skipped", "reason=missing_auth")
             if (tokenIsNullCount >= MAX_TOKEN_IS_NULL_COUNT) {
                 Log.e(YUCH_TAG, "Service: read data: token is null max count reached, stop service!")
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -92,7 +94,7 @@ class YuchengBleService : Service() {
         val hasInternet = YuchengInternetChecker.hasInternet(ApiClient.getClientForCheckInternet())
         Log.e(YUCH_TAG, "Service: internet connection is $hasInternet")
         if (!hasInternet) {
-            Log.e(YUCH_TAG, "Service: no internet connection, skip!")
+            YuchengDiagnostics.summary("background_read_skipped", "reason=no_network")
             return
         }
         val startEnd = StartEndTimestamp.service()
@@ -105,7 +107,7 @@ class YuchengBleService : Service() {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(YUCH_TAG, "Sleep history failed: $e")
+            YuchengDiagnostics.summary("background_read_failed", "category=sleep")
             null
         }
         val healthData = try {
@@ -116,7 +118,7 @@ class YuchengBleService : Service() {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(YUCH_TAG, "Health history failed: $e")
+            YuchengDiagnostics.summary("background_read_failed", "category=health_sport")
             null
         }
         sendDataToServer(sleepData, healthData)
@@ -151,7 +153,7 @@ class YuchengBleService : Service() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(YUCH_TAG, "Sleep upload failed: $e")
+                Log.e(YUCH_TAG, "Sleep upload failed")
             }
         }
         if (healthData != null) {
@@ -160,7 +162,7 @@ class YuchengBleService : Service() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(YUCH_TAG, "Health upload failed: $e")
+                Log.e(YUCH_TAG, "Health upload failed")
             }
         }
     }
@@ -250,7 +252,7 @@ class YuchengBleService : Service() {
 
     override fun onDestroy() {
         isRunning.value = false
-        Log.e(YUCH_TAG, "onDestroy")
+        YuchengDiagnostics.summary("background_stopped")
         job?.cancel()
         super.onDestroy()
     }
