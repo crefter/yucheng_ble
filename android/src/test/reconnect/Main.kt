@@ -21,6 +21,9 @@ data class BluetoothGatt(val device: BluetoothDevice)
 object YCBTClient {
  var state=3; var boundMac:String?=RING_A; var failReconnect=false
  var transportMac: () -> String? = { boundMac }
+ var readConnectionState: () -> Int = { state }
+ var connectAccepted = true
+ var cachedGatt: BluetoothGatt? = null
  val reconnectDevices=CopyOnWriteArrayList<String>()
  val reconnectCallbacks=CopyOnWriteArrayList<(Int)->Unit>()
  val scanCallbacks=CopyOnWriteArrayList<(Int,ScanDeviceBean)->Unit>()
@@ -28,16 +31,24 @@ object YCBTClient {
  var scanActive=false; var stopScans=0
  fun getBindDeviceMac()=boundMac.orEmpty()
  fun getBindDeviceName()="Ring"
- fun getGatt() = transportMac()?.let { BluetoothGatt(BluetoothDevice(it)) }
- fun connectState()=state
+ fun getGatt(): BluetoothGatt? {
+   val address = transportMac()
+   if (address != cachedGatt?.device?.address) cachedGatt = address?.let { BluetoothGatt(BluetoothDevice(it)) }
+   return cachedGatt
+ }
+ fun connectState()=readConnectionState()
  fun reconnectDevice(mac:String, callback:(Int)->Unit) {
    if(failReconnect) throw IllegalStateException("SDK reconnect failure")
    reconnectDevices.add(mac); reconnectCallbacks.add(callback)
  }
  fun startScanBle(callback:(Int,ScanDeviceBean)->Unit, period:Int) { scanActive=true; scanCallbacks.add(callback) }
- fun connectBleDevice(device:Any?, callback:(Int)->Unit) { connectCallbacks.add(callback) }
+ fun connectBleDevice(device:Any?, callback:(Int)->Unit):Boolean {
+   if (!connectAccepted) return false
+   connectCallbacks.add(callback)
+   return true
+ }
  fun stopScanBle() { scanActive=false; stopScans++ }
- fun reset() { state=3; boundMac=RING_A; transportMac={ boundMac }; failReconnect=false; reconnectDevices.clear(); reconnectCallbacks.clear(); scanCallbacks.clear(); connectCallbacks.clear(); scanActive=false; stopScans=0 }
+ fun reset() { state=3; boundMac=RING_A; transportMac={ boundMac }; readConnectionState={ state }; cachedGatt=null; connectAccepted=true; failReconnect=false; reconnectDevices.clear(); reconnectCallbacks.clear(); scanCallbacks.clear(); connectCallbacks.clear(); scanActive=false; stopScans=0 }
 }
 var passed=0
 suspend fun eventually(body:()->Boolean) { withTimeout(500) { while(!body()) delay(1) } }
@@ -78,6 +89,23 @@ fun main() = runBlocking {
    check(connected(ringA))
    check(!connected(ringB))
    check(!YuchengCore.connect(ringB, 1))
+  }
+  test("cannot_confirm_the_previous_gatt_when_transport_changes_during_state_read") {
+   YCBTClient.state = Constants.BLEState.ReadWriteOK
+   YCBTClient.readConnectionState = {
+    YCBTClient.transportMac = { RING_B }
+    YCBTClient.state
+   }
+   check(!connected(ringA))
+   check(connected(ringB))
+  }
+  test("scan_result_connect_rejected_without_callback_returns_false") {
+   YCBTClient.state = Constants.BLEState.ReadWriteOK
+   YCBTClient.connectAccepted = false
+   YuchengCore.scannedDevices.add(ScanDeviceBean(deviceMac = RING_B))
+   check(!YuchengCore.connect(ringB, 1))
+   check(YCBTClient.connectCallbacks.isEmpty())
+   check(connected(ringA))
   }
   test("live_transport_wins_over_cached_selection_and_remembered_binding") {
    YCBTClient.state = Constants.BLEState.ReadWriteOK

@@ -169,7 +169,7 @@ object YuchengCore {
         val completer = CompletableDeferred<Unit>()
         val state = YCBTClient.connectState()
         Log.d(YUCHENG_API, "Connect state = $state")
-        withContext(Dispatchers.Main) {
+        val accepted = withContext(Dispatchers.Main) {
             YCBTClient.connectBleDevice(bleDevice.device) { code ->
                 val state = YCBTClient.connectState()
                 Log.d(YUCHENG_API, "Connect state = $state")
@@ -179,6 +179,7 @@ object YuchengCore {
             }
         }
 
+        if (!accepted) return false
         withTimeout(connectTimeInSeconds * 1000) {
             completer.await()
         }
@@ -666,11 +667,14 @@ object YuchengCore {
     fun isConnected(): Boolean {
         val state = YCBTClient.connectState()
         Log.d(YUCHENG_API, "isConnected(): CONNECT STATE = $state")
-        return YCBTClient.connectState() >= 6
+        return state >= Constants.BLEState.Connected
     }
 
-    private fun connectedAddress(): String? =
-        YCBTClient.getGatt()?.device?.address?.takeIf { isConnected() }
+    private fun connectedAddress(): String? {
+        val transport = YCBTClient.getGatt() ?: return null
+        if (!isConnected() || transport !== YCBTClient.getGatt()) return null
+        return transport.device.address
+    }
 
     fun isConnectedTo(address: String): Boolean =
         connectedAddress()?.equals(address, ignoreCase = true) == true

@@ -10,6 +10,7 @@ repo = Path(__file__).resolve().parents[1]
 core = (repo / 'ios/Classes/YuchengCore.swift').read_text()
 host = (repo / 'ios/Classes/YuchengHostApiImpl.swift').read_text()
 deletes = host[host.index('    func deleteSleepData('):host.index('    func deleteAllData(')]
+combined = host[host.index('    func getAllData('):host.index('    func getDeviceSettings(')]
 methods = core[core.index('    func getSleepData('):core.index('    func otaUpdate(')]
 scenarios = sys.argv[1:] or [
     'sleep_success', 'sleep_empty', 'sleep_no_record', 'sleep_error', 'sleep_timeout',
@@ -17,6 +18,7 @@ scenarios = sys.argv[1:] or [
     'health_success', 'health_empty', 'health_no_record', 'health_error', 'health_timeout',
     'health_partial_error', 'sport_partial_error', 'health_partial_timeout', 'sport_partial_timeout',
     'health_empty_error', 'health_late', 'health_duplicate', 'health_cancel', 'health_invalid',
+    'all_invalid', 'all_late', 'all_duplicate',
 ]
 with tempfile.TemporaryDirectory(prefix='yucheng-ios-history-') as work:
     work = Path(work)
@@ -26,7 +28,7 @@ with tempfile.TemporaryDirectory(prefix='yucheng-ios-history-') as work:
         'static let shared = YuchengCore()\nstatic let TIME_TO_TIMEOUT = 0.04\n'
         'var currentDevice: Device? = nil\nfunc isConnected() -> Bool { true }\n'
         'func getDefaultStartAndEndDate() -> (start: Int64, end: Int64) { (0, 100) }\n'
-        + methods + '\n}\nclass HistoryHost {\n' + deletes + '\n}\n'
+        + methods + '\n}\nextension HistoryHost {\n' + deletes + combined + '\n}\n'
     )
     subprocess.run(['swiftc', '-swift-version', '5',
                     str(repo / 'ios/Classes/utils/Completer.swift'),
