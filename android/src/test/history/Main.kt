@@ -20,6 +20,7 @@ class YuchengSportDataConverter(val gson:Any?=null) { fun convert(value:Any?):Yu
 class YuchengHealthDataConverter(val gson:Any?=null) { fun convert(value:Any?):YuchengHealthData { check(value != "bad"); return YuchengHealthData() } }
 object Constants { object DATATYPE { const val Health_HistorySleep=1; const val Health_HistorySport=2; const val Health_HistoryAll=3; const val Health_DeleteSleep=4; const val Health_DeleteSport=5; const val Health_DeleteAll=6 } }
 object YCBTClient {
+ private val gatt = Any(); fun getGatt() = gatt
  val scope=CoroutineScope(Dispatchers.Default+SupervisorJob())
  val modes=mutableMapOf<Int,String>(); val reads=mutableListOf<Int>(); val deletes=mutableListOf<Int>()
  fun healthHistoryData(type:Int, callback:(Int,Float,HashMap<String,Any>?) -> Unit) {
@@ -36,18 +37,18 @@ object YCBTClient {
  fun deleteHealthHistoryData(type:Int, callback:(Int,Float,HashMap<String,Any>?) -> Unit) { deletes.add(type); callback(0,0f,null) }
 }
 class Storage { fun readFlavor()="test" }
-class TokenStorage { fun getToken(flavor:Any)="dummy" }
+class TokenStorage { data class Token(val access:String="fixture"); fun getToken(flavor:Any)=Token() }
 object YuchengFlavor { fun fromString(value:String)="test" }
-object YuchengInternetChecker { suspend fun hasInternet(client:Any)=true }
-object ApiClient { fun getClientForCheckInternet()=Any(); fun getClient(apiConfig:Any,tokenStorage:Any,flavor:Any)=Any() }
+object YuchengInternetChecker { var online=true; suspend fun hasInternet(client:Any)=online }
+object ApiClient { fun forHistoryRead(storage:Any, config:Any, flavor:Any, bearer:String)=Any(); fun getClientForCheckInternet()=Any(); fun getClient(apiConfig:Any,tokenStorage:Any,flavor:Any)=Any() }
 class YuchengApiConfig { val sleepBaseUrl="http://test.invalid"; val healthBaseUrl="http://test.invalid"; companion object { fun fromFlavor(value:Any)=YuchengApiConfig() } }
 data class StartEndTimestamp(val start:Long=0,val end:Long=100) { companion object { fun service()=StartEndTimestamp() } }
 class YuchengRepository(client:Any,config:Any) {
- companion object { val sent=mutableListOf<String>(); var sleepError:Exception?=null; var healthError:Exception?=null; var httpClient:OkHttpClient?=null }
+ companion object { fun sleepBody(data:List<YuchengSleepData>, id:String) = ProductionRepository.sleepBody(data,id); val sent=mutableListOf<String>(); var sleepError:Exception?=null; var healthError:Exception?=null; var httpClient:OkHttpClient?=null }
  suspend fun saveSleep(data:List<YuchengSleepData>, id:String) { sent.add("sleep"); sleepError?.let {throw it}; httpClient?.let { ProductionRepository(it,YuchengApiConfig()).saveSleep(data,id) } }
  suspend fun saveHealth(data:YuchengHealthSportData, id:String) { sent.add("health"); healthError?.let {throw it}; httpClient?.let { ProductionRepository(it,YuchengApiConfig()).saveHealth(data,id) } }
 }
-class GsonBuilder { fun create()=this; fun toJson(value:Any?)="[]" }
+typealias GsonBuilder = com.google.gson.GsonBuilder
 fun YuchengSleepData.toJson()=emptyMap<String,Any>()
 fun YuchengSportData.toJson()=emptyMap<String,Any>()
 fun YuchengHealthData.toJson()=emptyMap<String,Any>()
@@ -64,6 +65,7 @@ class OkHttpClient(val code:Int=200,val error:Exception?=null,val responseBody:S
 class Response(val code:Int,val body:String):AutoCloseable { val isSuccessful get()=code in 200..299; override fun close() {} }
 var passed=0; var failed=0
 suspend fun test(name:String, body:suspend () -> Unit) {
+ YuchengBackgroundSleep.begin=null; YuchengInternetChecker.online=true
  YCBTClient.modes.clear(); YCBTClient.reads.clear(); YuchengRepository.sent.clear(); YuchengRepository.sleepError=null; YuchengRepository.healthError=null; YuchengRepository.httpClient=null
  try { body(); println("PASS $name"); passed++ } catch(e:Throwable) { println("FAIL $name: $e"); failed++ }
 }
@@ -80,6 +82,19 @@ suspend fun deleteHealth():Boolean {
  val result=withTimeout(200) {reply.await()}; delay(80); check(count.get()==1); return result
 }
 fun main() = runBlocking {
+ test("host_stages_offline_sleep_before_health") {
+   var staged = 0
+   YuchengInternetChecker.online = false
+   YuchengBackgroundSleep.begin = { base, address, token ->
+     check(base=="http://test.invalid" && address=="ring" && token=="fixture");
+     { body:String ->
+       check(com.google.gson.JsonParser.parseString(body).asJsonObject.getAsJsonObject("data").getAsJsonArray("sleep_data").size()==1)
+       staged++
+     }
+   }
+   YuchengBleService().readData()
+   check(staged==1 && YuchengRepository.sent.isEmpty() && YCBTClient.reads==listOf(1))
+ }
  test("empty_background_reads_post_both_payloads_without_delete") {
    val client=OkHttpClient(responseBody="""{"saved_sessions":[],"saved_health_data":[],"should_clear_sleep_data":true,"should_clear_health_data":true}""")
    YuchengRepository.httpClient=client
@@ -87,7 +102,7 @@ fun main() = runBlocking {
    val deletesBefore=YCBTClient.deletes.size
    YuchengBleService().readData()
    check(client.requests.map {it.url}==listOf("http://test.invalid/sleep","http://test.invalid/health"))
-   check(client.requests[0].body.contains("\"sleep_data\": []"))
+   check(com.google.gson.JsonParser.parseString(client.requests[0].body).asJsonObject.getAsJsonObject("data").getAsJsonArray("sleep_data").size()==0)
    check(client.requests[1].body.contains("\"health_data\": []") && client.requests[1].body.contains("\"sport_data\": []"))
    check(YCBTClient.deletes.size==deletesBefore)
  }
@@ -140,8 +155,8 @@ fun main() = runBlocking {
    YuchengBleService().readData()
    check(client.requests.map {it.url}==listOf("http://test.invalid/sleep","http://test.invalid/health"))
  }
- test("upload_sleep_failure_still_uploads_health") { YuchengRepository.sleepError=IllegalStateException("upload"); YuchengBleService().sendDataToServer(listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList())); check(YuchengRepository.sent==listOf("sleep","health")) }
- test("upload_cancel_does_not_upload_health") { YuchengRepository.sleepError=CancellationException("cancel"); check(runCatching { YuchengBleService().sendDataToServer(listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList())) }.exceptionOrNull() is CancellationException); check(YuchengRepository.sent==listOf("sleep")) }
+ test("upload_sleep_failure_still_uploads_health") { YuchengRepository.sleepError=IllegalStateException("upload"); YuchengBleService().sendDataToServer(YuchengRepository(Any(),YuchengApiConfig()),listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList())); check(YuchengRepository.sent==listOf("sleep","health")) }
+ test("upload_cancel_does_not_upload_health") { YuchengRepository.sleepError=CancellationException("cancel"); check(runCatching { YuchengBleService().sendDataToServer(YuchengRepository(Any(),YuchengApiConfig()),listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList())) }.exceptionOrNull() is CancellationException); check(YuchengRepository.sent==listOf("sleep")) }
  test("read_cancel_does_not_continue") { YCBTClient.modes[2]="timeout"; val job=async { healthRead() }; delay(10); job.cancel(); check(runCatching { job.await() }.exceptionOrNull() is CancellationException); check(3 !in YCBTClient.reads) }
  test("partial_ack_retains_unread_history_after_later_full_read") {
    YCBTClient.modes[3]="throw"; check(healthRead().sportData.isNotEmpty())
@@ -154,7 +169,7 @@ fun main() = runBlocking {
  }
  test("upload_health_failure_preserves_sleep_attempt") {
    YuchengRepository.healthError=IllegalStateException("upload")
-   YuchengBleService().sendDataToServer(listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList()))
+   YuchengBleService().sendDataToServer(YuchengRepository(Any(),YuchengApiConfig()),listOf(YuchengSleepData()),YuchengHealthSportData(listOf(YuchengHealthData()),emptyList()))
    check(YuchengRepository.sent==listOf("sleep","health"))
  }
  for(category in listOf("sleep","health")) for(failure in listOf("http","io","cancel","success")) {

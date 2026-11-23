@@ -141,6 +141,15 @@ class YuchengRepository(
         private const val TAG_SLEEP = "$TAG sleep"
         private const val TAG_HEALTH = "$TAG health"
         private val gson = GsonBuilder().create()
+
+        @RequiresApi(Build.VERSION_CODES.O)
+        internal fun sleepBody(sleepData: List<YuchengSleepData>, deviceId: String): String =
+            gson.toJson(mapOf(
+                "device_id" to deviceId,
+                "utc_offset" to ZonedDateTime.now().offset.totalSeconds / 60,
+                "source_platform" to "SleepteryRing",
+                "data" to mapOf("sleep_data" to sleepData.map { it.toJson() })
+            ))
     }
 
 
@@ -149,28 +158,7 @@ class YuchengRepository(
         withContext(Dispatchers.IO) {
             try {
                 Log.i(TAG_SLEEP, "saveSleep")
-                val offset = ZonedDateTime.now().offset.totalSeconds / 60
-
-                val sleepDataJson = sleepData.map {
-                    if (!it.startTimeStamp.isValidEpochMs()) {
-                        Log.e(TAG_SLEEP, "NOT VALID SLEEP startTimestamp")
-                    }
-                    if (!it.endTimeStamp.isValidEpochMs()) {
-                        Log.e(TAG_SLEEP, "NOT VALID SLEEP endTimeStamp")
-                    }
-                    return@map it.toJson()
-                }
-                val sleepJson = gson.toJson(sleepDataJson)
-
-                val json = "{" +
-                        "\"device_id\": \"$deviceId\"," +
-                        "\"utc_offset\": \"$offset\"," +
-                        "\"source_platform\": \"SleepteryRing\"," +
-                        "\"data\": {" +
-                        "\"sleep_data\": $sleepJson" +
-                        "}" +
-                        "}".trimIndent()
-
+                val json = sleepBody(sleepData, deviceId)
                 val body = json.toRequestBody("application/json".toMediaType())
                 val baseUrl = apiConfig.sleepBaseUrl
 
