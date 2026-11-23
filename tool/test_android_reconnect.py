@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the production reconnect coroutine on JVM with deterministic SDK doubles.
+"""Run production connection and reconnect methods with deterministic SDK doubles.
 
 Only Android/SDK boundaries are replaced. The reconnect method is extracted from
 YuchengCore; seconds are scaled to 100 ms and its warm-up delay to 10 ms so timeout
@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[1]
-source = repo / 'android/src/main/kotlin/com/crefter/yuchengplugin/yucheng_ble/YuchengCore.kt'
+source = repo / 'android/src/main/kotlin/com/crefter/yuchengplugin/yucheng_ble'
 cache = Path.home() / '.gradle/caches/modules-2/files-2.1'
 
 
@@ -30,15 +30,18 @@ annotations = jar('org.jetbrains', 'annotations', '23.0.0')
 compiler = [jar('org.jetbrains.kotlin', 'kotlin-compiler-embeddable', '2.2.20'), stdlib, coroutines, annotations,
             jar('org.jetbrains.kotlin', 'kotlin-script-runtime', '2.2.20'),
             jar('org.jetbrains.kotlin', 'kotlin-reflect', '2.2.0')]
-core = source.read_text()
+core = (source / 'YuchengCore.kt').read_text()
+api = (source / 'YuchengApiImpl.kt').read_text()
 attempt_state = '\n'.join(re.findall(r'^    private (?:val reconnectLock|var reconnectGeneration|var reconnectScanGeneration).*$', core, re.M))
 reconnect = core[core.index('    suspend fun reconnect('):core.index('    fun disconnect()')]
 reconnect = reconnect.replace('reconnectTimeInSeconds * 1000', 'reconnectTimeInSeconds * 100')
 reconnect = reconnect.replace('delay(1000)', 'delay(10)')
 reconnect = reconnect.replace('Dispatchers.Main', 'mainDispatcher')
-scan = core[core.index('    suspend fun scanDevices('):core.index('    suspend fun connect(')]
-scan = scan.replace('Dispatchers.Main', 'mainDispatcher').replace('* 1000', '* 100')
+connection = core[core.index('    suspend fun scanDevices('):core.index('    suspend fun reconnect(')]
+connection = connection.replace('Dispatchers.Main', 'mainDispatcher').replace('* 1000', '* 100')
 connected = core[core.index('    fun isConnected()'):core.index('\n}', core.index('    fun isConnected()'))]
+status = api[api.index('    override fun isDeviceConnected('):api.index('    override fun connect(')]
+current = api[api.index('    override fun getCurrentConnectedDevice('):api.index('    @RequiresApi', api.index('    override fun getCurrentConnectedDevice('))]
 with tempfile.TemporaryDirectory(prefix='yucheng-android-reconnect-') as temp:
     temp = Path(temp)
     (temp / 'Production.kt').write_text('''import kotlinx.coroutines.*
@@ -50,7 +53,11 @@ object YuchengCore {
  val deviceIndex=Counter()
  var selectedDevice:YuchengDevice?=null
  val connectState=MutableStateFlow(3)
-''' + attempt_state + '\n' + reconnect + scan + connected + '\n}\n')
+''' + attempt_state + '\n' + reconnect + connection + connected + '''
+}
+class ConnectionHost {
+ val IS_DEVICE_CONNECTED = "test"
+''' + (status + current).replace('override fun ', 'fun ') + '\n}\n')
     (temp / 'Main.kt').write_text((repo / 'android/src/test/reconnect/Main.kt').read_text())
     cp = ':'.join(map(str, [stdlib, coroutines, annotations]))
     subprocess.run([str(java), '-cp', ':'.join(map(str, compiler)), 'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler',

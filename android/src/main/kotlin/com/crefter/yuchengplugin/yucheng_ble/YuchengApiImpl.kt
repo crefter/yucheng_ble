@@ -88,30 +88,15 @@ class YuchengApiImpl(
     override fun isDeviceConnected(device: YuchengDevice?, callback: (Result<Boolean>) -> Unit) {
         Log.d(IS_DEVICE_CONNECTED, "Start isDeviceConnected")
         try {
-            if (device == null) {
-                try {
-                    val isCurrentConnected =
-                        YuchengCore.isConnected()
-                    callback(Result.success(isCurrentConnected))
-                } catch (e: Exception) {
-                    callback(Result.failure(e))
-                }
+            val connected = if (device == null) {
+                YuchengCore.isConnected()
             } else {
-                callback(Result.success(isDeviceConnected(device)))
+                YuchengCore.isConnectedTo(device.uuid)
             }
+            callback(Result.success(connected))
         } catch (e: Exception) {
             Log.e(IS_DEVICE_CONNECTED, "Exception when is device connected: $e")
             callback(Result.failure(e))
-        }
-    }
-
-    private fun isDeviceConnected(device: YuchengDevice): Boolean {
-        return try {
-            val isConnected =
-                YuchengCore.isConnected() && YuchengCore.selectedDevice?.uuid == device.uuid
-            return isConnected
-        } catch (_: Exception) {
-            false
         }
     }
 
@@ -202,20 +187,7 @@ class YuchengApiImpl(
 
     override fun getCurrentConnectedDevice(callback: (Result<YuchengDevice?>) -> Unit) {
         try {
-            if (YuchengCore.selectedDevice != null) {
-                callback(Result.success(YuchengCore.selectedDevice))
-                return
-            }
-            val macAddress = YCBTClient.getBindDeviceMac()
-            val deviceName = YCBTClient.getBindDeviceName()
-            if (macAddress.isEmpty()) {
-                callback(Result.success(null))
-                return
-            }
-            val ycDevice =
-                YuchengDevice(YuchengCore.deviceIndex.fetchAndAdd(1), deviceName, macAddress, false)
-            YuchengCore.selectedDevice = ycDevice
-            callback(Result.success(ycDevice))
+            callback(Result.success(YuchengCore.currentOrRememberedDevice()))
         } catch (e: Exception) {
             callback(Result.failure(e))
         }

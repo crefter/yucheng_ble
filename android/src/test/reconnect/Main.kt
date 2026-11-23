@@ -10,35 +10,39 @@ val mainDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 object Log { fun d(tag:String, value:String) {}; fun e(tag:String, value:String) {} }
 object Constants { object BLEState { const val Connected=6; const val ReadWriteOK=10 } }
 class Counter { var value=0L; fun fetchAndAdd(amount:Long):Long { val old=value; value+=amount; return old } }
-data class YuchengDevice(val index:Long, val deviceName:String?, val uuid:String?, val isReconnected:Boolean)
+data class YuchengDevice(val index:Long, val deviceName:String?, val uuid:String, val isReconnected:Boolean)
 class YuchengDeviceCompleteEvent(val completed:Boolean):YuchengDeviceEvent
 class YuchengDeviceTimeOutEvent(val isTimeout:Boolean):YuchengDeviceEvent
 interface YuchengDeviceEvent
 class YuchengDeviceDataEvent(val index:Long, val uuid:String?, val isReconnected:Boolean, val deviceName:String?):YuchengDeviceEvent
 class ScanDeviceBean(val deviceMac:String?=RING_A, val deviceName:String?="Ring", val device:Any?=Any())
+data class BluetoothDevice(val address: String)
+data class BluetoothGatt(val device: BluetoothDevice)
 object YCBTClient {
  var state=3; var boundMac:String?=RING_A; var failReconnect=false
+ var transportMac: () -> String? = { boundMac }
  val reconnectDevices=CopyOnWriteArrayList<String>()
  val reconnectCallbacks=CopyOnWriteArrayList<(Int)->Unit>()
  val scanCallbacks=CopyOnWriteArrayList<(Int,ScanDeviceBean)->Unit>()
  val connectCallbacks=CopyOnWriteArrayList<(Int)->Unit>()
  var scanActive=false; var stopScans=0
- fun getBindDeviceMac()=boundMac
+ fun getBindDeviceMac()=boundMac.orEmpty()
  fun getBindDeviceName()="Ring"
+ fun getGatt() = transportMac()?.let { BluetoothGatt(BluetoothDevice(it)) }
  fun connectState()=state
  fun reconnectDevice(mac:String, callback:(Int)->Unit) {
    if(failReconnect) throw IllegalStateException("SDK reconnect failure")
    reconnectDevices.add(mac); reconnectCallbacks.add(callback)
  }
  fun startScanBle(callback:(Int,ScanDeviceBean)->Unit, period:Int) { scanActive=true; scanCallbacks.add(callback) }
- fun connectBleDevice(device:Any, callback:(Int)->Unit) { connectCallbacks.add(callback) }
+ fun connectBleDevice(device:Any?, callback:(Int)->Unit) { connectCallbacks.add(callback) }
  fun stopScanBle() { scanActive=false; stopScans++ }
- fun reset() { state=3; boundMac=RING_A; failReconnect=false; reconnectDevices.clear(); reconnectCallbacks.clear(); scanCallbacks.clear(); connectCallbacks.clear(); scanActive=false; stopScans=0 }
+ fun reset() { state=3; boundMac=RING_A; transportMac={ boundMac }; failReconnect=false; reconnectDevices.clear(); reconnectCallbacks.clear(); scanCallbacks.clear(); connectCallbacks.clear(); scanActive=false; stopScans=0 }
 }
 var passed=0
 suspend fun eventually(body:()->Boolean) { withTimeout(500) { while(!body()) delay(1) } }
 suspend fun test(name:String, body:suspend CoroutineScope.()->Unit) = coroutineScope {
- YCBTClient.reset(); YuchengCore.connectState.value=3; YuchengCore.selectedDevice=null
+ YCBTClient.reset(); YuchengCore.connectState.value=3; YuchengCore.selectedDevice=null; YuchengCore.scannedDevices.clear()
  body()
  eventually { YuchengCore.connectState.subscriptionCount.value==0 }
  check(!YCBTClient.scanActive) { "scan leaked in $name" }
@@ -53,6 +57,79 @@ suspend fun startScanReconnect(scope:CoroutineScope, code:Int=1, events:MutableL
 }
 fun main() = runBlocking {
  try {
+  val host = ConnectionHost()
+  val ringA = YuchengDevice(1, "Ring A", RING_A, false)
+  val ringB = YuchengDevice(2, "Ring B", RING_B, false)
+  fun currentDevice(): YuchengDevice? {
+   var result: Result<YuchengDevice?>? = null
+   host.getCurrentConnectedDevice { result = it }
+   return checkNotNull(result).getOrThrow()
+  }
+  fun connected(device: YuchengDevice): Boolean {
+   var result: Result<Boolean>? = null
+   host.isDeviceConnected(device) { result = it }
+   return checkNotNull(result).getOrThrow()
+  }
+  test("failed_manual_connection_does_not_replace_the_live_ring") {
+   YCBTClient.state = Constants.BLEState.ReadWriteOK
+   YuchengCore.selectedDevice = ringA
+   check(!YuchengCore.connect(ringB, 1))
+   check(currentDevice()?.uuid == RING_A)
+   check(connected(ringA))
+   check(!connected(ringB))
+   check(!YuchengCore.connect(ringB, 1))
+  }
+  test("live_transport_wins_over_cached_selection_and_remembered_binding") {
+   YCBTClient.state = Constants.BLEState.ReadWriteOK
+   YCBTClient.boundMac = RING_B
+   YCBTClient.transportMac = { RING_A }
+   YuchengCore.selectedDevice = ringB
+   check(currentDevice()?.uuid == RING_A)
+   check(connected(ringA.copy(uuid = RING_A.lowercase())))
+   check(!connected(ringB))
+  }
+  test("remembered_binding_cannot_confirm_ready_without_live_transport") {
+   YCBTClient.state = Constants.BLEState.ReadWriteOK
+   YCBTClient.transportMac = { null }
+   check(currentDevice()?.uuid == RING_A)
+   check(!connected(ringA))
+  }
+  test("reconnect_checks_live_transport_when_remembered_binding_differs") {
+   YCBTClient.state = Constants.BLEState.ReadWriteOK
+   YCBTClient.boundMac = RING_B
+   YCBTClient.transportMac = { RING_A }
+   check(YuchengCore.reconnect(RING_A, 2))
+   check(YCBTClient.reconnectCallbacks.isEmpty())
+   val pending = async { YuchengCore.reconnect(RING_B, 2) }
+   eventually { YCBTClient.reconnectCallbacks.size == 1 }
+   withContext(mainDispatcher) { YCBTClient.reconnectCallbacks.single()(0) }
+   check(!pending.await())
+  }
+  test("manual_success_callback_cannot_confirm_another_live_ring") {
+   YCBTClient.state = Constants.BLEState.ReadWriteOK
+   YuchengCore.selectedDevice = ringA
+   YuchengCore.scannedDevices.add(ScanDeviceBean(deviceMac = RING_B))
+   val result = async { YuchengCore.connect(ringB, 3) }
+   eventually { YCBTClient.connectCallbacks.size == 1 }
+   withContext(mainDispatcher) { YCBTClient.connectCallbacks.single()(0) }
+   check(!result.await())
+   check(currentDevice()?.uuid == RING_A)
+   check(!connected(ringB))
+  }
+  test("manual_success_reports_the_new_live_ring") {
+   YuchengCore.scannedDevices.add(ScanDeviceBean(deviceMac = RING_B))
+   val result = async { YuchengCore.connect(ringB, 3) }
+   eventually { YCBTClient.connectCallbacks.size == 1 }
+   withContext(mainDispatcher) {
+    YCBTClient.state = Constants.BLEState.ReadWriteOK
+    YCBTClient.transportMac = { RING_B }
+    YCBTClient.connectCallbacks.single()(0)
+   }
+   check(result.await())
+   check(currentDevice()?.deviceName == ringB.deviceName)
+   check(connected(ringB))
+   check(!connected(ringA))
+  }
   test("connecting_state_five_is_inside_the_reconnect_deadline") {
    YCBTClient.state=5; YuchengCore.connectState.value=5
    val started=System.nanoTime()

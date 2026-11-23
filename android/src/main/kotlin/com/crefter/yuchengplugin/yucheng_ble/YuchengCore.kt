@@ -162,15 +162,11 @@ object YuchengCore {
     suspend fun connect(device: YuchengDevice, connectTimeInSeconds: Long): Boolean {
         Log.d(YUCHENG_API, "Start connect")
         val macAddress = device.uuid
-        if (selectedDevice?.uuid == macAddress && isConnected()) {
+        if (isConnectedTo(macAddress)) {
             return true
         }
-        selectedDevice = device
-        val bleDevice = scannedDevices.find { it.deviceMac == selectedDevice!!.uuid }
-        if (bleDevice == null) {
-            return false
-        }
-        val completer = CompletableDeferred<Boolean>()
+        val bleDevice = scannedDevices.find { it.deviceMac == macAddress } ?: return false
+        val completer = CompletableDeferred<Unit>()
         val state = YCBTClient.connectState()
         Log.d(YUCHENG_API, "Connect state = $state")
         withContext(Dispatchers.Main) {
@@ -178,20 +174,17 @@ object YuchengCore {
                 val state = YCBTClient.connectState()
                 Log.d(YUCHENG_API, "Connect state = $state")
                 if (code == 0) {
-                    Log.d(YUCHENG_API, "CONNECTED")
-                    val state = YCBTClient.connectState()
-                    val isConnected = isConnected()
-                    Log.d(YUCHENG_API, "connectState() == $state")
-                    if (!completer.isCompleted) completer.complete(isConnected)
+                    completer.complete(Unit)
                 }
             }
         }
 
-        val result = withTimeout(connectTimeInSeconds * 1000) {
+        withTimeout(connectTimeInSeconds * 1000) {
             completer.await()
         }
-
-        return result
+        if (!isConnectedTo(macAddress)) return false
+        selectedDevice = device
+        return true
     }
 
     suspend fun reconnect(
@@ -218,12 +211,9 @@ object YuchengCore {
         }
         synchronized(reconnectLock) {
             if (generation != reconnectGeneration) return@withTimeout false
-            val currentMac = YCBTClient.getBindDeviceMac()
-            if (currentMac != null && uuid.equals(currentMac, ignoreCase = true) && isConnected()) {
-                Log.d(YUCHENG_API, "UUID == BIND MAC and CONNECTED!")
-                val deviceName = YCBTClient.getBindDeviceName()
-                val ycDevice = YuchengDevice(deviceIndex.fetchAndAdd(1), deviceName, currentMac, true)
-                selectedDevice = ycDevice
+            val currentMac = connectedAddress()
+            if (currentMac != null && uuid.equals(currentMac, ignoreCase = true)) {
+                val ycDevice = deviceSnapshot(currentMac, YCBTClient.getBindDeviceMac(), true)
                 onDevice(
                     YuchengDeviceDataEvent(
                         ycDevice.index,
@@ -240,8 +230,7 @@ object YuchengCore {
         if (macAddress == null) {
             return@withTimeout false
         }
-        fun hasExpectedDevice(): Boolean =
-            YCBTClient.getBindDeviceMac()?.equals(macAddress, ignoreCase = true) == true
+        fun hasExpectedDevice(): Boolean = isConnectedTo(macAddress)
         coroutineScope {
             val jobAutoReconnect = launch(Dispatchers.Main) {
                 Log.e(YUCHENG_API, "reconnect: start auto reconnect (listen state)")
@@ -678,5 +667,30 @@ object YuchengCore {
         val state = YCBTClient.connectState()
         Log.d(YUCHENG_API, "isConnected(): CONNECT STATE = $state")
         return YCBTClient.connectState() >= 6
+    }
+
+    private fun connectedAddress(): String? =
+        YCBTClient.getGatt()?.device?.address?.takeIf { isConnected() }
+
+    fun isConnectedTo(address: String): Boolean =
+        connectedAddress()?.equals(address, ignoreCase = true) == true
+
+    fun currentOrRememberedDevice(): YuchengDevice? {
+        val connected = connectedAddress()
+        val remembered = YCBTClient.getBindDeviceMac()
+        val address = connected ?: remembered?.takeIf { it.isNotEmpty() } ?: return null
+        return deviceSnapshot(address, remembered, connected != null)
+    }
+
+    private fun deviceSnapshot(address: String, remembered: String?, connected: Boolean): YuchengDevice {
+        val cached = selectedDevice?.takeIf { address.equals(it.uuid, ignoreCase = true) }
+        val name = cached?.deviceName ?: if (address.equals(remembered, ignoreCase = true)) {
+            YCBTClient.getBindDeviceName()
+        } else {
+            ""
+        }
+        return YuchengDevice(
+            cached?.index ?: deviceIndex.fetchAndAdd(1), name, address, connected
+        ).also { selectedDevice = it }
     }
 }
