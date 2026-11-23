@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.crefter.yuchengplugin.yucheng_ble.YuchengCore
 import com.crefter.yuchengplugin.yucheng_ble.data.local.YuchengTokenStorage
-import com.crefter.yuchengplugin.yucheng_ble.data.local.strToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengAuthToken
 import com.crefter.yuchengplugin.yucheng_ble.entity.YuchengFlavor
 import kotlinx.coroutines.CoroutineScope
@@ -52,31 +51,21 @@ class YuchengTokenAuthenticator(
         }
         synchronized(lock) {
 
-            val currentToken = tokenStorage.getToken(flavor)?.access
-            if (currentToken == null) {
-                Log.e(TAG, "access token null")
-                return null
-            }
+            val credentials = tokenStorage.getToken(flavor) ?: return null
+            val currentToken = credentials.access
             val requestToken = response.request.header("Authorization")
 
 
             // если токен уже обновился пока мы ждали lock
             if (requestToken != "Bearer $currentToken") {
                 val requested = requestToken?.removePrefix("Bearer ") ?: return null
-                if (!sameAccount(requested, currentToken)) return null
+                if (!sameHistoryAccount(requested, currentToken)) return null
                 return response.request.newBuilder()
                     .header("Authorization", "Bearer $currentToken")
                     .build()
             }
 
-            val refreshToken = tokenStorage.getToken(flavor)?.refresh
-            Log.d(TAG, "refresh token = ${refreshToken.strToken()}")
-
-            if (refreshToken == null) {
-                Log.e(TAG, "refresh token null")
-                return null
-            }
-
+            val refreshToken = credentials.refresh
             Log.i(TAG, "start refreshing!")
             YuchengCore.isTokenRefreshing.value = true
             val newToken = try {
@@ -93,18 +82,6 @@ class YuchengTokenAuthenticator(
         }
     }
 
-    private fun sameAccount(first: String, second: String): Boolean {
-        fun subject(value: String): String? = try {
-            val payload = value.split('.')[1]
-            val json = JSONObject(String(android.util.Base64.decode(payload, android.util.Base64.URL_SAFE)))
-            listOf("uuid", "sub", "user_id", "userId").firstNotNullOfOrNull { key ->
-                if (json.has(key) && !json.isNull(key)) json.getString(key) else null
-            }
-        } catch (_: Exception) { null }
-        val id = subject(first)
-        return id != null && id == subject(second)
-    }
-
     fun refreshTokens(refreshToken: String?): YuchengAuthToken? {
         Log.e(TAG, "start refresh token")
         val client = ApiClient.getDefaultClient()
@@ -118,7 +95,6 @@ class YuchengTokenAuthenticator(
         val requestBody = body.toRequestBody("application/json".toMediaType())
         val baseUrl = apiConfig.authBaseUrl
         val url = "$baseUrl${YuchengApiConstants.refresh}"
-        Log.e(TAG, "refresh tokens: url = $url, refreshToken = ${refreshToken.strToken()}")
 
         val request = Request.Builder()
             .url(url)

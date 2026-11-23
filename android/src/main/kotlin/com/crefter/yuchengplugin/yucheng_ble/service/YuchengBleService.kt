@@ -1,5 +1,7 @@
 package com.crefter.yuchengplugin.yucheng_ble.service
 
+import com.yucheng.ycbtsdk.YCBTClient
+import com.crefter.yuchengplugin.yucheng_ble.YuchengBackgroundSleep
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -76,7 +78,8 @@ class YuchengBleService : Service() {
         val flavorString = YuchengCore.storage?.readFlavor() ?: return
         val flavor = YuchengFlavor.fromString(flavorString)
         Log.i(YUCH_TAG, "readData: flavor = $flavor")
-        val token = YuchengCore.tokenStorage?.getToken(flavor)
+        val tokenStorage = YuchengCore.tokenStorage ?: return
+        val token = tokenStorage.getToken(flavor)
         if (token == null) {
             YuchengDiagnostics.summary("background_read_skipped", "reason=missing_auth")
             if (tokenIsNullCount >= MAX_TOKEN_IS_NULL_COUNT) {
@@ -89,17 +92,23 @@ class YuchengBleService : Service() {
             return
         }
         tokenIsNullCount = 0
+        val config = YuchengApiConfig.fromFlavor(flavor)
+        val repo = YuchengRepository(ApiClient.forHistoryRead(tokenStorage, config, flavor, token.access), config)
+        val host = YuchengBackgroundSleep.begin
+        val address = YuchengCore.connectedAddress()
+        val transport = YCBTClient.getGatt()
+        val sink = address?.let { host?.invoke(config.sleepBaseUrl, it, token.access) }
         Log.i(YUCH_TAG, "Service: After reconnect::")
         Log.i(YUCH_TAG, "Service: Check internet connection")
         val hasInternet = YuchengInternetChecker.hasInternet(ApiClient.getClientForCheckInternet())
         Log.e(YUCH_TAG, "Service: internet connection is $hasInternet")
-        if (!hasInternet) {
+        if (!hasInternet && host == null) {
             YuchengDiagnostics.summary("background_read_skipped", "reason=no_network")
             return
         }
         val startEnd = StartEndTimestamp.service()
         Log.i(YUCH_TAG, "startEnd timestamp for service = $startEnd")
-        val sleepData = try {
+        val sleepData = if (host != null && sink == null) null else try {
             YuchengCore.getSleepData(
                 true, startTimestamp = startEnd.start, startEnd.end,
                 YuchengSleepDataConverter(gson!!)
@@ -110,6 +119,17 @@ class YuchengBleService : Service() {
             YuchengDiagnostics.summary("background_read_failed", "category=sleep")
             null
         }
+        if (sink != null && !sleepData.isNullOrEmpty() && transport != null &&
+            transport === YCBTClient.getGatt() && address != null && YuchengCore.isConnectedTo(address)) {
+            try {
+                sink(YuchengRepository.sleepBody(sleepData, Build.ID))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                YuchengDiagnostics.summary("background_stage_failed", "category=sleep_store")
+            }
+        }
+        if (!hasInternet) return
         val healthData = try {
             YuchengCore.getHealthSportData(
                 true, startEnd.start, startEnd.end,
@@ -121,29 +141,17 @@ class YuchengBleService : Service() {
             YuchengDiagnostics.summary("background_read_failed", "category=health_sport")
             null
         }
-        sendDataToServer(sleepData, healthData)
+        sendDataToServer(repo, if (host == null) sleepData else null, healthData)
         Log.i(YUCH_TAG, "READ DATA FROM SERVICE!!!")
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun sendDataToServer(
+        repo: YuchengRepository,
         sleepData: List<YuchengSleepData>?,
         healthData: YuchengHealthSportData?
     ) {
         Log.i(YUCH_TAG, "sendDataToServer")
-        val tokenStorage = YuchengCore.tokenStorage ?: return
-        val flavorString = YuchengCore.storage?.readFlavor() ?: return
-        val flavor = YuchengFlavor.fromString(flavorString)
-        Log.i(YUCH_TAG, "sendDataToServer: flavor = $flavor")
-        val apiConfig = YuchengApiConfig.fromFlavor(flavor)
-        Log.i(YUCH_TAG, "sendDataToServer: apiConfig = $apiConfig")
-        val repo = YuchengRepository(
-            ApiClient.getClient(
-                apiConfig = apiConfig,
-                tokenStorage = tokenStorage,
-                flavor = flavor,
-            ), apiConfig
-        )
         val id = Build.ID
 
         // Null means the read failed; successful empty reads still reach the backend.

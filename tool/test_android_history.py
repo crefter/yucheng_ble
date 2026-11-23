@@ -29,6 +29,8 @@ service = (source / 'service/YuchengBleService.kt').read_text()
 service = service[service.index('    @OptIn(FlowPreview::class)'):service.index('    @RequiresApi(Build.VERSION_CODES.O)\n    override fun onStartCommand')]
 service = service.replace('private suspend fun ', 'suspend fun ')
 repository = (source / 'data/remote/YuchengRepository.kt').read_text()
+body = repository[repository.index('        @RequiresApi', repository.index('private val gson = ')):repository.index('    }\n', repository.index('private val gson = '))]
+hook = (source / 'YuchengBackgroundSleep.kt').read_text().split('\n', 1)[1]
 repository = repository[repository.index('    @RequiresApi(Build.VERSION_CODES.O)\n    suspend fun saveSleep('):]
 api = (source / 'YuchengApiImpl.kt').read_text()
 deletes = api[api.index('    @OptIn(DelicateCoroutinesApi::class)\n    private suspend fun deleteData('):api.index('    @OptIn(DelicateCoroutinesApi::class)\n    override fun deleteAllData(')]
@@ -37,11 +39,13 @@ with tempfile.TemporaryDirectory(prefix='yucheng-android-history-') as temp:
     temp = Path(temp)
     safety = source / 'HistoryReadSafety.kt'
     safety_text = safety.read_text().split('\n', 1)[1] if safety.exists() else ''
-    (temp / 'Production.kt').write_text('import kotlinx.coroutines.*\nimport java.io.IOException\nimport java.util.concurrent.TimeoutException\nimport java.time.ZonedDateTime\nimport java.util.concurrent.atomic.AtomicBoolean\n' + safety_text + '''
+    (temp / 'Production.kt').write_text('import kotlinx.coroutines.*\nimport java.io.IOException\nimport java.util.concurrent.TimeoutException\nimport java.time.ZonedDateTime\nimport java.util.concurrent.atomic.AtomicBoolean\n' + safety_text + hook + '''
 object YuchengCore {
  const val YUCHENG_API="test"; const val GET_SLEEP_DATA="test"; const val GET_HEALTH_DATA="test"
  const val TIME_TO_TIMEOUT=1L
  var storage: Storage?=Storage(); var tokenStorage: TokenStorage?=TokenStorage()
+ fun connectedAddress()="ring"
+ fun isConnectedTo(address:String)=address=="ring"
  fun isConnected()=true
  suspend fun reconnect(unused: Any?, timeout: Int) {}
 ''' + methods + '''
@@ -53,9 +57,10 @@ class YuchengBleService {
  val YUCH_TAG="test"; var gson: Any?=Any(); var tokenIsNullCount=0
  val MAX_TOKEN_IS_NULL_COUNT=3; val STOP_FOREGROUND_REMOVE=1
  fun stopForeground(value: Int) {}; fun stopSelf() {}
-''' + service + '\n}\nclass ProductionRepository(val apiClient: OkHttpClient, val apiConfig: YuchengApiConfig) {\nval TAG_SLEEP="test"; val TAG_HEALTH="test"; val gson=GsonBuilder().create()\n' + repository)
+''' + service + '\n}\nclass ProductionRepository(val apiClient: OkHttpClient, val apiConfig: YuchengApiConfig) {\nval TAG_SLEEP="test"; val TAG_HEALTH="test"; companion object { val gson=GsonBuilder().create()\n' + body + '}\n' + repository)
     (temp / 'Main.kt').write_text((repo / 'android/src/test/history/Main.kt').read_text())
-    cp = ':'.join(map(str, [stdlib, coroutines, annotations]))
+    gson = next((cache / "com.google.code.gson/gson").glob("*/*/*.jar"))
+    cp = ':'.join(map(str, [stdlib, coroutines, annotations, gson]))
     subprocess.run([str(java), '-cp', ':'.join(map(str, compiler)), 'org.jetbrains.kotlin.cli.jvm.K2JVMCompiler',
                     '-no-stdlib', '-no-reflect', '-jvm-target', '17', '-classpath', cp,
                     str(temp / 'Production.kt'), str(temp / 'Main.kt'), '-d', str(temp / 'test.jar')], check=True)

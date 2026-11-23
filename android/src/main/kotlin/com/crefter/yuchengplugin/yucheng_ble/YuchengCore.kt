@@ -670,7 +670,7 @@ object YuchengCore {
         return state >= Constants.BLEState.Connected
     }
 
-    private fun connectedAddress(): String? {
+    internal fun connectedAddress(): String? {
         val transport = YCBTClient.getGatt() ?: return null
         if (!isConnected() || transport !== YCBTClient.getGatt()) return null
         return transport.device.address

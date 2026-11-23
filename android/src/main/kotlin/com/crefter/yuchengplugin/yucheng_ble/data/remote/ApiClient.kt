@@ -63,6 +63,16 @@ object ApiClient {
         }
     }
 
+    fun forHistoryRead(storage: YuchengTokenStorage, config: YuchengApiConfig, flavor: YuchengFlavor,
+                       bearerAtRead: String): OkHttpClient =
+        getClient(storage, config, flavor).newBuilder().addInterceptor { chain ->
+            val current = storage.getToken(flavor)?.access
+            if (current == null || !sameHistoryAccount(bearerAtRead, current)) {
+                throw java.io.IOException("Background history owner changed")
+            }
+            chain.proceed(chain.request().newBuilder().header("Authorization", "Bearer $current").build())
+        }.build()
+
     fun getDefaultClient() : OkHttpClient {
         return OkHttpClient()
     }
